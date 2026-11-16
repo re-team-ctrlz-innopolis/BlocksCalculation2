@@ -1,89 +1,49 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Конструктор Лего-Стен и Проёмов</title>
+    <title>Blocks Calculator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            user-select: none;
-            overflow: hidden;
-        }
-        /* Кастомные ползунки */
-        input[type="range"] {
-            accent-color: #3b82f6;
-        }
-        /* Скроллбар для правой панели */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #1e293b;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #475569;
-            border-radius: 3px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #64748b;
-        }
-    </style>
+    <link rel="stylesheet" href="./styles.css">
 </head>
+
 <body class="bg-slate-950 text-slate-100 h-screen w-screen flex flex-col">
 
     <!-- Верхняя панель управления -->
-    <header class="h-14 bg-slate-900 border-b border-slate-800 px-4 flex items-center justify-between shrink-0 z-20 shadow-md">
+    <header class="h-14 bg-slate-900 border-b border-slate-800 px-4 grid grid-cols-[1fr_auto_1fr] items-center shrink-0 z-20 shadow-md">
         <div class="flex items-center gap-3">
             <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shadow-inner shadow-blue-400/40">
-                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                </svg>
+                BC
             </div>
             <div>
-                <h1 class="font-bold text-sm sm:text-base tracking-tight flex items-center gap-2">
-                    LEGO Wall Конструктор
-                    <span class="text-[11px] font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">100 / 50 см</span>
+                <h1 class="font-bold text-sm text-slate-200 sm:text-base tracking-tight flex items-center gap-2">
+                    BlocksCalculator
                 </h1>
-                <p class="text-[11px] text-slate-400 hidden sm:block">Угловые (L) и Т-соединения (шаг 50 см) • Защита от пересечения проёмов</p>
             </div>
         </div>
 
         <!-- Действия -->
-        <div class="flex items-center gap-2">
-            <button id="btnAddWall" class="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-xs sm:text-sm font-medium px-3 py-2 rounded-lg flex items-center gap-1.5 shadow transition">
+        <div class="flex items-center gap-2 justify-self-center">
+            <button id="btnAddWall" class="bg-green-700 hover:bg-green-600 active:bg-green-800 text-slate-100 text-xs sm:text-sm font-medium px-3 py-2 rounded-lg flex items-center gap-1.5 shadow transition">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                <span>Добавить стену</span>
+                <span>ADD WALL</span>
             </button>
 
-            <button id="btnAddTWall" class="bg-cyan-600/90 hover:bg-cyan-500 text-white text-xs sm:text-sm font-medium px-3 py-2 rounded-lg flex items-center gap-1.5 shadow transition" title="Создать Т-примыкание к выбранной стене">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M12 6v14"/>
-                </svg>
-                <span class="hidden md:inline">Т-перегородка</span>
-            </button>
-
-            <button id="btnToggleRowView" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs sm:text-sm font-medium px-3 py-2 rounded-lg flex items-center gap-1.5 transition" title="Переключить отображение раскладки 1-го и 2-го ряда на чертеже">
+            <!-- <button id="btnToggleRowView" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs sm:text-sm font-medium px-3 py-2 rounded-lg flex items-center gap-1.5 transition" title="Switch between the first and second course on the plan">
                 <span class="w-2.5 h-2.5 rounded-full bg-amber-400" id="rowViewDot"></span>
-                <span id="rowViewText">План: 1-й ряд (нечёт)</span>
+                <span id="rowViewText">Plan: 1st course (odd)</span>
+            </button> -->
+
+            <button id="btnDemoHouse" class="bg-blue-600 hover:bg-blue-500 border border-blue-800 text-slate-100 text-xs sm:text-sm font-medium px-2.5 py-2 rounded-lg transition hidden lg:block" title="Create sample house; previous will be deleted">
+                OPEN A SAMPLE
             </button>
 
-            <label class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 px-2.5 py-2 rounded-lg cursor-pointer text-xs text-slate-200 transition" title="Магнитить концы стен к углам и к телу других стен (Т-узлы)">
-                <input type="checkbox" id="chkSnap" checked class="rounded text-blue-500 focus:ring-0">
-                <span>Магнит L/T (50 см)</span>
-            </label>
-
-            <button id="btnDemoHouse" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs px-2.5 py-2 rounded-lg transition hidden lg:block" title="Сбросить к примеру с Т-перегородкой">
-                Демо-дом
-            </button>
-
-            <button id="btnClearAll" class="bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/60 text-rose-200 text-xs px-2.5 py-2 rounded-lg transition" title="Очистить чертёж">
-                Очистить
+            <button id="btnClearAll" class="bg-rose-950 hover:bg-rose-900 border border-rose-950 text-slate-100 text-xs sm:text-sm font-medium px-2.5 py-2 rounded-lg transition" title="Clear the drawing">
+                CLEAR ALL
             </button>
         </div>
     </header>
@@ -98,26 +58,40 @@
             <div class="flex-1 relative overflow-hidden" id="canvasContainer">
                 <canvas id="planCanvas" class="block w-full h-full cursor-crosshair"></canvas>
 
+                <div class="absolute bottom-3 right-3 z-20 flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/95 p-1.5 shadow-lg pointer-events-auto">
+                    <button id="btnZoomOut" type="button" class="w-8 h-8 rounded bg-slate-800 hover:bg-slate-700 text-lg" aria-label="Zoom out" title="Zoom out">−</button>
+                    <span id="zoomLevel" class="w-12 text-center text-xs text-slate-200">100%</span>
+                    <button id="btnZoomIn" type="button" class="w-8 h-8 rounded bg-slate-800 hover:bg-slate-700 text-lg" aria-label="Zoom in" title="Zoom in">+</button>
+                    <button id="btnZoomReset" type="button" class="px-2 h-8 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-200" title="Reset zoom">Reset</button>
+                </div>
+
                 <!-- Легенда в углу холста -->
-                <div class="absolute top-3 left-3 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl p-2.5 text-[11px] text-slate-300 space-y-1.5 pointer-events-none shadow-lg">
-                    <div class="font-semibold text-slate-100 flex items-center gap-1.5">
-                        <span>Обозначения на плане:</span>
-                    </div>
+                <div class="absolute top-3 left-3 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl p-2.5 text-[12px] text-slate-300 space-y-1.5 pointer-events-none shadow-lg">
+                    <button id="btnToggleTips" type="button" aria-expanded="true" aria-controls="planTips" class="w-full font-semibold text-slate-100 flex items-center justify-between gap-3 text-left cursor-pointer pointer-events-auto">
+                        <span>Plan legend</span>
+                        <span id="tipsToggleIcon" aria-hidden="true">—</span>
+                    </button>
+                    <div id="planTips" class="space-y-1.5">
                     <div class="flex items-center gap-2">
                         <span class="w-4 h-2.5 rounded-sm bg-blue-600 inline-block border border-blue-300"></span>
-                        <span>Цельный блок <b>100 см</b> (основная кладка и углы)</span>
+                        <span>Full block <b>400 cm</b> (main wall and corners)</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block border border-amber-200"></span>
-                        <span>Половинчатый <b>50 см</b> (откосы проёмов / свободные торцы)</span>
+                        <span>Half block <b>198 cm</b> (opening reveals / free ends)</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-emerald-500/30 border border-emerald-400 inline-block"></span>
-                        <span><b>L-угол</b> (перевязка цельными блоками 100 см)</span>
+                        <span><b>L-joint</b> (corner bonded with full 400 cm blocks)</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-cyan-500/30 border border-cyan-400 inline-block"></span>
-                        <span><b>Т-стык</b> (к половине блока 50 см на клей/связь, чередование 50/100)</span>
+                        <span><b>T-joint</b> (joins to a 198 cm half-block; alternating bond pattern)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-4 h-2.5 rounded-sm bg-red-500 inline-block"></span>
+                        <span>Unfilled remainder</span>
+                    </div>
                     </div>
                 </div>
 
@@ -126,7 +100,7 @@
                     <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    <span id="toastText">Уведомление</span>
+                    <span id="toastText">Notification</span>
                 </div>
             </div>
 
@@ -134,13 +108,14 @@
             <div class="h-52 bg-slate-900 border-t border-slate-800 flex flex-col shrink-0 select-none">
                 <div class="px-4 py-1.5 border-b border-slate-800/80 flex items-center justify-between text-xs bg-slate-900/90">
                     <div class="flex items-center gap-2">
-                        <span class="font-semibold text-slate-200" id="elevationTitle">Развёртка Лего-кладки (вид сбоку по рядам)</span>
-                        <span class="text-slate-400 text-[11px]" id="elevationSubtitle">— выберите стену на плане</span>
+                        <span class="font-semibold text-slate-200" id="elevationTitle">Block layout (side view by courses)</span>
+                        <span class="text-slate-400 text-[11px]" id="elevationSubtitle">— select a wall on the plan</span>
                     </div>
                     <div class="flex items-center gap-4 text-[11px] text-slate-400">
-                        <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-blue-600 inline-block rounded-sm"></i> 100 см (цельный)</span>
-                        <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-amber-500 inline-block rounded-sm"></i> 50 см (у проёмов)</span>
-                        <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-slate-700 border border-emerald-400/70 inline-block rounded-sm"></i> Торцевой заход угла (50 см)</span>
+                        <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-blue-600 inline-block rounded-sm"></i> 400 cm (full)</span>
+                        <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-amber-500 inline-block rounded-sm"></i> 198 cm (half)</span>
+                        <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-red-500 inline-block rounded-sm"></i> Unfilled remainder</span>
+                        <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-slate-700 border border-emerald-400/70 inline-block rounded-sm"></i> Corner overlap (198 cm)</span>
                     </div>
                 </div>
                 <div class="flex-1 relative overflow-hidden">
@@ -159,16 +134,16 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
                         </svg>
-                        Калькулятор Лего-Блоков
+                        Block Calculator
                     </h2>
-                    <span class="text-[11px] text-slate-400" id="calcWallsCount">0 стен</span>
+                    <span class="text-[11px] text-slate-400" id="calcWallsCount">0 walls</span>
                 </div>
 
                 <!-- Высота всех стен в рядах -->
                 <div class="bg-slate-800/70 rounded-lg p-2.5 mb-3 border border-slate-700/60">
                     <div class="flex justify-between text-xs mb-1">
-                        <span class="text-slate-300 font-medium">Высота кладки (рядов):</span>
-                        <span class="font-bold text-white" id="valTotalRows">10 рядов</span>
+                        <span class="text-slate-300 font-medium">Wall height (courses):</span>
+                        <span class="font-bold text-white" id="valTotalRows">10 courses</span>
                     </div>
                     <input type="range" id="sliderTotalRows" min="2" max="20" step="1" value="10" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                 </div>
@@ -176,26 +151,27 @@
                 <!-- Карточки итогов -->
                 <div class="grid grid-cols-3 gap-2 mb-3">
                     <div class="bg-blue-950/50 border border-blue-700/50 rounded-xl p-2.5 text-center">
-                        <div class="text-[10px] text-blue-300 uppercase font-semibold">Цельные (100)</div>
+                        <div class="text-[10px] text-blue-300 uppercase font-semibold">Full blocks (400 cm)</div>
                         <div class="text-lg font-extrabold text-white mt-0.5" id="totFullBlocks">0</div>
-                        <div class="text-[10px] text-blue-400">шт.</div>
+                        <div class="text-[10px] text-blue-400">pcs.</div>
                     </div>
                     <div class="bg-amber-950/50 border border-amber-700/50 rounded-xl p-2.5 text-center">
-                        <div class="text-[10px] text-amber-300 uppercase font-semibold">Половинки (50)</div>
+                        <div class="text-[10px] text-amber-300 uppercase font-semibold">Half blocks (198 cm)</div>
                         <div class="text-lg font-extrabold text-white mt-0.5" id="totHalfBlocks">0</div>
-                        <div class="text-[10px] text-amber-400">шт.</div>
+                        <div class="text-[10px] text-amber-400">pcs.</div>
                     </div>
                     <div class="bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-center">
-                        <div class="text-[10px] text-slate-300 uppercase font-semibold">Всего блоков</div>
+                        <div class="text-[10px] text-slate-300 uppercase font-semibold">Total blocks</div>
                         <div class="text-lg font-extrabold text-emerald-400 mt-0.5" id="totAllBlocks">0</div>
-                        <div class="text-[10px] text-slate-400" id="totJointsBadge">0 стыков</div>
+                        <div class="text-[10px] text-slate-400" id="totJointsBadge">0 joints</div>
+                        <div class="text-[10px] text-red-300" id="totUnfilled">Remainder across courses: 0 cm</div>
                     </div>
                 </div>
 
                 <!-- Ведомость по стенам -->
                 <details class="group text-xs bg-slate-800/40 rounded-lg border border-slate-800 px-2.5 py-1.5">
                     <summary class="cursor-pointer font-medium text-slate-300 flex items-center justify-between">
-                        <span>Детализация по стенам и узлам</span>
+                        <span>Wall and joint details</span>
                         <span class="text-slate-500 group-open:rotate-180 transition">▼</span>
                     </summary>
                     <div id="wallsBreakdownList" class="mt-2 space-y-1.5 max-h-36 overflow-y-auto pr-1 text-[11px]"></div>
@@ -207,44 +183,44 @@
                 <svg class="w-10 h-10 mb-2 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
                 </svg>
-                <p class="text-sm font-medium text-slate-400">Стена не выбрана</p>
-                <p class="text-xs mt-1">Кликните по любой стене на чертеже, чтобы настроить её длину, угол, Т-примыкания и проёмы.</p>
+                <p class="text-sm font-medium text-slate-400">No wall selected</p>
+                <p class="text-xs mt-1">Select a wall on the plan to adjust its length, angle, T-joints, and openings.</p>
             </div>
 
             <div id="wallInspector" class="p-4 space-y-4 hidden flex-1">
                 <div class="flex items-center justify-between">
                     <div>
                         <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                            <span id="inspWallName">Стена #1</span>
+                            <span id="inspWallName">Wall #1</span>
                             <span id="inspWallBlocksBadge" class="text-[11px] font-medium bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700"></span>
                         </h3>
-                        <p class="text-[11px] text-slate-400" id="inspWallJointsInfo">Соединения: нет</p>
+                        <p class="text-[11px] text-slate-400" id="inspWallJointsInfo">Joints: none</p>
                     </div>
                     <button id="btnDeleteWall" class="text-xs bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/60 px-2.5 py-1.5 rounded-lg transition">
-                        Удалить стену
+                        Delete wall
                     </button>
                 </div>
 
-                <!-- Длина стены (шаг 50 см) -->
+                <!-- Wall length -->
                 <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-800 space-y-2">
                     <div class="flex justify-between items-center text-xs">
-                        <span class="text-slate-300 font-medium">Длина стены (шаг 50 см):</span>
-                        <span class="font-bold text-blue-400" id="valWallLength">400 см</span>
+                        <span class="text-slate-300 font-medium">Wall length (2 cm increments):</span>
+                        <span class="font-bold text-blue-400" id="valWallLength">400 cm</span>
                     </div>
-                    <input type="range" id="sliderWallLength" min="100" max="1200" step="50" value="400" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                    <input type="range" id="sliderWallLength" min="198" max="4800" step="2" value="400" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                     <div class="flex justify-between text-[10px] text-slate-400">
-                        <span id="lblMinWallLen">Мин: 100 см</span>
-                        <span>1 ряд: <b id="lblRow1Summary" class="text-slate-200"></b></span>
+                        <span id="lblMinWallLen">Min: 198 cm</span>
+                        <span>Course 1: <b id="lblRow1Summary" class="text-slate-200"></b></span>
                     </div>
                 </div>
 
                 <!-- Угол поворота стены -->
                 <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-800 space-y-2">
                     <div class="flex justify-between items-center text-xs">
-                        <span class="text-slate-300 font-medium">Угол поворота:</span>
+                        <span class="text-slate-300 font-medium">Rotation angle:</span>
                         <span class="font-bold text-amber-400" id="valWallAngle">0°</span>
                     </div>
-                    <input type="range" id="sliderWallAngle" min="-180" max="180" step="1" value="0" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                    <input type="range" id="sliderWallAngle" min="-180" max="180" step="90" value="0" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                     <div class="grid grid-cols-4 gap-1.5 pt-1">
                         <button data-angle="0" class="quick-angle-btn text-[11px] bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded py-1 text-slate-300">0°</button>
                         <button data-angle="90" class="quick-angle-btn text-[11px] bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded py-1 text-slate-300">90°</button>
@@ -257,11 +233,11 @@
                 <div class="border-t border-slate-800 pt-3 space-y-3">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-300">Проёмы в стене</h4>
-                            <p class="text-[10px] text-slate-400">Не накладываются • Откосы из блоков 50 см</p>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-300">Wall openings</h4>
+                            <p class="text-[10px] text-slate-400">Non-overlapping • 198 cm minimum opening</p>
                         </div>
                         <button id="btnAddOpening" class="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:border-slate-700 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition shadow">
-                            <span>+ Проём</span>
+                            <span>+ Opening</span>
                         </button>
                     </div>
 
@@ -271,51 +247,51 @@
                     <!-- Редактор выбранного проёма -->
                     <div id="openingEditor" class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 space-y-3 hidden">
                         <div class="flex items-center justify-between">
-                            <span class="text-xs font-semibold text-white" id="openingEditorTitle">Настройка проёма</span>
-                            <button id="btnDeleteOpening" class="text-[11px] text-rose-400 hover:text-rose-300 underline">Удалить</button>
+                            <span class="text-xs font-semibold text-white" id="openingEditorTitle">Opening settings</span>
+                            <button id="btnDeleteOpening" class="text-[11px] text-rose-400 hover:text-rose-300 underline">Delete</button>
                         </div>
 
                         <!-- Тип проёма -->
                         <div class="grid grid-cols-3 gap-1.5">
-                            <button data-optype="window" class="opening-type-btn text-xs py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 font-medium">Окно</button>
-                            <button data-optype="door" class="opening-type-btn text-xs py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 font-medium">Дверь</button>
-                            <button data-optype="arch" class="opening-type-btn text-xs py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 font-medium">Арка</button>
+                            <button data-optype="window" class="opening-type-btn text-xs py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 font-medium">Window</button>
+                            <button data-optype="door" class="opening-type-btn text-xs py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 font-medium">Door</button>
+                            <button data-optype="arch" class="opening-type-btn text-xs py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 font-medium">Arch</button>
                         </div>
 
                         <!-- Отступ от начала стены -->
                         <div>
                             <div class="flex justify-between text-xs mb-1">
-                                <span class="text-slate-300">Положение (от начала):</span>
-                                <span class="font-bold text-amber-400" id="valOpeningOffset">100 см</span>
+                                <span class="text-slate-300">Position from start:</span>
+                                <span class="font-bold text-amber-400" id="valOpeningOffset">400 cm</span>
                             </div>
-                            <input type="range" id="sliderOpeningOffset" min="50" max="300" step="50" value="100" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                            <input type="range" id="sliderOpeningOffset" min="198" max="2400" step="2" value="400" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                             <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
-                                <span id="lblOpMinOffset">Мин: 50 см</span>
-                                <span id="lblOpMaxOffset">Макс: 300 см</span>
+                                <span id="lblOpMinOffset">Min: 198 cm</span>
+                                <span id="lblOpMaxOffset">Max: 2400 cm</span>
                             </div>
                         </div>
 
                         <!-- Длина (ширина) проёма -->
                         <div>
                             <div class="flex justify-between text-xs mb-1">
-                                <span class="text-slate-300">Ширина проёма:</span>
-                                <span class="font-bold text-emerald-400" id="valOpeningLength">100 см</span>
+                                <span class="text-slate-300">Opening width:</span>
+                                <span class="font-bold text-emerald-400" id="valOpeningLength">400 cm</span>
                             </div>
-                            <input type="range" id="sliderOpeningLength" min="50" max="300" step="50" value="100" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                            <input type="range" id="sliderOpeningLength" min="198" max="2400" step="2" value="400" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                         </div>
 
                         <!-- Ряды по высоте (для расчёта блоков) -->
                         <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-700/70">
                             <div>
                                 <div class="flex justify-between text-[11px] mb-1">
-                                    <span class="text-slate-400">Начало (ряд):</span>
+                                    <span class="text-slate-400">Start course:</span>
                                     <b class="text-slate-200" id="valOpStartRow">1</b>
                                 </div>
                                 <input type="range" id="sliderOpStartRow" min="1" max="10" step="1" value="1" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                             </div>
                             <div>
                                 <div class="flex justify-between text-[11px] mb-1">
-                                    <span class="text-slate-400">Высота (рядов):</span>
+                                    <span class="text-slate-400">Height (courses):</span>
                                     <b class="text-slate-200" id="valOpRowCount">7</b>
                                 </div>
                                 <input type="range" id="sliderOpRowCount" min="1" max="10" step="1" value="7" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
@@ -327,1951 +303,14 @@
         </aside>
     </div>
 
-    <script>
-        // =========================================================================
-        // КОНСТАНТЫ И ГЛОБАЛЬНОЕ СОСТОЯНИЕ
-        // =========================================================================
-        const FULL_BLOCK_CM = 100;
-        const HALF_BLOCK_CM = 50;
-        const PX_PER_CM = 0.5; // 100 см = 50 px, 50 см = 25 px
-        const FULL_BLOCK_PX = FULL_BLOCK_CM * PX_PER_CM; // 50 px
-        const HALF_BLOCK_PX = HALF_BLOCK_CM * PX_PER_CM; // 25 px
-        const WALL_THICKNESS = HALF_BLOCK_PX; // Толщина стены = 50 см (25 px)
-        const ENDPOINT_RADIUS = 7;
-        const SNAP_RADIUS = 22;
-        const MIN_WALL_CM = 100;
-        const MAX_WALL_CM = 1200;
 
-        const canvas = document.getElementById('planCanvas');
-        const ctx = canvas.getContext('2d');
-        const elevCanvas = document.getElementById('elevationCanvas');
-        const elevCtx = elevCanvas.getContext('2d');
-
-        let walls = [];
-        let selectedWallId = null;
-        let selectedOpeningId = null;
-        let nextId = 1;
-        let totalWallRows = 10;
-        let activePlanRow = 1; // 1-й (нечётный) или 2-й (чётный) ряд для показа на 2D плане
-        let snapEndpointsEnabled = true;
-        let dragState = null;
-        let activeSnapPreview = null;
-
-        // =========================================================================
-        // БАЗОВАЯ ГЕОМЕТРИЯ И МОДУЛЬНАЯ СЕТКА (50 СМ / 100 СМ)
-        // =========================================================================
-        function dist(x1, y1, x2, y2) {
-            return Math.hypot(x2 - x1, y2 - y1);
-        }
-
-        function clamp(val, min, max) {
-            return Math.max(min, Math.min(max, val));
-        }
-
-        function cmToPx(cm) {
-            return cm * PX_PER_CM;
-        }
-
-        function pxToCm(px) {
-            return px / PX_PER_CM;
-        }
-
-        function snapCmTo50(cm) {
-            return Math.round(cm / HALF_BLOCK_CM) * HALF_BLOCK_CM;
-        }
-
-        function getWallLength(w) {
-            return dist(w.x1, w.y1, w.x2, w.y2);
-        }
-
-        function getWallLengthCm(w) {
-            return Math.max(MIN_WALL_CM, snapCmTo50(pxToCm(getWallLength(w))));
-        }
-
-        function getWallAngleRad(w) {
-            return Math.atan2(w.y2 - w.y1, w.x2 - w.x1);
-        }
-
-        function getWallAngleDeg(w) {
-            return Math.round(getWallAngleRad(w) * 180 / Math.PI);
-        }
-
-        function getWallCenter(w) {
-            return { x: (w.x1 + w.x2) / 2, y: (w.y1 + w.y2) / 2 };
-        }
-
-        function worldToWallLocal(w, wx, wy) {
-            const dx = wx - w.x1;
-            const dy = wy - w.y1;
-            const angle = getWallAngleRad(w);
-            const cos = Math.cos(-angle);
-            const sin = Math.sin(-angle);
-            return {
-                along: dx * cos - dy * sin,
-                perp: dx * sin + dy * cos
-            };
-        }
-
-        function wallLocalToWorld(w, along, perp) {
-            const angle = getWallAngleRad(w);
-            const cos = Math.cos(angle);
-            const sin = Math.sin(angle);
-            return {
-                x: w.x1 + along * cos - perp * sin,
-                y: w.y1 + along * sin + perp * cos
-            };
-        }
-
-        function getRotateHandlePos(w) {
-            const len = getWallLength(w);
-            return wallLocalToWorld(w, len / 2, -WALL_THICKNESS / 2 - 26);
-        }
-
-        // Границы проёма в сантиметрах (кратные 50 см)
-        function getOpeningBoundsCm(op) {
-            const lenCm = Math.max(HALF_BLOCK_CM, snapCmTo50(pxToCm(op.length)));
-            const startCm = Math.max(HALF_BLOCK_CM, snapCmTo50(pxToCm(op.offset - op.length / 2)));
-            return { startCm, endCm: startCm + lenCm, lenCm };
-        }
-
-        function setOpeningBoundsCm(op, startCm, lenCm) {
-            const s = snapCmTo50(startCm);
-            const l = Math.max(HALF_BLOCK_CM, snapCmTo50(lenCm));
-            op.length = cmToPx(l);
-            op.offset = cmToPx(s + l / 2);
-        }
-
-        // Коридор допустимого положения проёма между соседними проёмами (запрет наложения)
-        function getOpeningLimitsCm(wall, targetOp) {
-            const wallLenCm = getWallLengthCm(wall);
-            const sorted = [...wall.openings].sort((a, b) => a.offset - b.offset);
-            const idx = sorted.findIndex(o => o.id === targetOp.id);
-
-            let minCm = HALF_BLOCK_CM;
-            let maxCm = wallLenCm - HALF_BLOCK_CM;
-
-            if (idx > 0) {
-                const prev = getOpeningBoundsCm(sorted[idx - 1]);
-                minCm = prev.endCm;
-            }
-            if (idx !== -1 && idx < sorted.length - 1) {
-                const next = getOpeningBoundsCm(sorted[idx + 1]);
-                maxCm = next.startCm;
-            }
-            return { minCm, maxCm };
-        }
-
-        function clampWallOpenings(wall) {
-            const wallLenCm = getWallLengthCm(wall);
-            wall.openings.sort((a, b) => a.offset - b.offset);
-            let cursorCm = HALF_BLOCK_CM;
-
-            for (let i = 0; i < wall.openings.length; i++) {
-                const op = wall.openings[i];
-                const remainingOps = wall.openings.length - 1 - i;
-                const maxEndForThis = wallLenCm - HALF_BLOCK_CM - remainingOps * HALF_BLOCK_CM;
-                let { startCm, lenCm } = getOpeningBoundsCm(op);
-
-                startCm = clamp(startCm, cursorCm, Math.max(cursorCm, maxEndForThis - HALF_BLOCK_CM));
-                lenCm = clamp(lenCm, HALF_BLOCK_CM, Math.max(HALF_BLOCK_CM, maxEndForThis - startCm));
-
-                setOpeningBoundsCm(op, startCm, lenCm);
-                op.startRow = clamp(op.startRow || 1, 1, totalWallRows);
-                op.rowCount = clamp(op.rowCount || 4, 1, totalWallRows - op.startRow + 1);
-                cursorCm = startCm + lenCm;
-            }
-        }
-
-        function findFreeSlotForOpening(wall, desiredLenCm = 100) {
-            const wallLenCm = getWallLengthCm(wall);
-            const sorted = [...wall.openings]
-                .map(op => getOpeningBoundsCm(op))
-                .sort((a, b) => a.startCm - b.startCm);
-
-            const gaps = [];
-            let cursor = HALF_BLOCK_CM;
-            for (const b of sorted) {
-                if (b.startCm > cursor) {
-                    gaps.push({ startCm: cursor, freeCm: b.startCm - cursor });
-                }
-                cursor = Math.max(cursor, b.endCm);
-            }
-            if (wallLenCm - HALF_BLOCK_CM > cursor) {
-                gaps.push({ startCm: cursor, freeCm: (wallLenCm - HALF_BLOCK_CM) - cursor });
-            }
-
-            const bestGap = gaps.find(g => g.freeCm >= desiredLenCm) || gaps.find(g => g.freeCm >= HALF_BLOCK_CM);
-            if (!bestGap) return null;
-
-            const actualLenCm = Math.min(desiredLenCm, snapCmTo50(bestGap.freeCm));
-            const startCm = snapCmTo50(bestGap.startCm + Math.floor((bestGap.freeCm - actualLenCm) / (2 * HALF_BLOCK_CM)) * HALF_BLOCK_CM);
-            return { startCm, lenCm: actualLenCm };
-        }
-
-        function getMinAllowedWallLengthCm(wall) {
-            if (!wall.openings || wall.openings.length === 0) return MIN_WALL_CM;
-            const totalOpeningsCm = wall.openings.reduce((acc, op) => acc + getOpeningBoundsCm(op).lenCm, 0);
-            return Math.max(MIN_WALL_CM, totalOpeningsCm + HALF_BLOCK_CM * 2);
-        }
-
-        function setWallLengthFromCenter(wall, newLenCm) {
-            const minAllowed = getMinAllowedWallLengthCm(wall);
-            const clampedCm = clamp(snapCmTo50(newLenCm), minAllowed, MAX_WALL_CM);
-            const newLenPx = cmToPx(clampedCm);
-            const center = getWallCenter(wall);
-            const angle = getWallAngleRad(wall);
-            const half = newLenPx / 2;
-
-            wall.x1 = center.x - Math.cos(angle) * half;
-            wall.y1 = center.y - Math.sin(angle) * half;
-            wall.x2 = center.x + Math.cos(angle) * half;
-            wall.y2 = center.y + Math.sin(angle) * half;
-            clampWallOpenings(wall);
-        }
-
-        function setWallAngleFromCenter(wall, angleDeg) {
-            const angleRad = angleDeg * Math.PI / 180;
-            const lenPx = cmToPx(getWallLengthCm(wall));
-            const center = getWallCenter(wall);
-            const half = lenPx / 2;
-
-            wall.x1 = center.x - Math.cos(angleRad) * half;
-            wall.y1 = center.y - Math.sin(angleRad) * half;
-            wall.x2 = center.x + Math.cos(angleRad) * half;
-            wall.y2 = center.y + Math.sin(angleRad) * half;
-        }
-
-        // =========================================================================
-        // МАГНИТНЫЕ СОЕДИНЕНИЯ: УГЛОВЫЕ (L) И Т-ОБРАЗНЫЕ (К ПОЛОВИНЕ БЛОКА 50 СМ)
-        // =========================================================================
-        // Пояснение геометрии Т-стыка (по фото):
-        // Ширина примыкающей стены = 50 см (1/2 длины цельного блока).
-        // Чтобы примыкающая стена клеилась ровно к одной половине (одной секции 50 см) блока основной стены
-        // (например, занимала участок [200..250 см] или [250..300 см], а не садилась центром на шов 300 см),
-        // центральная ось примыкающей стены должна попадать в центр 50-сантиметрового модуля:
-        // 25 см, 75 см, 125 см, 175 см, 225 см, 275 см... (то есть k * 50 + 25 см).
-        function snapToHalfBlockCellCenterCm(rawAlongCm, wallLenCm) {
-            // Не позволяем Т-стыку залезать на угловые 50 см по краям стены (минимум от 50 до wallLenCm - 50)
-            const minCellStartCm = HALF_BLOCK_CM;
-            const maxCellStartCm = Math.max(HALF_BLOCK_CM, wallLenCm - FULL_BLOCK_CM);
-            const rawCellStartCm = Math.round((rawAlongCm - HALF_BLOCK_CM / 2) / HALF_BLOCK_CM) * HALF_BLOCK_CM;
-            const cellStartCm = clamp(rawCellStartCm, minCellStartCm, maxCellStartCm);
-            return {
-                centerCm: cellStartCm + HALF_BLOCK_CM / 2, // Центр половинки блока (25, 75, 125...)
-                cellStartCm,                               // Начало половинки блока (0, 50, 100...)
-                cellEndCm: cellStartCm + HALF_BLOCK_CM     // Конец половинки блока (50, 100, 150...)
-            };
-        }
-
-        function findSnapPoint(x, y, excludeWallId) {
-            if (!snapEndpointsEnabled) return null;
-            let best = null;
-            let minDist = SNAP_RADIUS;
-
-            for (const w of walls) {
-                if (w.id === excludeWallId) continue;
-
-                // 1. Угловые L-соединения (конец-в-конец)
-                const d1 = dist(x, y, w.x1, w.y1);
-                if (d1 < minDist) {
-                    minDist = d1;
-                    best = {
-                        x: w.x1,
-                        y: w.y1,
-                        wallId: w.id,
-                        type: 'L',
-                        offsetCm: 0
-                    };
-                }
-                const d2 = dist(x, y, w.x2, w.y2);
-                if (d2 < minDist) {
-                    minDist = d2;
-                    best = {
-                        x: w.x2,
-                        y: w.y2,
-                        wallId: w.id,
-                        type: 'L',
-                        offsetCm: getWallLengthCm(w)
-                    };
-                }
-
-                // 2. Т-образные соединения: привязка строго к одной половине блока (ячейке 50 см) основной стены
-                const lenPx = getWallLength(w);
-                const lenCm = getWallLengthCm(w);
-                if (lenCm >= FULL_BLOCK_CM * 2) {
-                    const loc = worldToWallLocal(w, x, y);
-                    if (loc.along > HALF_BLOCK_PX * 0.5 && loc.along < lenPx - HALF_BLOCK_PX * 0.5 && Math.abs(loc.perp) < SNAP_RADIUS) {
-                        const cell = snapToHalfBlockCellCenterCm(pxToCm(loc.along), lenCm);
-                        const snappedAlongPx = cmToPx(cell.centerCm);
-                        const pt = wallLocalToWorld(w, snappedAlongPx, 0);
-                        const dp = dist(x, y, pt.x, pt.y);
-                        if (dp < minDist) {
-                            minDist = dp;
-                            best = {
-                                x: pt.x,
-                                y: pt.y,
-                                wallId: w.id,
-                                type: 'T',
-                                offsetCm: cell.centerCm,
-                                cellStartCm: cell.cellStartCm,
-                                cellEndCm: cell.cellEndCm
-                            };
-                        }
-                    }
-                }
-            }
-            return best;
-        }
-
-        // Анализ всех активных соединений (L и T) на чертеже
-        function getAllWallJoints() {
-            const joints = [];
-            const eps = 2.0;
-
-            for (let i = 0; i < walls.length; i++) {
-                const a = walls[i];
-                const endpointsA = [
-                    { x: a.x1, y: a.y1, endName: 'start' },
-                    { x: a.x2, y: a.y2, endName: 'end' }
-                ];
-
-                for (const ep of endpointsA) {
-                    for (let j = 0; j < walls.length; j++) {
-                        if (i === j) continue;
-                        const b = walls[j];
-
-                        // Проверка L-соединения (конец-в-конец)
-                        const matchBStart = dist(ep.x, ep.y, b.x1, b.y1) <= eps;
-                        const matchBEnd = dist(ep.x, ep.y, b.x2, b.y2) <= eps;
-
-                        if (matchBStart || matchBEnd) {
-                            if (!joints.some(jt => jt.type === 'L' && dist(jt.x, jt.y, ep.x, ep.y) <= eps)) {
-                                const firstIsPrimary = a.id < b.id;
-                                joints.push({
-                                    type: 'L',
-                                    x: ep.x,
-                                    y: ep.y,
-                                    wallA: firstIsPrimary ? a.id : b.id,
-                                    endA: firstIsPrimary ? ep.endName : (matchBStart ? 'start' : 'end'),
-                                    wallB: firstIsPrimary ? b.id : a.id,
-                                    endB: firstIsPrimary ? (matchBStart ? 'start' : 'end') : ep.endName
-                                });
-                            }
-                        } else {
-                            // Проверка Т-соединения (конец стены A приклеен к одной половине блока стены B)
-                            const lenB = getWallLength(b);
-                            const lenBCm = getWallLengthCm(b);
-                            if (lenB > 0) {
-                                const loc = worldToWallLocal(b, ep.x, ep.y);
-                                if (loc.along >= HALF_BLOCK_PX - eps && loc.along <= lenB - HALF_BLOCK_PX + eps && Math.abs(loc.perp) <= eps) {
-                                    const cell = snapToHalfBlockCellCenterCm(pxToCm(loc.along), lenBCm);
-                                    if (!joints.some(jt => jt.type === 'T' && jt.hostWallId === b.id && Math.abs(jt.offsetCm - cell.centerCm) < 10 && jt.branchWallId === a.id)) {
-                                        joints.push({
-                                            type: 'T',
-                                            x: ep.x,
-                                            y: ep.y,
-                                            hostWallId: b.id,
-                                            branchWallId: a.id,
-                                            branchEnd: ep.endName,
-                                            offsetCm: cell.centerCm,
-                                            cellStartCm: cell.cellStartCm,
-                                            cellEndCm: cell.cellEndCm
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            return joints;
-        }
-
-        // Определяет, как работают концы стены (start и end) в конкретном ряду rowIndex:
-        // При угловом L-соединении (как на фото с бетонными Лего-блоками 100х50 см):
-        // - В одном ряду стена доходит прямо до края угла (0 см) ЦЕЛЬНЫМ блоком 100 см.
-        // - В следующем ряду сам угол (первые 50 см — ширина перпендикулярного блока) занят
-        //   цельным блоком соседней стены, поэтому текущая стена отступает на 50 см и ТОЖЕ начинается с ЦЕЛЬНОГО блока 100 см!
-        // Благодаря этому:
-        // 1) На углах используются только цельные блоки (100 см), которые чередуются по рядам.
-        // 2) Внутренние швы стены автоматически сдвигаются на 50 см между чётными и нечётными рядами (перевязка).
-        function getWallEndCornerState(wall, rowIndex, allJoints) {
-            const isOddRow = (rowIndex % 2 === 1);
-            const state = {
-                startConnected: false,
-                startIsLCorner: false,
-                startIsTButt: false,
-                startInsetCm: 0,      // 0 см (блок заходит в угол) или 50 см (угол занят перпендикулярной стеной)
-                startPartnerWallId: null,
-                endConnected: false,
-                endIsLCorner: false,
-                endIsTButt: false,
-                endInsetCm: 0,
-                endPartnerWallId: null
-            };
-
-            for (const jt of allJoints) {
-                if (jt.type === 'L') {
-                    if (jt.wallA === wall.id) {
-                        // wallA занимает угол в нечётных рядах (отступ 0), а в чётных уступает угол стене B (отступ 50 см)
-                        const inset = isOddRow ? 0 : HALF_BLOCK_CM;
-                        if (jt.endA === 'start') {
-                            state.startConnected = true;
-                            state.startIsLCorner = true;
-                            state.startInsetCm = inset;
-                            state.startPartnerWallId = jt.wallB;
-                        } else {
-                            state.endConnected = true;
-                            state.endIsLCorner = true;
-                            state.endInsetCm = inset;
-                            state.endPartnerWallId = jt.wallB;
-                        }
-                    } else if (jt.wallB === wall.id) {
-                        // wallB уступает угол в нечётных рядах (отступ 50 см), а в чётных сама заходит в угол (отступ 0)
-                        const inset = isOddRow ? HALF_BLOCK_CM : 0;
-                        if (jt.endB === 'start') {
-                            state.startConnected = true;
-                            state.startIsLCorner = true;
-                            state.startInsetCm = inset;
-                            state.startPartnerWallId = jt.wallA;
-                        } else {
-                            state.endConnected = true;
-                            state.endIsLCorner = true;
-                            state.endInsetCm = inset;
-                            state.endPartnerWallId = jt.wallA;
-                        }
-                    }
-                } else if (jt.type === 'T' && jt.branchWallId === wall.id) {
-                    // В Т-соединении примыкающая перегородка НЕ образует перевязанный угол с основной стеной,
-                    // а крепится к её боковой грани встык ("на клей") с использованием половинчатых блоков для перевязки рядов
-                    if (jt.branchEnd === 'start') {
-                        state.startConnected = true;
-                        state.startIsTButt = true;
-                        state.startInsetCm = 0;
-                        state.startPartnerWallId = jt.hostWallId;
-                    } else {
-                        state.endConnected = true;
-                        state.endIsTButt = true;
-                        state.endInsetCm = 0;
-                        state.endPartnerWallId = jt.hostWallId;
-                    }
-                }
-            }
-            return state;
-        }
-
-        // =========================================================================
-        // АЛГОРИТМ РАСКЛАДКИ ЛЕГО-БЛОКОВ (УГЛЫ ИЗ ЦЕЛЬНЫХ БЛОКОВ + ПОЛОВИНКИ У ПРОЁМОВ И Т-СТЫКОВ)
-        // =========================================================================
-
-        // Раскладывает сплошной участок стены [startCm, endCm] на блоки 100 см и 50 см с заданной фазой швов seamPhase (0 или 50).
-        function decomposeSegmentIntoBlocks(startCm, endCm, seamPhase) {
-            const blocks = [];
-            const segLen = endCm - startCm;
-            if (segLen < HALF_BLOCK_CM) return blocks;
-
-            // Если весь простенок равен 50 см — помещается один половинчатый блок
-            if (segLen === HALF_BLOCK_CM) {
-                blocks.push({ startCm, lenCm: HALF_BLOCK_CM, kind: 'half' });
-                return blocks;
-            }
-
-            let curStart = startCm;
-            const curEnd = endCm;
-
-            // 1. Если начало сегмента не совпадает с фазой сетки швов (например, у откоса проёма или свободного торца),
-            // ставим один половинчатый блок (50 см), чтобы выйти на сетку цельных блоков.
-            // При этом в угловом L-соединении curStart ВСЕГДА совпадает с seamPhase (0 в одном ряду и 50 в другом),
-            // поэтому на углах всегда укладывается ЦЕЛЬНЫЙ блок (100 см)!
-            if ((curStart % FULL_BLOCK_CM) !== seamPhase) {
-                blocks.push({
-                    startCm: curStart,
-                    lenCm: HALF_BLOCK_CM,
-                    kind: 'half'
-                });
-                curStart += HALF_BLOCK_CM;
-            }
-
-            // 2. Заполняем тело сегмента цельными блоками по 100 см
-            while (curEnd - curStart >= FULL_BLOCK_CM) {
-                blocks.push({
-                    startCm: curStart,
-                    lenCm: FULL_BLOCK_CM,
-                    kind: 'full'
-                });
-                curStart += FULL_BLOCK_CM;
-            }
-
-            // 3. Если в конце сегмента (у проёма или на втором конце) остался шаг 50 см — замыкаем половинкой
-            if (curEnd - curStart === HALF_BLOCK_CM) {
-                blocks.push({
-                    startCm: curStart,
-                    lenCm: HALF_BLOCK_CM,
-                    kind: 'half'
-                });
-            }
-
-            return blocks;
-        }
-
-        // Строит полную раскладку одного ряда стены (rowIndex от 1 до totalWallRows)
-        // с учётом чередования цельных блоков в углах и проёмов
-        function buildWallRowLayout(wall, rowIndex, precomputedJoints = null) {
-            const wallLenCm = getWallLengthCm(wall);
-            const allJoints = precomputedJoints || getAllWallJoints();
-            const cornerState = getWallEndCornerState(wall, rowIndex, allJoints);
-
-            // Реальные границы кладки текущей стены в данном ряду с учётом угловой перевязки:
-            // Если в этом ряду угол занят перпендикулярной стеной, кладка начинается с 50 см (сразу за боковой гранью углового блока)
-            const rowStartCm = cornerState.startInsetCm;
-            const rowEndCm = Math.max(rowStartCm, wallLenCm - cornerState.endInsetCm);
-
-            // Выбираем фазу швов (0 или 50 см):
-            // - Для углового L-соединения (startIsLCorner / endIsLCorner) фаза подбирается так,
-            //   чтобы от угла всегда шёл ЦЕЛЬНЫЙ блок (100 см).
-            // - Для Т-соединения (примыкание встык на клей) или свободного торца фаза чередуется (0 и 50 см),
-            //   благодаря чему у Т-стыка ряды перевязываются с помощью половинчатых блоков (50 см) без врезки в основную стену.
-            let seamPhase;
-            if (cornerState.startIsLCorner) {
-                seamPhase = rowStartCm % FULL_BLOCK_CM;
-            } else if (cornerState.endIsLCorner) {
-                seamPhase = rowEndCm % FULL_BLOCK_CM;
-            } else {
-                seamPhase = (rowIndex % 2 === 0) ? HALF_BLOCK_CM : 0;
-            }
-
-            // Находим проёмы, которые попадают в данный ряд по высоте
-            const activeOps = wall.openings
-                .filter(op => {
-                    const sRow = op.startRow || 1;
-                    const eRow = sRow + (op.rowCount || 7) - 1;
-                    return rowIndex >= sRow && rowIndex <= eRow;
-                })
-                .map(op => ({
-                    ...getOpeningBoundsCm(op),
-                    type: op.type,
-                    id: op.id
-                }))
-                .sort((a, b) => a.startCm - b.startCm);
-
-            // При Т-соединении основная стена остаётся полностью цельной (примыкающая стена клеится встык снаружи)
-            const tPocketOps = [];
-            const allGaps = [...activeOps].sort((a, b) => a.startCm - b.startCm);
-
-            const segments = [];
-            let cursor = rowStartCm;
-
-            for (const gap of allGaps) {
-                const segStart = cursor;
-                const segEnd = clamp(gap.startCm, cursor, rowEndCm);
-                if (segEnd > segStart) {
-                    segments.push({ startCm: segStart, endCm: segEnd });
-                }
-                cursor = clamp(gap.endCm, cursor, rowEndCm);
-            }
-
-            if (cursor < rowEndCm) {
-                segments.push({ startCm: cursor, endCm: rowEndCm });
-            }
-
-            const rowBlocks = [];
-            for (const seg of segments) {
-                const segBlocks = decomposeSegmentIntoBlocks(seg.startCm, seg.endCm, seamPhase);
-                rowBlocks.push(...segBlocks);
-            }
-
-            return {
-                blocks: rowBlocks,
-                openingsInRow: activeOps,
-                tPocketsInRow: tPocketOps,
-                cornerState,
-                rowStartCm,
-                rowEndCm
-            };
-        }
-
-        // Полный расчёт блоков для одной стены по всем рядам
-        function calculateWallBlocks(wall, precomputedJoints = null) {
-            let fullCount = 0;
-            let halfCount = 0;
-            const joints = precomputedJoints || getAllWallJoints();
-
-            for (let r = 1; r <= totalWallRows; r++) {
-                const layout = buildWallRowLayout(wall, r, joints);
-                for (const b of layout.blocks) {
-                    if (b.kind === 'full') fullCount++;
-                    else halfCount++;
-                }
-            }
-            return {
-                fullCount,
-                halfCount,
-                totalCount: fullCount + halfCount
-            };
-        }
-
-        // =========================================================================
-        // УВЕДОМЛЕНИЯ (TOAST)
-        // =========================================================================
-        let toastTimer = null;
-        function showToast(message) {
-            const box = document.getElementById('toastBox');
-            const txt = document.getElementById('toastText');
-            txt.textContent = message;
-            box.classList.remove('opacity-0');
-            box.classList.add('opacity-100');
-            if (toastTimer) clearTimeout(toastTimer);
-            toastTimer = setTimeout(() => {
-                box.classList.remove('opacity-100');
-                box.classList.add('opacity-0');
-            }, 2600);
-        }
-
-        // =========================================================================
-        // ОТРИСОВКА 2D ПЛАНА И РАЗВЁРТКИ СТЕНЫ
-        // =========================================================================
-        function resizeCanvases() {
-            const container = document.getElementById('canvasContainer');
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
-
-            const elevParent = elevCanvas.parentElement;
-            elevCanvas.width = elevParent.clientWidth;
-            elevCanvas.height = elevParent.clientHeight;
-
-            render();
-        }
-
-        function drawGrid() {
-            const w = canvas.width;
-            const h = canvas.height;
-            ctx.save();
-            ctx.fillStyle = '#090d16';
-            ctx.fillRect(0, 0, w, h);
-
-            // Шаг мелкой сетки = 50 см (25 px), крупной = 100 см (50 px)
-            ctx.lineWidth = 1;
-            for (let x = 0; x < w; x += HALF_BLOCK_PX) {
-                ctx.strokeStyle = (x % FULL_BLOCK_PX === 0) ? '#1e293b' : '#111827';
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, h);
-                ctx.stroke();
-            }
-            for (let y = 0; y < h; y += HALF_BLOCK_PX) {
-                ctx.strokeStyle = (y % FULL_BLOCK_PX === 0) ? '#1e293b' : '#111827';
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(w, y);
-                ctx.stroke();
-            }
-            ctx.restore();
-        }
-
-        // Отрисовка модульных ячеек по 50 см (половин блоков) на принимающей стене при Т-привязке
-        function drawHostWallSnapTicks(hostWallId) {
-            const w = walls.find(item => item.id === hostWallId);
-            if (!w) return;
-            const lenCm = getWallLengthCm(w);
-            const angle = getWallAngleRad(w);
-
-            ctx.save();
-            ctx.translate(w.x1, w.y1);
-            ctx.rotate(angle);
-
-            // Подсвечиваем границы половинок (0, 50, 100...) и центры ячеек (25, 75, 125...), куда встаёт ось Т-стены
-            for (let cellStartCm = HALF_BLOCK_CM; cellStartCm <= lenCm - FULL_BLOCK_CM; cellStartCm += HALF_BLOCK_CM) {
-                const startPx = cmToPx(cellStartCm);
-                const centerPx = cmToPx(cellStartCm + HALF_BLOCK_CM / 2);
-                const isActiveCell = activeSnapPreview && Math.abs(activeSnapPreview.cellStartCm - cellStartCm) < 1;
-
-                if (isActiveCell) {
-                    ctx.fillStyle = 'rgba(34, 211, 238, 0.28)';
-                    ctx.fillRect(startPx, -WALL_THICKNESS / 2 - 4, HALF_BLOCK_PX, WALL_THICKNESS + 8);
-                }
-
-                // Граница половинки блока
-                ctx.strokeStyle = 'rgba(34, 211, 238, 0.5)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(startPx, -WALL_THICKNESS / 2 - 5);
-                ctx.lineTo(startPx, WALL_THICKNESS / 2 + 5);
-                ctx.stroke();
-
-                // Центр половинки блока (точка привязки оси примыкающей стены)
-                ctx.fillStyle = isActiveCell ? '#ffffff' : '#22d3ee';
-                ctx.beginPath();
-                ctx.arc(centerPx, 0, isActiveCell ? 4 : 2.5, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.restore();
-        }
-
-        // Отрисовка одной стены с Лего-блоками, штырьками и проёмами
-        function drawWall(wall, isSelected, allJoints) {
-            const lenPx = getWallLength(wall);
-            const lenCm = getWallLengthCm(wall);
-            const angle = getWallAngleRad(wall);
-            const halfThick = WALL_THICKNESS / 2;
-
-            // Рассчитываем раскладку для выбранного на плане ряда (1-й или 2-й) с учётом угловой перевязки
-            const baseLayout = buildWallRowLayout(
-                { ...wall, openings: wall.openings.map(o => ({ ...o, startRow: 1, rowCount: totalWallRows })) },
-                activePlanRow,
-                allJoints
-            );
-
-            // Если конец стены входит в L-угол, удлиняем визуальный контур на половину толщины (halfThick).
-            // Если конец стены примыкает в Т-стык ("на клей"), отступаем от оси основной стены на её полутолщину (-halfThick),
-            // чтобы примыкающая стена визуально стыковалась ровно к боковой грани блока основной стены без нахлёста.
-            const extStartPx = baseLayout.cornerState.startIsLCorner
-                ? halfThick
-                : (baseLayout.cornerState.startIsTButt ? -halfThick : 0);
-            const extEndPx = baseLayout.cornerState.endIsLCorner
-                ? halfThick
-                : (baseLayout.cornerState.endIsTButt ? -halfThick : 0);
-
-            ctx.save();
-            ctx.translate(wall.x1, wall.y1);
-            ctx.rotate(angle);
-
-            // Тень и подложка стены
-            ctx.fillStyle = '#1e293b';
-            ctx.strokeStyle = isSelected ? '#60a5fa' : '#475569';
-            ctx.lineWidth = isSelected ? 2.5 : 1.5;
-            ctx.beginPath();
-            ctx.roundRect(-extStartPx, -halfThick, lenPx + extStartPx + extEndPx, WALL_THICKNESS, 3);
-            ctx.fill();
-            ctx.stroke();
-
-            for (const b of baseLayout.blocks) {
-                // Масштабируем координаты на случай внешнего углового нахлёста (L) или примыкания встык к боковой грани (T)
-                let bx = cmToPx(b.startCm);
-                let bw = cmToPx(b.lenCm);
-
-                if (b.startCm === 0 && baseLayout.cornerState.startConnected) {
-                    bx -= extStartPx;
-                    bw += extStartPx;
-                } else if (b.startCm === HALF_BLOCK_CM && baseLayout.cornerState.startIsLCorner && baseLayout.cornerState.startInsetCm === HALF_BLOCK_CM) {
-                    bx -= extStartPx;
-                    bw += extStartPx;
-                }
-
-                if (b.startCm + b.lenCm === lenCm && baseLayout.cornerState.endConnected) {
-                    bw += extEndPx;
-                } else if (b.startCm + b.lenCm === lenCm - HALF_BLOCK_CM && baseLayout.cornerState.endIsLCorner && baseLayout.cornerState.endInsetCm === HALF_BLOCK_CM) {
-                    bw += extEndPx;
-                }
-
-                const isFull = b.kind === 'full';
-
-                // Тело Лего-блока
-                ctx.fillStyle = isFull ? '#2563eb' : '#d97706';
-                ctx.strokeStyle = '#0f172a';
-                ctx.lineWidth = 1.2;
-                ctx.beginPath();
-                ctx.roundRect(bx + 0.8, -halfThick + 1.5, bw - 1.6, WALL_THICKNESS - 3, 3);
-                ctx.fill();
-                ctx.stroke();
-
-                // Штырьки Лего (studs): 2 штырька у цельного блока (100 см), 1 штырёк у половинки (50 см)
-                const studsCount = isFull ? 2 : 1;
-                for (let s = 0; s < studsCount; s++) {
-                    const studX = bx + (bw / studsCount) * (s + 0.5);
-                    ctx.fillStyle = isFull ? '#60a5fa' : '#fbbf24';
-                    ctx.strokeStyle = isFull ? '#1d4ed8' : '#92400e';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.arc(studX, 0, 4.2, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
-                }
-            }
-
-            // Отрисовка проёмов поверх стены (с гарантией отсутствия наложений)
-            for (const op of wall.openings) {
-                const { startCm, lenCm } = getOpeningBoundsCm(op);
-                const ox = cmToPx(startCm);
-                const ow = cmToPx(lenCm);
-                const isOpSelected = isSelected && (op.id === selectedOpeningId);
-
-                // Фон проёма
-                ctx.fillStyle = '#0f172a';
-                ctx.fillRect(ox, -halfThick + 1, ow, WALL_THICKNESS - 2);
-
-                if (op.type === 'window') {
-                    // Окно: двойная голубая линия стеклопакета
-                    ctx.fillStyle = 'rgba(56, 189, 248, 0.22)';
-                    ctx.fillRect(ox, -halfThick + 2, ow, WALL_THICKNESS - 4);
-                    ctx.strokeStyle = '#38bdf8';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(ox, -3);
-                    ctx.lineTo(ox + ow, -3);
-                    ctx.moveTo(ox, 3);
-                    ctx.lineTo(ox + ow, 3);
-                    ctx.stroke();
-                } else if (op.type === 'door') {
-                    // Дверь: полотно и дуга открывания
-                    ctx.fillStyle = 'rgba(16, 185, 129, 0.18)';
-                    ctx.fillRect(ox, -halfThick + 2, ow, WALL_THICKNESS - 4);
-                    ctx.strokeStyle = '#34d399';
-                    ctx.lineWidth = 1.8;
-                    ctx.beginPath();
-                    ctx.moveTo(ox, -halfThick);
-                    ctx.lineTo(ox, -halfThick - Math.min(ow, 34));
-                    ctx.stroke();
-
-                    ctx.setLineDash([3, 3]);
-                    ctx.beginPath();
-                    ctx.arc(ox, -halfThick, Math.min(ow, 34), -Math.PI / 2, 0);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-                } else {
-                    // Арка / пустой проём
-                    ctx.fillStyle = 'rgba(168, 85, 247, 0.18)';
-                    ctx.fillRect(ox, -halfThick + 2, ow, WALL_THICKNESS - 4);
-                    ctx.strokeStyle = '#c084fc';
-                    ctx.setLineDash([4, 3]);
-                    ctx.lineWidth = 1.5;
-                    ctx.strokeRect(ox + 1, -halfThick + 2, ow - 2, WALL_THICKNESS - 4);
-                    ctx.setLineDash([]);
-                }
-
-                // Рамка выделенного проёма и маркеры изменения его ширины
-                if (isOpSelected) {
-                    ctx.strokeStyle = '#facc15';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(ox, -halfThick - 2, ow, WALL_THICKNESS + 4);
-
-                    // Левая и правая ручки проёма
-                    ctx.fillStyle = '#facc15';
-                    ctx.fillRect(ox - 3, -6, 6, 12);
-                    ctx.fillRect(ox + ow - 3, -6, 6, 12);
-                }
-
-                // Подпись размера проёма
-                ctx.save();
-                ctx.translate(ox + ow / 2, 0);
-                if (angle > Math.PI / 2 || angle < -Math.PI / 2) ctx.rotate(Math.PI);
-                ctx.fillStyle = '#f8fafc';
-                ctx.font = 'bold 9px Inter, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(`${lenCm}`, 0, 0);
-                ctx.restore();
-            }
-
-            // Подпись общей длины стены
-            ctx.save();
-            ctx.translate(lenPx / 2, -halfThick - 11);
-            if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
-                ctx.rotate(Math.PI);
-                ctx.translate(0, -WALL_THICKNESS - 22);
-            }
-            ctx.fillStyle = isSelected ? '#93c5fd' : '#94a3b8';
-            ctx.font = '600 11px Inter, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(`${lenCm} см`, 0, 0);
-            ctx.restore();
-
-            ctx.restore();
-
-            // Если стена выбрана — рисуем ручки на концах и рычаг поворота
-            if (isSelected) {
-                const rotPos = getRotateHandlePos(wall);
-                const center = getWallCenter(wall);
-
-                ctx.save();
-                // Линия к рычагу поворота
-                ctx.strokeStyle = '#facc15';
-                ctx.lineWidth = 1.5;
-                ctx.setLineDash([3, 3]);
-                ctx.beginPath();
-                ctx.moveTo(center.x, center.y);
-                ctx.lineTo(rotPos.x, rotPos.y);
-                ctx.stroke();
-                ctx.setLineDash([]);
-
-                // Кружок рычага поворота
-                ctx.fillStyle = '#facc15';
-                ctx.strokeStyle = '#0f172a';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(rotPos.x, rotPos.y, 7, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-
-                // Ручки на концах стены (x1,y1) и (x2,y2)
-                for (const pt of [{ x: wall.x1, y: wall.y1 }, { x: wall.x2, y: wall.y2 }]) {
-                    ctx.fillStyle = '#3b82f6';
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.arc(pt.x, pt.y, ENDPOINT_RADIUS, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
-                }
-                ctx.restore();
-            }
-        }
-
-        // Отрисовка индикаторов L-соединений (зелёные) и T-соединений (голубые)
-        function drawConnectedJoints() {
-            const joints = getAllWallJoints();
-            ctx.save();
-
-            for (const jt of joints) {
-                if (jt.type === 'L') {
-                    // Зелёный индикатор углового стыка
-                    ctx.fillStyle = 'rgba(16, 185, 129, 0.28)';
-                    ctx.strokeStyle = '#10b981';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.arc(jt.x, jt.y, 11, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
-
-                    ctx.fillStyle = '#a7f3d0';
-                    ctx.font = 'bold 8px Inter, sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('L', jt.x, jt.y);
-                } else if (jt.type === 'T') {
-                    // Бирюзовый индикатор Т-образного стыка
-                    ctx.fillStyle = 'rgba(6, 182, 212, 0.32)';
-                    ctx.strokeStyle = '#22d3ee';
-                    ctx.lineWidth = 2.2;
-                    ctx.beginPath();
-                    ctx.arc(jt.x, jt.y, 12, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
-
-                    ctx.fillStyle = '#cffafe';
-                    ctx.font = 'bold 9px Inter, sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('T', jt.x, jt.y);
-                }
-            }
-
-            // Если сейчас активно магнитное притягивание — подсвечиваем его
-            if (activeSnapPreview) {
-                const isT = activeSnapPreview.type === 'T';
-                ctx.strokeStyle = isT ? '#22d3ee' : '#10b981';
-                ctx.lineWidth = 2.5;
-                ctx.beginPath();
-                ctx.arc(activeSnapPreview.x, activeSnapPreview.y, 16, 0, Math.PI * 2);
-                ctx.stroke();
-            }
-
-            ctx.restore();
-        }
-
-        // Отрисовка нижней панели: Развёртка выбранной стены по рядам (вид сбоку)
-        function drawElevationView(allJoints) {
-            const w = elevCanvas.width;
-            const h = elevCanvas.height;
-            elevCtx.clearRect(0, 0, w, h);
-            elevCtx.fillStyle = '#0b1120';
-            elevCtx.fillRect(0, 0, w, h);
-
-            const wall = walls.find(item => item.id === selectedWallId) || walls[0];
-            const titleEl = document.getElementById('elevationTitle');
-            const subEl = document.getElementById('elevationSubtitle');
-
-            if (!wall) {
-                titleEl.textContent = 'Развёртка Лего-кладки (вид сбоку по рядам)';
-                subEl.textContent = '— добавьте стену';
-                return;
-            }
-
-            const joints = allJoints || getAllWallJoints();
-            const wallLenCm = getWallLengthCm(wall);
-            const stats = calculateWallBlocks(wall, joints);
-            titleEl.textContent = `Развёртка: Стена #${wall.id} (${wallLenCm} см × ${totalWallRows} рядов)`;
-            subEl.textContent = `Цельных 100 см: ${stats.fullCount} шт. | Половинок 50 см: ${stats.halfCount} шт.`;
-
-            const padLeft = 44;
-            const padRight = 24;
-            const padTop = 14;
-            const padBottom = 22;
-
-            const availW = Math.max(100, w - padLeft - padRight);
-            const availH = Math.max(40, h - padTop - padBottom);
-
-            const scaleX = Math.min(availW / wallLenCm, 1.8);
-            const drawWallW = wallLenCm * scaleX;
-            const startX = padLeft + (availW - drawWallW) / 2;
-            const rowH = availH / totalWallRows;
-
-            // Отрисовка рядов снизу вверх (1-й ряд внизу)
-            for (let r = 1; r <= totalWallRows; r++) {
-                const y = padTop + (totalWallRows - r) * rowH;
-                const layout = buildWallRowLayout(wall, r, joints);
-
-                // Номер ряда слева
-                if (totalWallRows <= 14 || r % 2 === 1) {
-                    elevCtx.fillStyle = (r === activePlanRow) ? '#fbbf24' : '#64748b';
-                    elevCtx.font = '10px Inter, sans-serif';
-                    elevCtx.textAlign = 'right';
-                    elevCtx.textBaseline = 'middle';
-                    elevCtx.fillText(`${r} р.`, startX - 8, y + rowH / 2);
-                }
-
-                // Отрисовка торцов перпендикулярных цельных блоков (50 см), которые заходят в L-угол в этом ряду (как на фото)
-                if (layout.cornerState.startIsLCorner && layout.cornerState.startInsetCm === HALF_BLOCK_CM) {
-                    const bx = startX;
-                    const bw = HALF_BLOCK_CM * scaleX;
-                    elevCtx.fillStyle = '#1e293b';
-                    elevCtx.strokeStyle = '#10b981';
-                    elevCtx.lineWidth = 1;
-                    elevCtx.beginPath();
-                    elevCtx.roundRect(bx + 0.5, y + 0.5, Math.max(2, bw - 1), Math.max(2, rowH - 1), 2);
-                    elevCtx.fill();
-                    elevCtx.stroke();
-
-                    if (bw >= 18 && rowH >= 10) {
-                        elevCtx.fillStyle = '#6ee7b7';
-                        elevCtx.font = 'bold 8px Inter, sans-serif';
-                        elevCtx.textAlign = 'center';
-                        elevCtx.textBaseline = 'middle';
-                        elevCtx.fillText('угол', bx + bw / 2, y + rowH / 2);
-                    }
-                }
-
-                if (layout.cornerState.endIsLCorner && layout.cornerState.endInsetCm === HALF_BLOCK_CM) {
-                    const bx = startX + (wallLenCm - HALF_BLOCK_CM) * scaleX;
-                    const bw = HALF_BLOCK_CM * scaleX;
-                    elevCtx.fillStyle = '#1e293b';
-                    elevCtx.strokeStyle = '#10b981';
-                    elevCtx.lineWidth = 1;
-                    elevCtx.beginPath();
-                    elevCtx.roundRect(bx + 0.5, y + 0.5, Math.max(2, bw - 1), Math.max(2, rowH - 1), 2);
-                    elevCtx.fill();
-                    elevCtx.stroke();
-
-                    if (bw >= 18 && rowH >= 10) {
-                        elevCtx.fillStyle = '#6ee7b7';
-                        elevCtx.font = 'bold 8px Inter, sans-serif';
-                        elevCtx.textAlign = 'center';
-                        elevCtx.textBaseline = 'middle';
-                        elevCtx.fillText('угол', bx + bw / 2, y + rowH / 2);
-                    }
-                }
-
-                // Блоки самой стены в ряду
-                for (const b of layout.blocks) {
-                    const bx = startX + b.startCm * scaleX;
-                    const bw = b.lenCm * scaleX;
-                    const isFull = b.kind === 'full';
-
-                    elevCtx.fillStyle = isFull ? '#2563eb' : '#d97706';
-                    elevCtx.strokeStyle = '#0f172a';
-                    elevCtx.lineWidth = 1;
-                    elevCtx.beginPath();
-                    elevCtx.roundRect(bx + 0.5, y + 0.5, Math.max(2, bw - 1), Math.max(2, rowH - 1), 2);
-                    elevCtx.fill();
-                    elevCtx.stroke();
-
-                    // Подпись 100 / 50 внутри блока, если позволяет место
-                    if (bw >= 22 && rowH >= 11) {
-                        elevCtx.fillStyle = isFull ? '#dbeafe' : '#fef3c7';
-                        elevCtx.font = 'bold 9px Inter, sans-serif';
-                        elevCtx.textAlign = 'center';
-                        elevCtx.textBaseline = 'middle';
-                        elevCtx.fillText(isFull ? '100' : '50', bx + bw / 2, y + rowH / 2);
-                    }
-                }
-
-                // Проёмы в этом ряду
-                for (const op of layout.openingsInRow) {
-                    const ox = startX + op.startCm * scaleX;
-                    const ow = op.lenCm * scaleX;
-                    elevCtx.fillStyle = op.type === 'window'
-                        ? 'rgba(56, 189, 248, 0.16)'
-                        : op.type === 'door'
-                            ? 'rgba(16, 185, 129, 0.16)'
-                            : 'rgba(168, 85, 247, 0.16)';
-                    elevCtx.fillRect(ox, y, ow, rowH);
-                }
-            }
-
-            // Линейка сантиметров снизу развёртки
-            elevCtx.fillStyle = '#94a3b8';
-            elevCtx.font = '10px Inter, sans-serif';
-            elevCtx.textAlign = 'center';
-            const stepCm = wallLenCm > 600 ? 100 : 50;
-            for (let cm = 0; cm <= wallLenCm; cm += stepCm) {
-                const x = startX + cm * scaleX;
-                elevCtx.fillText(`${cm}`, x, padTop + availH + 13);
-            }
-
-            // Индикатор клеевого шва (Т-стыка) по краям примыкающей стены на развёртке
-            const cornerInfo = getWallEndCornerState(wall, 1, joints);
-            if (cornerInfo.startIsTButt) {
-                elevCtx.strokeStyle = '#22d3ee';
-                elevCtx.lineWidth = 3;
-                elevCtx.beginPath();
-                elevCtx.moveTo(startX, padTop);
-                elevCtx.lineTo(startX, padTop + availH);
-                elevCtx.stroke();
-            }
-            if (cornerInfo.endIsTButt) {
-                const endX = startX + wallLenCm * scaleX;
-                elevCtx.strokeStyle = '#22d3ee';
-                elevCtx.lineWidth = 3;
-                elevCtx.beginPath();
-                elevCtx.moveTo(endX, padTop);
-                elevCtx.lineTo(endX, padTop + availH);
-                elevCtx.stroke();
-            }
-
-            // Если к текущей (основной) стене примыкает Т-перегородка, показываем полосу 50 см (половину блока), к которой она приклеена
-            const hostTJoints = joints.filter(jt => jt.type === 'T' && jt.hostWallId === wall.id);
-            for (const jt of hostTJoints) {
-                const cellX = startX + jt.cellStartCm * scaleX;
-                const cellW = HALF_BLOCK_CM * scaleX;
-
-                elevCtx.save();
-                elevCtx.fillStyle = 'rgba(34, 211, 238, 0.12)';
-                elevCtx.fillRect(cellX, padTop, cellW, availH);
-
-                elevCtx.strokeStyle = '#22d3ee';
-                elevCtx.lineWidth = 1.5;
-                elevCtx.setLineDash([4, 3]);
-                elevCtx.strokeRect(cellX, padTop, cellW, availH);
-                elevCtx.setLineDash([]);
-
-                elevCtx.fillStyle = '#67e8f9';
-                elevCtx.font = 'bold 9px Inter, sans-serif';
-                elevCtx.textAlign = 'center';
-                elevCtx.fillText(`Т-стык (${jt.cellStartCm}–${jt.cellEndCm})`, cellX + cellW / 2, padTop - 3);
-                elevCtx.restore();
-            }
-        }
-
-        function render() {
-            drawGrid();
-
-            const allJoints = getAllWallJoints();
-
-            // Если идёт перетаскивание и есть Т-привязка к стене — рисуем модульные деления 50 см на ней
-            if (activeSnapPreview && activeSnapPreview.type === 'T') {
-                drawHostWallSnapTicks(activeSnapPreview.wallId);
-            }
-
-            // Сначала рисуем невыбранные стены, затем выбранную поверх
-            for (const w of walls) {
-                if (w.id !== selectedWallId) drawWall(w, false, allJoints);
-            }
-            const selWall = walls.find(w => w.id === selectedWallId);
-            if (selWall) drawWall(selWall, true, allJoints);
-
-            drawConnectedJoints();
-            drawElevationView(allJoints);
-        }
-
-        // =========================================================================
-        // ОБНОВЛЕНИЕ КАЛЬКУЛЯТОРА И ИНСПЕКТОРА В ПРАВОЙ ПАНЕЛИ
-        // =========================================================================
-        function updateBlockCalculator() {
-            let grandFull = 0;
-            let grandHalf = 0;
-            const breakdownEl = document.getElementById('wallsBreakdownList');
-            breakdownEl.innerHTML = '';
-
-            const allJoints = getAllWallJoints();
-            const lCount = allJoints.filter(j => j.type === 'L').length;
-            const tCount = allJoints.filter(j => j.type === 'T').length;
-
-            for (const w of walls) {
-                const st = calculateWallBlocks(w, allJoints);
-                grandFull += st.fullCount;
-                grandHalf += st.halfCount;
-
-                const row = document.createElement('div');
-                row.className = 'flex items-center justify-between bg-slate-900/80 px-2 py-1 rounded border border-slate-800';
-                row.innerHTML = `
-                    <span class="text-slate-300 font-medium">Стена #${w.id} (${getWallLengthCm(w)} см)</span>
-                    <span class="text-slate-400">
-                        <b class="text-blue-400">${st.fullCount}</b>×100 +
-                        <b class="text-amber-400">${st.halfCount}</b>×50
-                    </span>
-                `;
-                breakdownEl.appendChild(row);
-            }
-
-            document.getElementById('calcWallsCount').textContent = `${walls.length} стен`;
-            document.getElementById('valTotalRows').textContent = `${totalWallRows} рядов`;
-            document.getElementById('totFullBlocks').textContent = grandFull;
-            document.getElementById('totHalfBlocks').textContent = grandHalf;
-            document.getElementById('totAllBlocks').textContent = grandFull + grandHalf;
-            document.getElementById('totJointsBadge').textContent = `L: ${lCount} | T: ${tCount}`;
-        }
-
-        function updateInspector() {
-            updateBlockCalculator();
-
-            const emptyPanel = document.getElementById('emptyInspector');
-            const wallPanel = document.getElementById('wallInspector');
-            const wall = walls.find(w => w.id === selectedWallId);
-
-            if (!wall) {
-                emptyPanel.classList.remove('hidden');
-                wallPanel.classList.add('hidden');
-                return;
-            }
-
-            emptyPanel.classList.add('hidden');
-            wallPanel.classList.remove('hidden');
-
-            const lenCm = getWallLengthCm(wall);
-            const minAllowedLenCm = getMinAllowedWallLengthCm(wall);
-            const angleDeg = getWallAngleDeg(wall);
-            const st = calculateWallBlocks(wall);
-
-            document.getElementById('inspWallName').textContent = `Стена #${wall.id}`;
-            document.getElementById('inspWallBlocksBadge').textContent = `${st.fullCount} цел. / ${st.halfCount} пол.`;
-
-            // Информация об L и T соединениях выбранной стены
-            const allJoints = getAllWallJoints();
-            const myL = allJoints.filter(j => j.type === 'L' && (j.wallA === wall.id || j.wallB === wall.id)).length;
-            const myTBranch = allJoints.filter(j => j.type === 'T' && j.branchWallId === wall.id).length;
-            const myTHost = allJoints.filter(j => j.type === 'T' && j.hostWallId === wall.id).length;
-            document.getElementById('inspWallJointsInfo').textContent =
-                `Угловых L-стыков: ${myL} • Т-примыканий: ${myTBranch + myTHost}`;
-
-            // Ползунок длины стены с учётом ограничения по проёмам
-            const sliderLen = document.getElementById('sliderWallLength');
-            sliderLen.min = minAllowedLenCm;
-            sliderLen.value = lenCm;
-            document.getElementById('valWallLength').textContent = `${lenCm} см`;
-            document.getElementById('lblMinWallLen').textContent = `Мин: ${minAllowedLenCm} см`;
-
-            const r1 = buildWallRowLayout(wall, 1);
-            const r1Full = r1.blocks.filter(b => b.kind === 'full').length;
-            const r1Half = r1.blocks.filter(b => b.kind === 'half').length;
-            document.getElementById('lblRow1Summary').textContent = `${r1Full}×100, ${r1Half}×50`;
-
-            // Ползунок угла
-            document.getElementById('sliderWallAngle').value = angleDeg;
-            document.getElementById('valWallAngle').textContent = `${angleDeg}°`;
-
-            // Проверка, есть ли место для добавления нового проёма (минимум 50 см)
-            const freeSlot = findFreeSlotForOpening(wall, HALF_BLOCK_CM);
-            const btnAddOp = document.getElementById('btnAddOpening');
-            btnAddOp.disabled = !freeSlot;
-            btnAddOp.title = freeSlot
-                ? 'Добавить проём в свободное место стены'
-                : 'На стене нет свободного места (мин. 50 см). Удлините стену или уменьшите проёмы.';
-
-            // Список проёмов стены
-            const listEl = document.getElementById('openingsList');
-            listEl.innerHTML = '';
-
-            if (wall.openings.length === 0) {
-                listEl.innerHTML = `<div class="text-xs text-slate-500 italic py-1">В этой стене пока нет проёмов</div>`;
-                selectedOpeningId = null;
-            } else {
-                if (!wall.openings.some(o => o.id === selectedOpeningId)) {
-                    selectedOpeningId = wall.openings[0].id;
-                }
-
-                const sortedOps = [...wall.openings].sort((a, b) => a.offset - b.offset);
-                sortedOps.forEach((op, idx) => {
-                    const { startCm, endCm, lenCm } = getOpeningBoundsCm(op);
-                    const isSel = op.id === selectedOpeningId;
-                    const typeLabel = op.type === 'window' ? 'Окно' : op.type === 'door' ? 'Дверь' : 'Арка';
-                    const badgeColor = op.type === 'window'
-                        ? 'text-sky-400 border-sky-500/40 bg-sky-950/50'
-                        : op.type === 'door'
-                            ? 'text-emerald-400 border-emerald-500/40 bg-emerald-950/50'
-                            : 'text-purple-400 border-purple-500/40 bg-purple-950/50';
-
-                    const item = document.createElement('div');
-                    item.className = `flex items-center justify-between px-2.5 py-1.5 rounded-lg border cursor-pointer text-xs transition ${
-                        isSel ? 'bg-slate-800 border-blue-500 text-white' : 'bg-slate-900/70 border-slate-800 text-slate-300 hover:bg-slate-800/50'
-                    }`;
-                    item.innerHTML = `
-                        <div class="flex items-center gap-2">
-                            <span class="text-[10px] px-1.5 py-0.5 rounded border ${badgeColor}">${typeLabel} #${idx + 1}</span>
-                            <span>${startCm}–${endCm} см</span>
-                        </div>
-                        <span class="font-semibold text-slate-200">${lenCm} см</span>
-                    `;
-                    item.addEventListener('click', () => {
-                        selectedOpeningId = op.id;
-                        updateInspector();
-                        render();
-                    });
-                    listEl.appendChild(item);
-                });
-            }
-
-            // Редактор выбранного проёма
-            const editorEl = document.getElementById('openingEditor');
-            const selectedOp = wall.openings.find(o => o.id === selectedOpeningId);
-
-            if (!selectedOp) {
-                editorEl.classList.add('hidden');
-            } else {
-                editorEl.classList.remove('hidden');
-
-                document.querySelectorAll('.opening-type-btn').forEach(btn => {
-                    if (btn.dataset.optype === selectedOp.type) {
-                        btn.className = 'opening-type-btn text-xs py-1.5 rounded-lg border border-blue-500 bg-blue-600/30 text-white font-semibold';
-                    } else {
-                        btn.className = 'opening-type-btn text-xs py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 font-medium hover:bg-slate-700';
-                    }
-                });
-
-                const { startCm, lenCm } = getOpeningBoundsCm(selectedOp);
-                const limits = getOpeningLimitsCm(wall, selectedOp);
-
-                // Ползунок положения проёма (зажат между соседями)
-                const sliderOpOffset = document.getElementById('sliderOpeningOffset');
-                const maxStartCm = Math.max(limits.minCm, limits.maxCm - lenCm);
-                sliderOpOffset.min = limits.minCm;
-                sliderOpOffset.max = maxStartCm;
-                sliderOpOffset.value = startCm;
-                sliderOpOffset.disabled = (maxStartCm <= limits.minCm);
-
-                document.getElementById('valOpeningOffset').textContent = `${startCm} см`;
-                document.getElementById('lblOpMinOffset').textContent = `Мин: ${limits.minCm} см`;
-                document.getElementById('lblOpMaxOffset').textContent = `Макс: ${maxStartCm} см`;
-
-                // Ползунок ширины проёма (не позволяет наехать на правого соседа)
-                const maxLenAtCurrentPos = Math.max(HALF_BLOCK_CM, limits.maxCm - startCm);
-                const sliderOpLen = document.getElementById('sliderOpeningLength');
-                sliderOpLen.min = HALF_BLOCK_CM;
-                sliderOpLen.max = maxLenAtCurrentPos;
-                sliderOpLen.value = lenCm;
-                sliderOpLen.disabled = (maxLenAtCurrentPos <= HALF_BLOCK_CM);
-                document.getElementById('valOpeningLength').textContent = `${lenCm} см (макс. ${maxLenAtCurrentPos} см)`;
-
-                // Ряды проёма по высоте
-                const sliderStartRow = document.getElementById('sliderOpStartRow');
-                sliderStartRow.max = totalWallRows;
-                sliderStartRow.value = selectedOp.startRow || 1;
-                document.getElementById('valOpStartRow').textContent = selectedOp.startRow || 1;
-
-                const sliderRowCount = document.getElementById('sliderOpRowCount');
-                sliderRowCount.max = Math.max(1, totalWallRows - (selectedOp.startRow || 1) + 1);
-                sliderRowCount.value = selectedOp.rowCount || 7;
-                document.getElementById('valOpRowCount').textContent = selectedOp.rowCount || 7;
-            }
-        }
-
-        // =========================================================================
-        // ДОБАВЛЕНИЕ СТЕН, Т-ПЕРЕГОРОДОК И ПРОЁМОВ
-        // =========================================================================
-        function addNewWall() {
-            const cx = canvas.width / 2;
-            const cy = canvas.height / 2;
-            const offset = (walls.length % 5) * 30;
-            const lenPx = cmToPx(400); // 400 см по умолчанию
-
-            const newWall = {
-                id: nextId++,
-                x1: cx - lenPx / 2 + offset,
-                y1: cy + offset,
-                x2: cx + lenPx / 2 + offset,
-                y2: cy + offset,
-                openings: []
-            };
-            walls.push(newWall);
-            selectedWallId = newWall.id;
-            selectedOpeningId = null;
-            updateInspector();
-            render();
-            showToast('Добавлена стена 400 см');
-        }
-        // Создание перпендикулярной Т-перегородки, приклеенной к одной половине блока выбранной стены (как на фото)
-        function addTPartitionWall() {
-            const hostWall = walls.find(w => w.id === selectedWallId) || walls[0];
-            if (!hostWall) {
-                addNewWall();
-                return;
-            }
-
-            const hostLenCm = getWallLengthCm(hostWall);
-            // Привязываем к одной половине блока (ячейке 50 см) около середины стены
-            const cell = snapToHalfBlockCellCenterCm(hostLenCm / 2, hostLenCm);
-            const attachPt = wallLocalToWorld(hostWall, cmToPx(cell.centerCm), 0);
-
-            const hostAngle = getWallAngleRad(hostWall);
-            const perpAngle = hostAngle + Math.PI / 2;
-            const branchLenPx = cmToPx(300);
-
-            const newWall = {
-                id: nextId++,
-                x1: attachPt.x,
-                y1: attachPt.y,
-                x2: attachPt.x + Math.cos(perpAngle) * branchLenPx,
-                y2: attachPt.y + Math.sin(perpAngle) * branchLenPx,
-                openings: [
-                    {
-                        id: nextId++,
-                        offset: cmToPx(150),
-                        length: cmToPx(100),
-                        type: 'door',
-                        startRow: 1,
-                        rowCount: Math.min(7, totalWallRows)
-                    }
-                ]
-            };
-            clampWallOpenings(newWall);
-            walls.push(newWall);
-            selectedWallId = newWall.id;
-            selectedOpeningId = newWall.openings[0].id;
-            updateInspector();
-            render();
-            showToast(`Т-перегородка приклеена к половине блока (${cell.cellStartCm}–${cell.cellEndCm} см) стены #${hostWall.id}`);
-        }
-
-        function addOpeningToSelectedWall() {
-            const wall = walls.find(w => w.id === selectedWallId);
-            if (!wall) return;
-
-            const slot = findFreeSlotForOpening(wall, 100);
-            if (!slot) {
-                showToast('Нет свободного места (мин. 50 см) для нового проёма без наложения!');
-                return;
-            }
-
-            const newOp = {
-                id: nextId++,
-                offset: cmToPx(slot.startCm + slot.lenCm / 2),
-                length: cmToPx(slot.lenCm),
-                type: 'window',
-                startRow: 4,
-                rowCount: Math.min(4, Math.max(1, totalWallRows - 4))
-            };
-            wall.openings.push(newOp);
-            clampWallOpenings(wall);
-            selectedOpeningId = newOp.id;
-            updateInspector();
-            render();
-            showToast(`Добавлен проём ${slot.lenCm} см (позиция ${slot.startCm}–${slot.startCm + slot.lenCm} см)`);
-        }
-
-        // =========================================================================
-        // ОБРАБОТКА МЫШИ И СЕНСОРНОГО ЭКРАНА НА ХОЛСТЕ (DRAG-N-DROP)
-        // =========================================================================
-        function getPointerPos(e) {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            return {
-                x: clientX - rect.left,
-                y: clientY - rect.top
-            };
-        }
-
-        function handlePointerDown(e) {
-            const pos = getPointerPos(e);
-            activeSnapPreview = null;
-
-            // 1. Если есть выбранная стена — сначала проверяем её элементы управления (ручки концов, поворот, проёмы)
-            const selWall = walls.find(w => w.id === selectedWallId);
-            if (selWall) {
-                // Рычаг поворота
-                const rotPos = getRotateHandlePos(selWall);
-                if (dist(pos.x, pos.y, rotPos.x, rotPos.y) <= 12) {
-                    dragState = { type: 'rotate_wall', wall: selWall };
-                    return;
-                }
-
-                // Концы выбранной стены
-                if (dist(pos.x, pos.y, selWall.x1, selWall.y1) <= ENDPOINT_RADIUS + 4) {
-                    dragState = { type: 'endpoint_1', wall: selWall };
-                    return;
-                }
-                if (dist(pos.x, pos.y, selWall.x2, selWall.y2) <= ENDPOINT_RADIUS + 4) {
-                    dragState = { type: 'endpoint_2', wall: selWall };
-                    return;
-                }
-
-                // Проверка клика по проёму выбранной стены (или его краям для изменения ширины)
-                const loc = worldToWallLocal(selWall, pos.x, pos.y);
-                if (Math.abs(loc.perp) <= WALL_THICKNESS / 2 + 6) {
-                    for (const op of selWall.openings) {
-                        const { startCm, endCm } = getOpeningBoundsCm(op);
-                        const startPx = cmToPx(startCm);
-                        const endPx = cmToPx(endCm);
-
-                        if (Math.abs(loc.along - startPx) <= 8) {
-                            selectedOpeningId = op.id;
-                            dragState = {
-                                type: 'resize_opening_start',
-                                wall: selWall,
-                                opening: op,
-                                fixedEndCm: endCm
-                            };
-                            updateInspector();
-                            render();
-                            return;
-                        }
-                        if (Math.abs(loc.along - endPx) <= 8) {
-                            selectedOpeningId = op.id;
-                            dragState = {
-                                type: 'resize_opening_end',
-                                wall: selWall,
-                                opening: op,
-                                fixedStartCm: startCm
-                            };
-                            updateInspector();
-                            render();
-                            return;
-                        }
-                        if (loc.along >= startPx && loc.along <= endPx) {
-                            selectedOpeningId = op.id;
-                            dragState = {
-                                type: 'move_opening',
-                                wall: selWall,
-                                opening: op,
-                                grabDeltaPx: loc.along - op.offset
-                            };
-                            updateInspector();
-                            render();
-                            return;
-                        }
-                    }
-                }
-            }
-
-            // 2. Проверяем попадание по любой стене (сверху вниз)
-            for (let i = walls.length - 1; i >= 0; i--) {
-                const w = walls[i];
-                const len = getWallLength(w);
-                const loc = worldToWallLocal(w, pos.x, pos.y);
-
-                if (loc.along >= -6 && loc.along <= len + 6 && Math.abs(loc.perp) <= WALL_THICKNESS / 2 + 4) {
-                    selectedWallId = w.id;
-
-                    // Проверяем, не кликнули ли прямо в проём этой стены
-                    let clickedOp = null;
-                    for (const op of w.openings) {
-                        const { startCm, endCm } = getOpeningBoundsCm(op);
-                        if (loc.along >= cmToPx(startCm) && loc.along <= cmToPx(endCm)) {
-                            clickedOp = op;
-                            break;
-                        }
-                    }
-
-                    if (clickedOp) {
-                        selectedOpeningId = clickedOp.id;
-                        dragState = {
-                            type: 'move_opening',
-                            wall: w,
-                            opening: clickedOp,
-                            grabDeltaPx: loc.along - clickedOp.offset
-                        };
-                    } else {
-                        selectedOpeningId = w.openings[0] ? w.openings[0].id : null;
-                        dragState = {
-                            type: 'move_wall',
-                            wall: w,
-                            startX: pos.x,
-                            startY: pos.y,
-                            origX1: w.x1,
-                            origY1: w.y1,
-                            origX2: w.x2,
-                            origY2: w.y2
-                        };
-                    }
-
-                    updateInspector();
-                    render();
-                    return;
-                }
-            }
-
-            // Клик в пустое место — снимаем выделение
-            selectedWallId = null;
-            selectedOpeningId = null;
-            updateInspector();
-            render();
-        }
-
-        function handlePointerMove(e) {
-            const pos = getPointerPos(e);
-            if (!dragState) return;
-
-            const wall = dragState.wall;
-            activeSnapPreview = null;
-
-            if (dragState.type === 'move_wall') {
-                let dx = pos.x - dragState.startX;
-                let dy = pos.y - dragState.startY;
-
-                let nx1 = dragState.origX1 + dx;
-                let ny1 = dragState.origY1 + dy;
-                let nx2 = dragState.origX2 + dx;
-                let ny2 = dragState.origY2 + dy;
-
-                // Проверяем магнитную привязку обоих концов стены (как L, так и T-соединения)
-                const snap1 = findSnapPoint(nx1, ny1, wall.id);
-                const snap2 = findSnapPoint(nx2, ny2, wall.id);
-
-                if (snap1) {
-                    const sdx = snap1.x - nx1;
-                    const sdy = snap1.y - ny1;
-                    nx1 += sdx;
-                    ny1 += sdy;
-                    nx2 += sdx;
-                    ny2 += sdy;
-                    activeSnapPreview = snap1;
-                } else if (snap2) {
-                    const sdx = snap2.x - nx2;
-                    const sdy = snap2.y - ny2;
-                    nx1 += sdx;
-                    ny1 += sdy;
-                    nx2 += sdx;
-                    ny2 += sdy;
-                    activeSnapPreview = snap2;
-                }
-
-                wall.x1 = nx1;
-                wall.y1 = ny1;
-                wall.x2 = nx2;
-                wall.y2 = ny2;
-
-            } else if (dragState.type === 'endpoint_1' || dragState.type === 'endpoint_2') {
-                const isFirst = dragState.type === 'endpoint_1';
-                const anchorX = isFirst ? wall.x2 : wall.x1;
-                const anchorY = isFirst ? wall.y2 : wall.y1;
-
-                let targetX = pos.x;
-                let targetY = pos.y;
-
-                const snap = findSnapPoint(targetX, targetY, wall.id);
-                if (snap) {
-                    targetX = snap.x;
-                    targetY = snap.y;
-                    activeSnapPreview = snap;
-                }
-
-                const rawDistPx = dist(anchorX, anchorY, targetX, targetY);
-                const minAllowedCm = getMinAllowedWallLengthCm(wall);
-                const snappedLenCm = clamp(snapCmTo50(pxToCm(rawDistPx)), minAllowedCm, MAX_WALL_CM);
-                const finalLenPx = cmToPx(snappedLenCm);
-                const angle = Math.atan2(targetY - anchorY, targetX - anchorX);
-
-                if (isFirst) {
-                    wall.x1 = anchorX + Math.cos(angle) * finalLenPx;
-                    wall.y1 = anchorY + Math.sin(angle) * finalLenPx;
-                } else {
-                    wall.x2 = anchorX + Math.cos(angle) * finalLenPx;
-                    wall.y2 = anchorY + Math.sin(angle) * finalLenPx;
-                }
-                clampWallOpenings(wall);
-
-            } else if (dragState.type === 'rotate_wall') {
-                const center = getWallCenter(wall);
-                let angleDeg = Math.round(Math.atan2(pos.y - center.y, pos.x - center.x) * 180 / Math.PI + 90);
-                if (angleDeg > 180) angleDeg -= 360;
-                if (angleDeg < -180) angleDeg += 360;
-
-                // Мягкое примагничивание к углам кратным 15°
-                if (Math.abs(angleDeg % 15) <= 2) {
-                    angleDeg = Math.round(angleDeg / 15) * 15;
-                }
-                setWallAngleFromCenter(wall, angleDeg);
-
-            } else if (dragState.type === 'move_opening') {
-                const loc = worldToWallLocal(wall, pos.x, pos.y);
-                const { lenCm } = getOpeningBoundsCm(dragState.opening);
-                const desiredCenterPx = loc.along - dragState.grabDeltaPx;
-                const desiredStartCm = snapCmTo50(pxToCm(desiredCenterPx - dragState.opening.length / 2));
-
-                // Строгое ограничение коридора между соседними проёмами
-                const limits = getOpeningLimitsCm(wall, dragState.opening);
-                const clampedStartCm = clamp(desiredStartCm, limits.minCm, limits.maxCm - lenCm);
-
-                setOpeningBoundsCm(dragState.opening, clampedStartCm, lenCm);
-
-            } else if (dragState.type === 'resize_opening_start') {
-                const loc = worldToWallLocal(wall, pos.x, pos.y);
-                const limits = getOpeningLimitsCm(wall, dragState.opening);
-
-                const newStartCm = clamp(
-                    snapCmTo50(pxToCm(loc.along)),
-                    limits.minCm,
-                    dragState.fixedEndCm - HALF_BLOCK_CM
-                );
-                const newLenCm = dragState.fixedEndCm - newStartCm;
-                setOpeningBoundsCm(dragState.opening, newStartCm, newLenCm);
-
-            } else if (dragState.type === 'resize_opening_end') {
-                const loc = worldToWallLocal(wall, pos.x, pos.y);
-                const limits = getOpeningLimitsCm(wall, dragState.opening);
-
-                const newEndCm = clamp(
-                    snapCmTo50(pxToCm(loc.along)),
-                    dragState.fixedStartCm + HALF_BLOCK_CM,
-                    limits.maxCm
-                );
-                const newLenCm = newEndCm - dragState.fixedStartCm;
-                setOpeningBoundsCm(dragState.opening, dragState.fixedStartCm, newLenCm);
-            }
-
-            updateInspector();
-            render();
-        }
-
-        function handlePointerUp() {
-            dragState = null;
-            activeSnapPreview = null;
-            render();
-        }
-
-        // =========================================================================
-        // ПРИВЯЗКА СОБЫТИЙ ИНТЕРФЕЙСА
-        // =========================================================================
-        canvas.addEventListener('mousedown', handlePointerDown);
-        window.addEventListener('mousemove', handlePointerMove);
-        window.addEventListener('mouseup', handlePointerUp);
-
-        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handlePointerDown(e); }, { passive: false });
-        window.addEventListener('touchmove', (e) => { if (dragState) { e.preventDefault(); handlePointerMove(e); } }, { passive: false });
-        window.addEventListener('touchend', handlePointerUp);
-
-        document.getElementById('btnAddWall').addEventListener('click', addNewWall);
-        document.getElementById('btnAddTWall').addEventListener('click', addTPartitionWall);
-        document.getElementById('btnAddOpening').addEventListener('click', addOpeningToSelectedWall);
-
-        document.getElementById('btnToggleRowView').addEventListener('click', () => {
-            activePlanRow = activePlanRow === 1 ? 2 : 1;
-            document.getElementById('rowViewText').textContent =
-                activePlanRow === 1 ? 'План: 1-й ряд (нечёт)' : 'План: 2-й ряд (чёт)';
-            document.getElementById('rowViewDot').className =
-                activePlanRow === 1 ? 'w-2.5 h-2.5 rounded-full bg-amber-400' : 'w-2.5 h-2.5 rounded-full bg-blue-400';
-            render();
-        });
-
-        document.getElementById('chkSnap').addEventListener('change', (e) => {
-            snapEndpointsEnabled = e.target.checked;
-        });
-
-        document.getElementById('btnClearAll').addEventListener('click', () => {
-            walls = [];
-            selectedWallId = null;
-            selectedOpeningId = null;
-            updateInspector();
-            render();
-            showToast('Чертёж очищен');
-        });
-
-        document.getElementById('btnDemoHouse').addEventListener('click', loadDemoHouse);
-
-        document.getElementById('sliderTotalRows').addEventListener('input', (e) => {
-            totalWallRows = Number(e.target.value);
-            walls.forEach(w => clampWallOpenings(w));
-            updateInspector();
-            render();
-        });
-
-        document.getElementById('sliderWallLength').addEventListener('input', (e) => {
-            const wall = walls.find(w => w.id === selectedWallId);
-            if (!wall) return;
-            setWallLengthFromCenter(wall, Number(e.target.value));
-            updateInspector();
-            render();
-        });
-
-        document.getElementById('sliderWallAngle').addEventListener('input', (e) => {
-            const wall = walls.find(w => w.id === selectedWallId);
-            if (!wall) return;
-            setWallAngleFromCenter(wall, Number(e.target.value));
-            updateInspector();
-            render();
-        });
-
-        document.querySelectorAll('.quick-angle-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const wall = walls.find(w => w.id === selectedWallId);
-                if (!wall) return;
-                setWallAngleFromCenter(wall, Number(btn.dataset.angle));
-                updateInspector();
-                render();
-            });
-        });
-
-        document.getElementById('btnDeleteWall').addEventListener('click', () => {
-            walls = walls.filter(w => w.id !== selectedWallId);
-            selectedWallId = walls[0] ? walls[0].id : null;
-            selectedOpeningId = null;
-            updateInspector();
-            render();
-            showToast('Стена удалена');
-        });
-
-        document.getElementById('btnDeleteOpening').addEventListener('click', () => {
-            const wall = walls.find(w => w.id === selectedWallId);
-            if (!wall) return;
-            wall.openings = wall.openings.filter(o => o.id !== selectedOpeningId);
-            selectedOpeningId = wall.openings[0] ? wall.openings[0].id : null;
-            updateInspector();
-            render();
-            showToast('Проём удалён');
-        });
-
-        document.querySelectorAll('.opening-type-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const wall = walls.find(w => w.id === selectedWallId);
-                if (!wall) return;
-                const op = wall.openings.find(o => o.id === selectedOpeningId);
-                if (!op) return;
-                op.type = btn.dataset.optype;
-                if (op.type === 'window') {
-                    op.startRow = 4;
-                    op.rowCount = Math.min(4, Math.max(1, totalWallRows - 3));
-                } else {
-                    op.startRow = 1;
-                    op.rowCount = Math.min(7, totalWallRows);
-                }
-                updateInspector();
-                render();
-            });
-        });
-
-        document.getElementById('sliderOpeningOffset').addEventListener('input', (e) => {
-            const wall = walls.find(w => w.id === selectedWallId);
-            if (!wall) return;
-            const op = wall.openings.find(o => o.id === selectedOpeningId);
-            if (!op) return;
-
-            const limits = getOpeningLimitsCm(wall, op);
-            const { lenCm } = getOpeningBoundsCm(op);
-            const startCm = clamp(snapCmTo50(Number(e.target.value)), limits.minCm, limits.maxCm - lenCm);
-
-            setOpeningBoundsCm(op, startCm, lenCm);
-            updateInspector();
-            render();
-        });
-
-        document.getElementById('sliderOpeningLength').addEventListener('input', (e) => {
-            const wall = walls.find(w => w.id === selectedWallId);
-            if (!wall) return;
-            const op = wall.openings.find(o => o.id === selectedOpeningId);
-            if (!op) return;
-
-            const limits = getOpeningLimitsCm(wall, op);
-            const { startCm } = getOpeningBoundsCm(op);
-            const newLenCm = clamp(snapCmTo50(Number(e.target.value)), HALF_BLOCK_CM, limits.maxCm - startCm);
-
-            setOpeningBoundsCm(op, startCm, newLenCm);
-            updateInspector();
-            render();
-        });
-
-        document.getElementById('sliderOpStartRow').addEventListener('input', (e) => {
-            const wall = walls.find(w => w.id === selectedWallId);
-            if (!wall) return;
-            const op = wall.openings.find(o => o.id === selectedOpeningId);
-            if (!op) return;
-            op.startRow = clamp(Number(e.target.value), 1, totalWallRows);
-            op.rowCount = clamp(op.rowCount || 1, 1, totalWallRows - op.startRow + 1);
-            updateInspector();
-            render();
-        });
-
-        document.getElementById('sliderOpRowCount').addEventListener('input', (e) => {
-            const wall = walls.find(w => w.id === selectedWallId);
-            if (!wall) return;
-            const op = wall.openings.find(o => o.id === selectedOpeningId);
-            if (!op) return;
-            op.rowCount = clamp(Number(e.target.value), 1, totalWallRows - (op.startRow || 1) + 1);
-            updateInspector();
-            render();
-        });
-
-        // =========================================================================
-        // ДЕМО-КОНФИГУРАЦИЯ ДОМА С УГЛОВЫМИ (L) И Т-ОБРАЗНЫМИ СОЕДИНЕНИЯМИ
-        // =========================================================================
-        function loadDemoHouse() {
-            walls = [];
-            nextId = 1;
-
-            const cx = Math.round((canvas.width / 2) / HALF_BLOCK_PX) * HALF_BLOCK_PX;
-            const cy = Math.round((canvas.height / 2) / HALF_BLOCK_PX) * HALF_BLOCK_PX;
-
-            const wPx = cmToPx(600); // 600 см (ширина дома)
-            const hPx = cmToPx(400); // 400 см (глубина дома)
-
-            const leftX = cx - wPx / 2;
-            const rightX = cx + wPx / 2;
-            const topY = cy - hPx / 2;
-            const botY = cy + hPx / 2;
-
-            // 1. Северная (верхняя) стена 600 см с двумя непересекающимися окнами
-            const wTop = {
-                id: nextId++,
-                x1: leftX, y1: topY,
-                x2: rightX, y2: topY,
-                openings: [
-                    { id: nextId++, offset: cmToPx(150), length: cmToPx(100), type: 'window', startRow: 4, rowCount: 4 },
-                    { id: nextId++, offset: cmToPx(450), length: cmToPx(100), type: 'window', startRow: 4, rowCount: 4 }
-                ]
-            };
-
-            // 2. Южная (нижняя) стена 600 см с дверью и окном
-            const wBot = {
-                id: nextId++,
-                x1: leftX, y1: botY,
-                x2: rightX, y2: botY,
-                openings: [
-                    { id: nextId++, offset: cmToPx(150), length: cmToPx(100), type: 'door', startRow: 1, rowCount: 7 },
-                    { id: nextId++, offset: cmToPx(450), length: cmToPx(150), type: 'window', startRow: 4, rowCount: 4 }
-                ]
-            };
-
-            // 3. Западная (левая) стена 400 см
-            const wLeft = {
-                id: nextId++,
-                x1: leftX, y1: topY,
-                x2: leftX, y2: botY,
-                openings: [
-                    { id: nextId++, offset: cmToPx(200), length: cmToPx(100), type: 'window', startRow: 4, rowCount: 4 }
-                ]
-            };
-
-            // 4. Восточная (правая) стена 400 см
-            const wRight = {
-                id: nextId++,
-                x1: rightX, y1: topY,
-                x2: rightX, y2: botY,
-                openings: []
-            };
-
-            // 5. Внутренняя Т-образная перегородка 400 см:
-            // Приклеена строго к одной половине блока (ячейка 250–300 см, ось на 275 см), как на фото!
-            const tCellCenterX = leftX + cmToPx(275);
-            const wTPartition = {
-                id: nextId++,
-                x1: tCellCenterX, y1: topY,
-                x2: tCellCenterX, y2: botY,
-                openings: [
-                    { id: nextId++, offset: cmToPx(200), length: cmToPx(100), type: 'arch', startRow: 1, rowCount: 7 }
-                ]
-            };
-
-            walls.push(wTop, wBot, wLeft, wRight, wTPartition);
-            walls.forEach(w => clampWallOpenings(w));
-
-            selectedWallId = wTop.id;
-            selectedOpeningId = wTop.openings[0].id;
-            updateInspector();
-            render();
-        }
-
-        window.addEventListener('resize', resizeCanvases);
-        window.onload = function () {
-            resizeCanvases();
-            loadDemoHouse();
-        };
-    </script>
+    <script src="./js/constants.js"></script>
+    <script src="./js/state.js"></script>
+    <script src="./js/wall-logic.js"></script>
+    <script src="./js/render.js"></script>
+    <script src="./js/ui.js"></script>
+    <script src="./js/wall-actions.js"></script>
+    <script src="./js/interactions.js"></script>
+    <script src="./js/main.js"></script>
 </body>
 </html>
