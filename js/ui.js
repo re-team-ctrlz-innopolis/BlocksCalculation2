@@ -18,18 +18,25 @@ function updateBlockCalculator() {
                 const row = document.createElement('div');
                 row.className = 'flex items-center justify-between bg-slate-900/80 px-2 py-1 rounded border border-slate-800';
                 row.innerHTML = `
-                    <span class="text-slate-300 font-medium">Wall #${w.id} (${getWallLengthCm(w)} cm)</span>
+                    <span class="text-slate-300 font-medium">Wall #${w.id} (${getWallLengthCm(w)} × ${formatCm(getWallRows(w) * COURSE_HEIGHT_CM)} cm)</span>
                     <span class="text-slate-400">
-                        <b class="text-blue-400">${st.fullCount}</b>×400 +
-                        <b class="text-amber-400">${st.halfCount}</b>×198
+                        <b class="text-blue-400">${st.fullCount}</b>×40 +
+                        <b class="text-amber-400">${st.halfCount}</b>×20
                         <span class="text-red-300">• ${st.unfilledCm} cm remainder across courses</span>
                     </span>
                 `;
+                row.tabIndex = 0;
+                row.setAttribute('role', 'button');
+                row.style.cursor = 'pointer';
+                const select = () => { state.selectedWallId = w.id; state.selectedOpeningId = null; updateInspector(); render(); };
+                row.addEventListener('click', select);
+                row.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(); } });
                 breakdownEl.appendChild(row);
             }
 
+            updateProjectStatus();
             document.getElementById('calcWallsCount').textContent = `${state.walls.length} walls`;
-            document.getElementById('valTotalRows').textContent = `${state.totalWallRows} courses`;
+            document.getElementById('valTotalRows').textContent = `${state.totalWallRows} courses / ${formatCm(state.totalWallRows * COURSE_HEIGHT_CM)} cm`;
             document.getElementById('totFullBlocks').textContent = grandFull;
             document.getElementById('totHalfBlocks').textContent = grandHalf;
             document.getElementById('totAllBlocks').textContent = grandFull + grandHalf;
@@ -53,6 +60,9 @@ function updateInspector() {
             emptyPanel.classList.add('hidden');
             wallPanel.classList.remove('hidden');
 
+            document.getElementById('inputWallRows').value = getWallRows(wall);
+            document.getElementById('valWallHeight').textContent = `${formatCm(getWallRows(wall) * COURSE_HEIGHT_CM)} cm`;
+            document.getElementById('wallControlJoints').textContent = getControlJoints(wall).map(x => `${x} cm`).join(', ') || 'None required';
             const lenCm = getWallLengthCm(wall);
             const minAllowedLenCm = getMinAllowedWallLengthCm(wall);
             const angleDeg = getWallAngleDeg(wall);
@@ -82,19 +92,18 @@ function updateInspector() {
             const r1Full = r1.blocks.filter(b => b.kind === 'full').length;
             const r1Half = r1.blocks.filter(b => b.kind === 'half').length;
             document.getElementById('lblRow1Summary').textContent =
-                `${r1Full}×400, ${r1Half}×198, ${r1.unfilledCm} cm unfilled`;
+                `${r1Full}×40, ${r1Half}×20, ${r1.unfilledCm} cm unfilled`;
 
             // Ползунок угла
-            document.getElementById('sliderWallAngle').value = angleDeg;
-            document.getElementById('valWallAngle').textContent = `${angleDeg}°`;
+            document.getElementById('valWallDirection').textContent = Math.abs(Math.sin(getWallAngleRad(wall))) < 0.01 ? 'Horizontal' : 'Vertical';
 
             // Check whether there is room for a new opening.
             const freeSlot = findFreeSlotForOpening(wall, HALF_BLOCK_CM);
             const btnAddOp = document.getElementById('btnAddOpening');
-            btnAddOp.disabled = !freeSlot;
+            btnAddOp.disabled = !freeSlot || getWallRows(wall) < 4;
             btnAddOp.title = freeSlot
                 ? 'Add an opening in available wall space'
-                : 'No free space (min. 198 cm). Extend the wall or reduce the openings.';
+                : 'No free space (min. 20 cm). Extend the wall or reduce the openings.';
 
             // Список проёмов стены
             const listEl = document.getElementById('openingsList');
@@ -112,7 +121,7 @@ function updateInspector() {
                 sortedOps.forEach((op, idx) => {
                     const { startCm, endCm, lenCm } = getOpeningBoundsCm(op);
                     const isSel = op.id === state.selectedOpeningId;
-                    const typeLabel = op.type === 'window' ? 'Window' : op.type === 'door' ? 'Door' : 'Arch';
+                    const typeLabel = op.type === 'window' ? 'Window' : op.type === 'door' ? 'Door' : 'Opening';
                     const badgeColor = op.type === 'window'
                         ? 'text-sky-400 border-sky-500/40 bg-sky-950/50'
                         : op.type === 'door'
@@ -184,13 +193,13 @@ function updateInspector() {
 
                 // Ряды проёма по высоте
                 const sliderStartRow = document.getElementById('sliderOpStartRow');
-                sliderStartRow.max = state.totalWallRows;
+                sliderStartRow.max = Math.max(getWallRows(wall), selectedOp.startRow || 1);
                 sliderStartRow.value = selectedOp.startRow || 1;
-                document.getElementById('valOpStartRow').textContent = selectedOp.startRow || 1;
+                document.getElementById('valOpStartRow').textContent = `${selectedOp.startRow || 1} (${formatCm(((selectedOp.startRow || 1) - 1) * COURSE_HEIGHT_CM)} cm sill)`;
 
                 const sliderRowCount = document.getElementById('sliderOpRowCount');
-                sliderRowCount.max = Math.max(1, state.totalWallRows - (selectedOp.startRow || 1) + 1);
+                sliderRowCount.max = Math.max(selectedOp.rowCount || 1, getWallRows(wall) - (selectedOp.startRow || 1) + 1, 1);
                 sliderRowCount.value = selectedOp.rowCount || 7;
-                document.getElementById('valOpRowCount').textContent = selectedOp.rowCount || 7;
+                document.getElementById('valOpRowCount').textContent = `${selectedOp.rowCount || 7} (${formatCm((selectedOp.rowCount || 7) * COURSE_HEIGHT_CM)} cm)`;
             }
         }

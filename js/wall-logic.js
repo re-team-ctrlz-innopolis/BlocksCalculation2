@@ -112,8 +112,7 @@ function clampWallOpenings(wall) {
                 lenCm = clamp(lenCm, HALF_BLOCK_CM, Math.max(HALF_BLOCK_CM, maxEndForThis - startCm));
 
                 setOpeningBoundsCm(op, startCm, lenCm);
-                op.startRow = clamp(op.startRow || 1, 1, state.totalWallRows);
-                op.rowCount = clamp(op.rowCount || 4, 1, state.totalWallRows - op.startRow + 1);
+                // Height changes preserve opening dimensions; validation reports overflow.
                 cursorCm = startCm + lenCm;
             }
         }
@@ -151,6 +150,10 @@ function getMinAllowedWallLengthCm(wall) {
         }
 
 function setWallLengthFromCenter(wall, newLenCm) {
+            if (!Number.isFinite(newLenCm) || newLenCm % BLOCK_GRID_CM !== 0) {
+                showToast('Use multiples of 20 cm (200 mm). Cutting blocks is not supported.');
+                return;
+            }
             const minAllowed = getMinAllowedWallLengthCm(wall);
             const clampedCm = clamp(snapCmToGrid(newLenCm), minAllowed, MAX_WALL_CM);
             const newLenPx = cmToPx(clampedCm);
@@ -183,7 +186,7 @@ function setWallAngleFromCenter(wall, angleDeg) {
         }
 
 function snapToHalfBlockCellCenterCm(rawAlongCm, wallLenCm) {
-            // Keep T-joints outside the 198 cm corner margins.
+            // Keep T-joints outside the 20 cm corner margins.
             const minCellStartCm = HALF_BLOCK_CM;
             const maxCellStartCm = Math.max(HALF_BLOCK_CM, wallLenCm - FULL_BLOCK_CM);
             const rawCellStartCm = Math.round((rawAlongCm - HALF_BLOCK_CM / 2) / HALF_BLOCK_CM) * HALF_BLOCK_CM;
@@ -195,69 +198,100 @@ function snapToHalfBlockCellCenterCm(rawAlongCm, wallLenCm) {
             };
         }
 
-function findSnapPoint(x, y, excludeWallId) {
-            let best = null;
-            const snapRadius = SNAP_RADIUS / state.zoom;
-            let minDist = snapRadius;
-
-            for (const w of state.walls) {
-                if (w.id === excludeWallId) continue;
-
-                // 1. Угловые L-соединения (конец-в-конец)
-                const d1 = dist(x, y, w.x1, w.y1);
-                if (d1 < minDist) {
-                    minDist = d1;
-                    best = {
-                        x: w.x1,
-                        y: w.y1,
-                        wallId: w.id,
-                        type: 'L',
-                        offsetCm: 0
-                    };
-                }
-                const d2 = dist(x, y, w.x2, w.y2);
-                if (d2 < minDist) {
-                    minDist = d2;
-                    best = {
-                        x: w.x2,
-                        y: w.y2,
-                        wallId: w.id,
-                        type: 'L',
-                        offsetCm: getWallLengthCm(w)
-                    };
-                }
-
-                // T-joints snap to a 198 cm half-block cell on the host wall.
-                const lenPx = getWallLength(w);
-                const lenCm = getWallLengthCm(w);
-                if (lenCm >= FULL_BLOCK_CM * 2) {
-                    const loc = worldToWallLocal(w, x, y);
-                    if (loc.along > HALF_BLOCK_PX * 0.5 && loc.along < lenPx - HALF_BLOCK_PX * 0.5 && Math.abs(loc.perp) < snapRadius) {
-                        const cell = snapToHalfBlockCellCenterCm(pxToCm(loc.along), lenCm);
-                        const snappedAlongPx = cmToPx(cell.centerCm);
-                        const pt = wallLocalToWorld(w, snappedAlongPx, 0);
-                        const dp = dist(x, y, pt.x, pt.y);
-                        if (dp < minDist) {
-                            minDist = dp;
-                            best = {
-                                x: pt.x,
-                                y: pt.y,
-                                wallId: w.id,
-                                type: 'T',
-                                offsetCm: cell.centerCm,
-                                cellStartCm: cell.cellStartCm,
-                                cellEndCm: cell.cellEndCm
-                            };
-                        }
-                    }
-                }
+function getSnapCandidates(x, y, excludeWallId) {
+    const moving = state.walls.find(w => w.id === excludeWallId);
+    const radius = SNAP_RADIUS / state.zoom;
+    const candidates = [];
+    const add = point => {
+        point.x = Math.round(point.x * 1e9) / 1e9;
+        point.y = Math.round(point.y * 1e9) / 1e9;
+        const distance = dist(x, y, point.x, point.y);
+        if (distance <= radius) candidates.push({...point, distance});
+    };
+    for (const host of state.walls) {
+        if (host.id === excludeWallId || (moving && !arePerpendicular(moving, host))) continue;
+        add({x: host.x1, y: host.y1, wallId: host.id, type: 'L', offsetCm: 0});
+        add({x: host.x2, y: host.y2, wallId: host.id, type: 'L', offsetCm: getWallLengthCm(host)});
+        const local = worldToWallLocal(host, x, y);
+        if (Math.abs(local.perp) > radius + WALL_THICKNESS / 2) continue;
+        const length = getWallLengthCm(host);
+        for (let cellStartCm = HALF_BLOCK_CM; cellStartCm <= length - FULL_BLOCK_CM; cellStartCm += HALF_BLOCK_CM) {
+            const centerCm = cellStartCm + HALF_BLOCK_CM / 2;
+            if (Math.abs(cmToPx(centerCm) - local.along) > radius) continue;
+            if (host.openings.some(op => {
+                const b = getOpeningBoundsCm(op);
+                return b.startCm < cellStartCm + HALF_BLOCK_CM && b.endCm > cellStartCm && (!moving || op.startRow <= getWallRows(moving));
+            })) continue;
+            for (const side of [-1, 1]) {
+                const point = wallLocalToWorld(host, cmToPx(centerCm), side * WALL_THICKNESS / 2);
+                add({...point, wallId: host.id, type: 'T', side, offsetCm: centerCm, cellStartCm, cellEndCm: cellStartCm + HALF_BLOCK_CM});
             }
-            return best;
         }
+    }
+    return candidates.sort((a, b) => a.distance - b.distance || a.type.localeCompare(b.type) || a.wallId - b.wallId || a.offsetCm - b.offsetCm || (a.side || 0) - (b.side || 0));
+}
+
+function findSnapPoint(x, y, excludeWallId) {
+    return getSnapCandidates(x, y, excludeWallId)[0] || null;
+}
+
+function snapWorldCoordinate(value) {
+    const step = cmToPx(POSITION_GRID_CM);
+    return Math.round(value / step) * step;
+}
+
+function snapWallTranslation(wall, proposed) {
+    const onSide = (point, otherX, otherY) => {
+        if (point.type !== 'T') return true;
+        const host = state.walls.find(w => w.id === point.wallId);
+        return worldToWallLocal(host, otherX, otherY).perp * point.side > WALL_THICKNESS / 2;
+    };
+    const first = getSnapCandidates(proposed.x1, proposed.y1, wall.id).filter(p => onSide(p, proposed.x2, proposed.y2));
+    const second = getSnapCandidates(proposed.x2, proposed.y2, wall.id).filter(p => onSide(p, proposed.x1, proposed.y1));
+    const options = [];
+    for (const [end, points, other] of [[1, first, second], [2, second, first]]) {
+        for (const point of points) {
+            const dx = point.x - proposed['x' + end], dy = point.y - proposed['y' + end];
+            const otherEnd = end === 1 ? 2 : 1;
+            const paired = other.find(p => Math.abs(p.x - proposed['x' + otherEnd] - dx) < 0.001 && Math.abs(p.y - proposed['y' + otherEnd] - dy) < 0.001);
+            options.push({dx, dy, snaps: paired ? [point, paired] : [point], distance: Math.hypot(dx, dy), point, end});
+        }
+    }
+    options.sort((a, b) => b.snaps.length - a.snaps.length || a.distance - b.distance || a.point.type.localeCompare(b.point.type) || a.point.wallId - b.point.wallId || a.point.offsetCm - b.point.offsetCm || a.end - b.end);
+    const best = options[0];
+    const dx = best ? best.dx : snapWorldCoordinate(proposed.x1) - proposed.x1;
+    const dy = best ? best.dy : snapWorldCoordinate(proposed.y1) - proposed.y1;
+    return {x1: proposed.x1 + dx, y1: proposed.y1 + dy, x2: proposed.x2 + dx, y2: proposed.y2 + dy, snaps: best?.snaps || []};
+}
+
+function resizeWallEndpoint(wall, first, position) {
+    const anchor = first ? {x: wall.x2, y: wall.y2} : {x: wall.x1, y: wall.y1};
+    const length = getWallLength(wall);
+    const ux = ((first ? wall.x1 : wall.x2) - anchor.x) / length;
+    const uy = ((first ? wall.y1 : wall.y2) - anchor.y) / length;
+    const minimum = getMinAllowedWallLengthCm(wall);
+    const candidates = getSnapCandidates(position.x, position.y, wall.id).filter(p => {
+        const dx = p.x - anchor.x, dy = p.y - anchor.y;
+        const along = pxToCm(dx * ux + dy * uy);
+        if (p.type === 'T') {
+            const host = state.walls.find(w => w.id === p.wallId);
+            if (worldToWallLocal(host, anchor.x, anchor.y).perp * p.side <= WALL_THICKNESS / 2) return false;
+        }
+        return Math.abs(dx * uy - dy * ux) < 0.001 && along >= minimum && along <= MAX_WALL_CM && Math.abs(along - snapCmToGrid(along)) < 0.001;
+    });
+    const snap = candidates[0];
+    const along = pxToCm((position.x - anchor.x) * ux + (position.y - anchor.y) * uy);
+    const finalLength = cmToPx(clamp(snapCmToGrid(along), minimum, MAX_WALL_CM));
+    const point = snap || {x: anchor.x + ux * finalLength, y: anchor.y + uy * finalLength};
+    if (first) { wall.x1 = point.x; wall.y1 = point.y; }
+    else { wall.x2 = point.x; wall.y2 = point.y; }
+    clampWallOpenings(wall);
+    return snap || null;
+}
 
 function getAllWallJoints() {
             const joints = [];
-            const eps = 2.0;
+            const eps = 0.01;
 
             for (let i = 0; i < state.walls.length; i++) {
                 const a = state.walls[i];
@@ -268,7 +302,7 @@ function getAllWallJoints() {
 
                 for (const ep of endpointsA) {
                     for (let j = 0; j < state.walls.length; j++) {
-                        if (i === j) continue;
+                        if (i === j || !arePerpendicular(a, state.walls[j])) continue;
                         const b = state.walls[j];
 
                         // Проверка L-соединения (конец-в-конец)
@@ -294,11 +328,12 @@ function getAllWallJoints() {
                             const lenBCm = getWallLengthCm(b);
                             if (lenB > 0) {
                                 const loc = worldToWallLocal(b, ep.x, ep.y);
-                                if (loc.along >= HALF_BLOCK_PX - eps && loc.along <= lenB - HALF_BLOCK_PX + eps && Math.abs(loc.perp) <= eps) {
+                                if (loc.along >= HALF_BLOCK_PX - eps && loc.along <= lenB - HALF_BLOCK_PX + eps && (Math.abs(loc.perp) <= eps || Math.abs(Math.abs(loc.perp) - WALL_THICKNESS / 2) <= eps)) {
                                     const cell = snapToHalfBlockCellCenterCm(pxToCm(loc.along), lenBCm);
                                     if (!joints.some(jt => jt.type === 'T' && jt.hostWallId === b.id && Math.abs(jt.offsetCm - cell.centerCm) < 10 && jt.branchWallId === a.id)) {
                                         joints.push({
                                             type: 'T',
+                                            legacyAxis: Math.abs(loc.perp) <= eps,
                                             x: ep.x,
                                             y: ep.y,
                                             hostWallId: b.id,
@@ -324,7 +359,7 @@ function getWallEndCornerState(wall, rowIndex, allJoints) {
                 startConnected: false,
                 startIsLCorner: false,
                 startIsTButt: false,
-                startInsetCm: 0,      // 0 cm or a 198 cm inset for the alternating corner course.
+                startInsetCm: 0,      // 0 cm or a 20 cm inset for the alternating corner course.
                 startPartnerWallId: null,
                 endConnected: false,
                 endIsLCorner: false,
@@ -334,9 +369,12 @@ function getWallEndCornerState(wall, rowIndex, allJoints) {
             };
 
             for (const jt of allJoints) {
+                const partnerId = jt.type === "L" ? (jt.wallA === wall.id ? jt.wallB : jt.wallA) : jt.hostWallId;
+                const partner = getPartnerWall(partnerId);
+                if (partner && rowIndex > getWallRows(partner)) continue;
                 if (jt.type === 'L') {
                     if (jt.wallA === wall.id) {
-                        // wallA takes the corner in odd courses and yields 198 cm in even courses.
+                        // wallA takes the corner in odd courses and yields 20 cm in even courses.
                         const inset = isOddRow ? 0 : HALF_BLOCK_CM;
                         if (jt.endA === 'start') {
                             state.startConnected = true;
@@ -350,7 +388,7 @@ function getWallEndCornerState(wall, rowIndex, allJoints) {
                             state.endPartnerWallId = jt.wallB;
                         }
                     } else if (jt.wallB === wall.id) {
-                        // wallB yields 198 cm in odd courses and takes the corner in even courses.
+                        // wallB yields 20 cm in odd courses and takes the corner in even courses.
                         const inset = isOddRow ? HALF_BLOCK_CM : 0;
                         if (jt.endB === 'start') {
                             state.startConnected = true;
@@ -365,8 +403,8 @@ function getWallEndCornerState(wall, rowIndex, allJoints) {
                         }
                     }
                 } else if (jt.type === 'T' && jt.branchWallId === wall.id) {
-                    // В Т-соединении примыкающая перегородка НЕ образует перевязанный угол с основной стеной,
-                    // а крепится к её боковой грани встык ("на клей") с использованием половинчатых блоков для перевязки рядов
+                    // Report p.9 / manual p.67: butt connection with metal straps
+                    // and concrete-filled cavities. No shared blocks are subtracted.
                     if (jt.branchEnd === 'start') {
                         state.startConnected = true;
                         state.startIsTButt = true;
@@ -386,11 +424,12 @@ function getWallEndCornerState(wall, rowIndex, allJoints) {
 function decomposeSegmentIntoBlocks(startCm, endCm, seamPhase) {
             const blocks = [];
             const segLen = endCm - startCm;
+            if (segLen <= 0) return { blocks, unfilledSegments: [] };
             if (segLen < HALF_BLOCK_CM) {
                 return { blocks, unfilledSegments: [{ startCm, endCm }] };
             }
 
-            // A segment exactly 198 cm long fits one half block.
+            // A segment exactly 20 cm long fits one half block.
             if (segLen === HALF_BLOCK_CM) {
                 blocks.push({ startCm, lenCm: HALF_BLOCK_CM, kind: 'half' });
                 return { blocks, unfilledSegments: [] };
@@ -400,7 +439,7 @@ function decomposeSegmentIntoBlocks(startCm, endCm, seamPhase) {
             const curEnd = endCm;
 
             // 1. Если начало сегмента не совпадает с фазой сетки швов (например, у откоса проёма или свободного торца),
-            // Use one 198 cm half block to align with the full-block seam phase.
+            // Use one 20 cm half block to align with the full-block seam phase.
             // При этом в угловом L-соединении curStart ВСЕГДА совпадает с seamPhase (0 в одном ряду и 50 в другом),
             // This keeps full-block seams aligned at L-joints.
             if (curEnd - curStart >= HALF_BLOCK_CM && (curStart % FULL_BLOCK_CM) !== seamPhase) {
@@ -412,7 +451,7 @@ function decomposeSegmentIntoBlocks(startCm, endCm, seamPhase) {
                 curStart += HALF_BLOCK_CM;
             }
 
-            // Fill with exact 400 cm full blocks before adding any remaining halves.
+            // Fill with exact 40 cm full blocks before adding any remaining halves.
             while (curEnd - curStart >= FULL_BLOCK_CM) {
                 blocks.push({
                     startCm: curStart,
@@ -422,7 +461,7 @@ function decomposeSegmentIntoBlocks(startCm, endCm, seamPhase) {
                 curStart += FULL_BLOCK_CM;
             }
 
-            // Fit 198 cm half blocks and leave any smaller remainder visible.
+            // Fit 20 cm half blocks and leave any smaller remainder visible.
             while (curEnd - curStart >= HALF_BLOCK_CM) {
                 blocks.push({
                     startCm: curStart,
@@ -444,14 +483,14 @@ function buildWallRowLayout(wall, rowIndex, precomputedJoints = null) {
             const cornerState = getWallEndCornerState(wall, rowIndex, allJoints);
 
             // Реальные границы кладки текущей стены в данном ряду с учётом угловой перевязки:
-            // If a perpendicular wall occupies the corner, masonry starts after its 198 cm half-block.
+            // If a perpendicular wall occupies the corner, masonry starts after its 20 cm half-block.
             const rowStartCm = cornerState.startInsetCm;
             const rowEndCm = Math.max(rowStartCm, wallLenCm - cornerState.endInsetCm);
 
-            // Alternate the 0 or 198 cm seam phase:
+            // Alternate the 0 or 20 cm seam phase:
             // - Для углового L-соединения (startIsLCorner / endIsLCorner) фаза подбирается так,
-            //   to preserve full 400 cm blocks at the corner.
-            // - For T-joints or free ends, alternate the seam phase between 0 and 198 cm,
+            //   to preserve full 40 cm blocks at the corner.
+            // - For T-joints or free ends, alternate the seam phase between 0 and 20 cm,
             //   using exact half blocks without cutting into the host wall.
             let seamPhase;
             if (cornerState.startIsLCorner) {
@@ -476,7 +515,7 @@ function buildWallRowLayout(wall, rowIndex, precomputedJoints = null) {
                 }))
                 .sort((a, b) => a.startCm - b.startCm);
 
-            // При Т-соединении основная стена остаётся полностью цельной (примыкающая стена клеится встык снаружи)
+            // T-connections leave host masonry continuous; metal ties/concrete are not block deductions.
             const tPocketOps = [];
             const allGaps = [...activeOps].sort((a, b) => a.startCm - b.startCm);
 
@@ -499,9 +538,21 @@ function buildWallRowLayout(wall, rowIndex, precomputedJoints = null) {
             const rowBlocks = [];
             const unfilledSegments = [];
             for (const seg of segments) {
-                const result = decomposeSegmentIntoBlocks(seg.startCm, seg.endCm, seamPhase);
-                rowBlocks.push(...result.blocks);
-                unfilledSegments.push(...result.unfilledSegments);
+                const cuts = getControlJoints(wall).filter(x => x > seg.startCm && x < seg.endCm);
+                const bounds = [seg.startCm, ...cuts, seg.endCm];
+                for (let i = 0; i < bounds.length - 1; i++) {
+                    let start = bounds[i], end = bounds[i + 1];
+                    // Every second course ends in a half on both sides of each joint.
+                    if (rowIndex % 2 === 0 && cuts.includes(start)) {
+                        rowBlocks.push({startCm: start, lenCm: HALF_BLOCK_CM, kind: 'half'});
+                        start += HALF_BLOCK_CM;
+                    }
+                    let endHalf = rowIndex % 2 === 0 && cuts.includes(end) && end - start >= HALF_BLOCK_CM;
+                    const result = decomposeSegmentIntoBlocks(start, end - (endHalf ? HALF_BLOCK_CM : 0), seamPhase);
+                    rowBlocks.push(...result.blocks);
+                    if (endHalf) rowBlocks.push({startCm: end - HALF_BLOCK_CM, lenCm: HALF_BLOCK_CM, kind: 'half'});
+                    unfilledSegments.push(...result.unfilledSegments);
+                }
             }
 
             return {
@@ -522,7 +573,7 @@ function calculateWallBlocks(wall, precomputedJoints = null) {
             let unfilledCm = 0;
             const joints = precomputedJoints || getAllWallJoints();
 
-            for (let r = 1; r <= state.totalWallRows; r++) {
+            for (let r = 1; r <= getWallRows(wall); r++) {
                 const layout = buildWallRowLayout(wall, r, joints);
                 unfilledCm += layout.unfilledCm;
                 for (const b of layout.blocks) {

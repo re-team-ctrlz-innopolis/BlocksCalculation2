@@ -37,14 +37,15 @@ function drawGrid() {
             state.ctx.fillRect(left, top, right - left, bottom - top);
 
             state.ctx.lineWidth = 1 / state.zoom;
-            for (let x = Math.floor(left / HALF_BLOCK_PX) * HALF_BLOCK_PX; x <= right; x += HALF_BLOCK_PX) {
+            const gridStep = cmToPx(POSITION_GRID_CM) * state.zoom >= 6 ? cmToPx(POSITION_GRID_CM) : HALF_BLOCK_PX;
+            for (let x = Math.floor(left / gridStep) * gridStep; x <= right; x += gridStep) {
                 state.ctx.strokeStyle = '#111827';
                 state.ctx.beginPath();
                 state.ctx.moveTo(x, top);
                 state.ctx.lineTo(x, bottom);
                 state.ctx.stroke();
             }
-            for (let y = Math.floor(top / HALF_BLOCK_PX) * HALF_BLOCK_PX; y <= bottom; y += HALF_BLOCK_PX) {
+            for (let y = Math.floor(top / gridStep) * gridStep; y <= bottom; y += gridStep) {
                 state.ctx.strokeStyle = '#111827';
                 state.ctx.beginPath();
                 state.ctx.moveTo(left, y);
@@ -78,7 +79,7 @@ function drawHostWallSnapTicks(hostWallId) {
             state.ctx.translate(w.x1, w.y1);
             state.ctx.rotate(angle);
 
-            // Highlight 198 cm half-block boundaries and their centers for T-joint snapping.
+            // Highlight 20 cm half-block boundaries and their centers for T-joint snapping.
             for (let cellStartCm = HALF_BLOCK_CM; cellStartCm <= lenCm - FULL_BLOCK_CM; cellStartCm += HALF_BLOCK_CM) {
                 const startPx = cmToPx(cellStartCm);
                 const centerPx = cmToPx(cellStartCm + HALF_BLOCK_CM / 2);
@@ -106,6 +107,22 @@ function drawHostWallSnapTicks(hostWallId) {
             state.ctx.restore();
         }
 
+// A fixed 1:1 mapping: attaching a wall must never redistribute its seams.
+function getPlanProjection(layout) {
+            return {
+                project: cmToPx,
+                unproject: pxToCm,
+                blocks: layout.blocks.map(block => ({...block, x: cmToPx(block.startCm), width: cmToPx(block.lenCm)}))
+            };
+        }
+
+function getWallPlanProjection(wall) {
+            return getPlanProjection(buildWallRowLayout(
+                {...wall, openings: wall.openings.map(op => ({...op, startRow: 1, rowCount: getWallRows(wall)}))},
+                state.activePlanRow
+            ));
+        }
+
 function drawWall(wall, isSelected, allJoints) {
             const lenPx = getWallLength(wall);
             const lenCm = getWallLengthCm(wall);
@@ -114,20 +131,15 @@ function drawWall(wall, isSelected, allJoints) {
 
             // Рассчитываем раскладку для выбранного на плане ряда (1-й или 2-й) с учётом угловой перевязки
             const baseLayout = buildWallRowLayout(
-                { ...wall, openings: wall.openings.map(o => ({ ...o, startRow: 1, rowCount: state.totalWallRows })) },
+                { ...wall, openings: wall.openings.map(o => ({ ...o, startRow: 1, rowCount: getWallRows(wall) })) },
                 state.activePlanRow,
                 allJoints
             );
+            const projection = getPlanProjection(baseLayout);
 
-            // Если конец стены входит в L-угол, удлиняем визуальный контур на половину толщины (halfThick).
-            // Если конец стены примыкает в Т-стык ("на клей"), отступаем от оси основной стены на её полутолщину (-halfThick),
-            // чтобы примыкающая стена визуально стыковалась ровно к боковой грани блока основной стены без нахлёста.
-            const extStartPx = baseLayout.cornerState.startIsLCorner
-                ? halfThick
-                : (baseLayout.cornerState.startIsTButt ? -halfThick : 0);
-            const extEndPx = baseLayout.cornerState.endIsLCorner
-                ? halfThick
-                : (baseLayout.cornerState.endIsTButt ? -halfThick : 0);
+            // Outline, blocks and snap markers use the same local coordinates.
+            const extStartPx = 0;
+            const extEndPx = 0;
 
             state.ctx.save();
             state.ctx.translate(wall.x1, wall.y1);
@@ -142,24 +154,19 @@ function drawWall(wall, isSelected, allJoints) {
             state.ctx.fill();
             state.ctx.stroke();
 
-            for (const b of baseLayout.blocks) {
-                // Масштабируем координаты на случай внешнего углового нахлёста (L) или примыкания встык к боковой грани (T)
-                let bx = cmToPx(b.startCm);
-                let bw = cmToPx(b.lenCm);
+            for (const [atStart, inset] of [[true, baseLayout.cornerState.startInsetCm], [false, baseLayout.cornerState.endInsetCm]]) {
+                if (!inset) continue;
+                const x = atStart ? 0 : lenPx - cmToPx(inset);
+                state.ctx.fillStyle = '#164e3b';
+                state.ctx.fillRect(x, -halfThick + 1, cmToPx(inset), WALL_THICKNESS - 2);
+                state.ctx.strokeStyle = '#34d399';
+                state.ctx.lineWidth = 1;
+                state.ctx.strokeRect(x + 0.5, -halfThick + 1.5, cmToPx(inset) - 1, WALL_THICKNESS - 3);
+            }
 
-                if (b.startCm === 0 && baseLayout.cornerState.startConnected) {
-                    bx -= extStartPx;
-                    bw += extStartPx;
-                } else if (b.startCm === HALF_BLOCK_CM && baseLayout.cornerState.startIsLCorner && baseLayout.cornerState.startInsetCm === HALF_BLOCK_CM) {
-                    bx -= extStartPx;
-                    bw += extStartPx;
-                }
-
-                if (b.startCm + b.lenCm === lenCm && baseLayout.cornerState.endConnected) {
-                    bw += extEndPx;
-                } else if (b.startCm + b.lenCm === lenCm - HALF_BLOCK_CM && baseLayout.cornerState.endIsLCorner && baseLayout.cornerState.endInsetCm === HALF_BLOCK_CM) {
-                    bw += extEndPx;
-                }
+            for (const b of projection.blocks) {
+                const bx = b.x;
+                const bw = b.width;
 
                 const isFull = b.kind === 'full';
 
@@ -172,7 +179,7 @@ function drawWall(wall, isSelected, allJoints) {
                 state.ctx.fill();
                 state.ctx.stroke();
 
-                // Two studs mark a 400 cm block; one marks a 198 cm half block.
+                // Two studs mark a 40 cm block; one marks a 20 cm half block.
                 const studsCount = isFull ? 2 : 1;
                 for (let s = 0; s < studsCount; s++) {
                     const studX = bx + (bw / studsCount) * (s + 0.5);
@@ -187,7 +194,7 @@ function drawWall(wall, isSelected, allJoints) {
             }
 
             for (const segment of baseLayout.unfilledSegments) {
-                const markerX = cmToPx((segment.startCm + segment.endCm) / 2);
+                const markerX = projection.project((segment.startCm + segment.endCm) / 2);
                 state.ctx.save();
                 state.ctx.strokeStyle = '#f87171';
                 state.ctx.lineWidth = 2 / state.zoom;
@@ -201,8 +208,8 @@ function drawWall(wall, isSelected, allJoints) {
             // Отрисовка проёмов поверх стены (с гарантией отсутствия наложений)
             for (const op of wall.openings) {
                 const { startCm, lenCm } = getOpeningBoundsCm(op);
-                const ox = cmToPx(startCm);
-                const ow = cmToPx(lenCm);
+                const ox = projection.project(startCm);
+                const ow = projection.project(startCm + lenCm) - ox;
                 const isOpSelected = isSelected && (op.id === state.selectedOpeningId);
 
                 // Фон проёма
@@ -271,6 +278,20 @@ function drawWall(wall, isSelected, allJoints) {
                 state.ctx.fillText(`${lenCm}`, 0, 0);
                 state.ctx.restore();
             }
+
+            // Control-joint positions are part of the layout, not extra blocks.
+            state.ctx.save();
+            state.ctx.strokeStyle = '#f472b6';
+            state.ctx.lineWidth = 2 / state.zoom;
+            state.ctx.setLineDash([4, 3]);
+            for (const joint of getControlJoints(wall)) {
+                const x = projection.project(joint);
+                state.ctx.beginPath();
+                state.ctx.moveTo(x, -halfThick - 5);
+                state.ctx.lineTo(x, halfThick + 5);
+                state.ctx.stroke();
+            }
+            state.ctx.restore();
 
             // Подпись общей длины стены
             state.ctx.save();
@@ -397,8 +418,8 @@ function drawElevationView(allJoints) {
             const joints = allJoints || getAllWallJoints();
             const wallLenCm = getWallLengthCm(wall);
             const stats = calculateWallBlocks(wall, joints);
-            titleEl.textContent = `Elevation: Wall #${wall.id} (${wallLenCm} cm × ${state.totalWallRows} courses)`;
-            subEl.textContent = `Full 400 cm blocks: ${stats.fullCount} | Half 198 cm blocks: ${stats.halfCount} | Remainder across courses: ${stats.unfilledCm} cm`;
+            titleEl.textContent = `Elevation: Wall #${wall.id} (${wallLenCm} cm × ${getWallRows(wall)} courses)`;
+            subEl.textContent = `Full 40 cm blocks: ${stats.fullCount} | Half 20 cm blocks: ${stats.halfCount} | Remainder across courses: ${stats.unfilledCm} cm`;
 
             const padLeft = 44;
             const padRight = 24;
@@ -411,15 +432,16 @@ function drawElevationView(allJoints) {
             const scaleX = Math.min(availW / wallLenCm, 1.8);
             const drawWallW = wallLenCm * scaleX;
             const startX = padLeft + (availW - drawWallW) / 2;
-            const rowH = availH / state.totalWallRows;
+            const rowH = availH / getWallRows(wall);
+            state.elevationGeometry = {wallId: wall.id, startX, scaleX, padTop, availH, rowH};
 
             // Отрисовка рядов снизу вверх (1-й ряд внизу)
-            for (let r = 1; r <= state.totalWallRows; r++) {
-                const y = padTop + (state.totalWallRows - r) * rowH;
+            for (let r = 1; r <= getWallRows(wall); r++) {
+                const y = padTop + (getWallRows(wall) - r) * rowH;
                 const layout = buildWallRowLayout(wall, r, joints);
 
                 // Номер ряда слева
-                if (state.totalWallRows <= 14 || r % 2 === 1) {
+                if (getWallRows(wall) <= 14 || r % 2 === 1) {
                     //state.elevCtx.fillStyle = (r === state.activePlanRow) ? '#fbbf24' : '#64748b';
                     state.elevCtx.fillStyle = '#64748b';
                     state.elevCtx.font = '10px Inter, sans-serif';
@@ -428,7 +450,7 @@ function drawElevationView(allJoints) {
                     state.elevCtx.fillText(`C${r}`, startX - 8, y + rowH / 2);
                 }
 
-                // Draw the 198 cm corner overlap contributed by the perpendicular wall.
+                // Draw the 20 cm corner overlap contributed by the perpendicular wall.
                 if (layout.cornerState.startIsLCorner && layout.cornerState.startInsetCm === HALF_BLOCK_CM) {
                     const bx = startX;
                     const bw = HALF_BLOCK_CM * scaleX;
@@ -489,7 +511,7 @@ function drawElevationView(allJoints) {
                         state.elevCtx.font = 'bold 9px Inter, sans-serif';
                         state.elevCtx.textAlign = 'center';
                         state.elevCtx.textBaseline = 'middle';
-                        state.elevCtx.fillText(isFull ? '400' : '198', bx + bw / 2, y + rowH / 2);
+                        state.elevCtx.fillText(isFull ? '40' : '20', bx + bw / 2, y + rowH / 2);
                     }
                 }
 
@@ -512,17 +534,30 @@ function drawElevationView(allJoints) {
                 }
             }
 
+            state.elevCtx.save();
+            state.elevCtx.strokeStyle = '#f472b6';
+            state.elevCtx.lineWidth = 2;
+            state.elevCtx.setLineDash([4, 3]);
+            for (const joint of getControlJoints(wall)) {
+                const x = startX + joint * scaleX;
+                state.elevCtx.beginPath();
+                state.elevCtx.moveTo(x, padTop);
+                state.elevCtx.lineTo(x, padTop + availH);
+                state.elevCtx.stroke();
+            }
+            state.elevCtx.restore();
+
             // Линейка сантиметров снизу развёртки
             state.elevCtx.fillStyle = '#94a3b8';
             state.elevCtx.font = '10px Inter, sans-serif';
             state.elevCtx.textAlign = 'center';
-            const stepCm = wallLenCm > 2400 ? FULL_BLOCK_CM : HALF_BLOCK_CM;
+            const stepCm = wallLenCm > 600 ? FULL_BLOCK_CM : HALF_BLOCK_CM;
             for (let cm = 0; cm <= wallLenCm; cm += stepCm) {
                 const x = startX + cm * scaleX;
                 state.elevCtx.fillText(`${cm}`, x, padTop + availH + 13);
             }
 
-            // Индикатор клеевого шва (Т-стыка) по краям примыкающей стены на развёртке
+            // Mark the tied butt connection at the ends of a T-branch.
             const cornerInfo = getWallEndCornerState(wall, 1, joints);
             if (cornerInfo.startIsTButt) {
                 state.elevCtx.strokeStyle = '#22d3ee';
@@ -542,7 +577,7 @@ function drawElevationView(allJoints) {
                 state.elevCtx.stroke();
             }
 
-            // Highlight the 198 cm host-wall cell used by each attached T-partition.
+            // Highlight the 20 cm host-wall cell used by each attached T-partition.
             const hostTJoints = joints.filter(jt => jt.type === 'T' && jt.hostWallId === wall.id);
             for (const jt of hostTJoints) {
                 const cellX = startX + jt.cellStartCm * scaleX;
