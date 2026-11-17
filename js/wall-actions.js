@@ -2,7 +2,7 @@ function addNewWall() {
             const cx = state.canvas.width / 2;
             const cy = state.canvas.height / 2;
             const offset = (state.walls.length % 5) * 30;
-            const lenPx = cmToPx(400); // 400 см по умолчанию
+            const lenPx = mmToPx(FULL_BLOCK_MM);
 
             const newWall = {
                 id: state.nextId++,
@@ -17,7 +17,7 @@ function addNewWall() {
             state.selectedOpeningId = null;
             updateInspector();
             render();
-            showToast('Added a 400 cm wall');
+            showToast('Added a 400 mm wall');
         }
 
 // function addTPartitionWall() {
@@ -27,14 +27,14 @@ function addNewWall() {
 //                 return;
 //             }
 
-//             const hostLenCm = getWallLengthCm(hostWall);
-//             // Snap to a 198 cm half-block cell near the center of the wall.
-//             const cell = snapToHalfBlockCellCenterCm(hostLenCm / 2, hostLenCm);
-//             const attachPt = wallLocalToWorld(hostWall, cmToPx(cell.centerCm), 0);
+//             const hostLenMm = getWallLengthMm(hostWall);
+//             // Snap to a 200 mm half-block cell near the center of the wall.
+//             const cell = snapToHalfBlockCellCenterMm(hostLenMm / 2, hostLenMm);
+//             const attachPt = wallLocalToWorld(hostWall, mmToPx(cell.centerMm), 0);
 
 //             const hostAngle = getWallAngleRad(hostWall);
 //             const perpAngle = hostAngle + Math.PI / 2;
-//             const branchLenPx = cmToPx(300);
+//             const branchLenPx = mmToPx(300);
 
 //             const newWall = {
 //                 id: state.nextId++,
@@ -45,8 +45,8 @@ function addNewWall() {
 //                 openings: [
 //                     {
 //                         id: state.nextId++,
-//                         offset: cmToPx(150),
-//                         length: cmToPx(100),
+//                         offset: mmToPx(150),
+//                         length: mmToPx(100),
 //                         type: 'door',
 //                         startRow: 1,
 //                         rowCount: Math.min(7, state.totalWallRows)
@@ -59,33 +59,33 @@ function addNewWall() {
 //             state.selectedOpeningId = newWall.openings[0].id;
 //             updateInspector();
 //             render();
-//             showToast(`Т-перегородка приклеена к половине блока (${cell.cellStartCm}–${cell.cellEndCm} см) стены #${hostWall.id}`);
+//             showToast(`T-partition attached to a half-block cell (${cell.cellStartMm}–${cell.cellEndMm} mm) on wall #${hostWall.id}`);
 //         }
 
 function addOpeningToSelectedWall() {
             const wall = state.walls.find(w => w.id === state.selectedWallId);
             if (!wall) return;
 
-            const slot = findFreeSlotForOpening(wall, FULL_BLOCK_CM);
+            const slot = findFreeSlotForOpening(wall, FULL_BLOCK_MM);
             if (!slot) {
-                showToast('No free space (min. 198 cm) for a non-overlapping opening!');
+                showToast('No free space (min. 200 mm) for a non-overlapping opening!');
                 return;
             }
 
             const newOp = {
                 id: state.nextId++,
-                offset: cmToPx(slot.startCm + slot.lenCm / 2),
-                length: cmToPx(slot.lenCm),
+                offset: mmToPx(slot.startMm + slot.lenMm / 2),
+                length: mmToPx(slot.lenMm),
                 type: 'window',
-                startRow: 4,
-                rowCount: Math.min(4, Math.max(1, state.totalWallRows - 4))
+                startRow: 2,
+                rowCount: Math.min(4, Math.max(1, state.totalWallRows - 1))
             };
             wall.openings.push(newOp);
             clampWallOpenings(wall);
             state.selectedOpeningId = newOp.id;
             updateInspector();
             render();
-            showToast(`Added a ${slot.lenCm} cm opening (position ${slot.startCm}–${slot.startCm + slot.lenCm} cm)`);
+            showToast(`Added a ${slot.lenMm} mm opening (position ${slot.startMm}–${slot.startMm + slot.lenMm} mm)`);
         }
 
 function loadDemoHouse() {
@@ -95,8 +95,8 @@ function loadDemoHouse() {
             const cx = Math.round((state.canvas.width / 2) / HALF_BLOCK_PX) * HALF_BLOCK_PX;
             const cy = Math.round((state.canvas.height / 2) / HALF_BLOCK_PX) * HALF_BLOCK_PX;
 
-            const wPx = cmToPx(2400);
-            const hPx = cmToPx(1600);
+            const wPx = mmToPx(2400);
+            const hPx = mmToPx(1600);
 
             const leftX = cx - wPx / 2;
             const rightX = cx + wPx / 2;
@@ -109,8 +109,8 @@ function loadDemoHouse() {
                 x1: leftX, y1: topY,
                 x2: rightX, y2: topY,
                 openings: [
-                    { id: state.nextId++, offset: cmToPx(600), length: cmToPx(400), type: 'window', startRow: 4, rowCount: 4 },
-                    { id: state.nextId++, offset: cmToPx(1800), length: cmToPx(400), type: 'window', startRow: 4, rowCount: 4 }
+                    { id: state.nextId++, offset: mmToPx(600), length: mmToPx(400), type: 'window', startRow: 4, rowCount: 4 },
+                    { id: state.nextId++, offset: mmToPx(1800), length: mmToPx(400), type: 'window', startRow: 4, rowCount: 4 }
                 ]
             };
 
@@ -120,8 +120,8 @@ function loadDemoHouse() {
                 x1: leftX, y1: botY,
                 x2: rightX, y2: botY,
                 openings: [
-                    { id: state.nextId++, offset: cmToPx(600), length: cmToPx(400), type: 'door', startRow: 1, rowCount: 7 },
-                    { id: state.nextId++, offset: cmToPx(1800), length: cmToPx(600), type: 'window', startRow: 4, rowCount: 4 }
+                    { id: state.nextId++, offset: mmToPx(600), length: mmToPx(400), type: 'door', startRow: 1, rowCount: 7 },
+                    { id: state.nextId++, offset: mmToPx(1800), length: mmToPx(600), type: 'window', startRow: 4, rowCount: 4 }
                 ]
             };
 
@@ -131,7 +131,7 @@ function loadDemoHouse() {
                 x1: leftX, y1: topY,
                 x2: leftX, y2: botY,
                 openings: [
-                    { id: state.nextId++, offset: cmToPx(800), length: cmToPx(400), type: 'window', startRow: 4, rowCount: 4 }
+                    { id: state.nextId++, offset: mmToPx(800), length: mmToPx(400), type: 'window', startRow: 4, rowCount: 4 }
                 ]
             };
 
@@ -144,14 +144,14 @@ function loadDemoHouse() {
             };
 
             // Internal partition attached at the center of a valid half-block cell.
-            const tCell = snapToHalfBlockCellCenterCm(1200, 2400);
-            const tCellCenterX = leftX + cmToPx(tCell.centerCm);
+            const tCell = snapToHalfBlockCellCenterMm(1200, 2400);
+            const tCellCenterX = leftX + mmToPx(tCell.centerMm);
             const wTPartition = {
                 id: state.nextId++,
                 x1: tCellCenterX, y1: topY,
                 x2: tCellCenterX, y2: botY,
                 openings: [
-                    { id: state.nextId++, offset: cmToPx(800), length: cmToPx(400), type: 'arch', startRow: 1, rowCount: 7 }
+                    { id: state.nextId++, offset: mmToPx(800), length: mmToPx(400), type: 'window', startRow: 2, rowCount: 4 }
                 ]
             };
 

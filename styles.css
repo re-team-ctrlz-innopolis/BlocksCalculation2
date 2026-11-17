@@ -22,3 +22,52 @@ body {
         ::-webkit-scrollbar-thumb:hover {
             background: #64748b;
         }
+        @media print {
+            body {
+                display: block !important;
+                height: auto !important;
+                width: auto !important;
+                overflow: visible !important;
+                background: #fff !important;
+                color: #111 !important;
+                font-family: Arial, sans-serif !important;
+            }
+            body * {
+                visibility: hidden !important;
+            }
+            #bomPrintArea,
+            #bomPrintArea * {
+                visibility: visible !important;
+            }
+            #bomPrintArea {
+                display: block !important;
+                position: absolute !important;
+                inset: 0 !important;
+                padding: 24px !important;
+                color: #111 !important;
+                background: #fff !important;
+            }
+            #bomPrintArea h1 {
+                margin: 0 0 12px;
+                font-size: 22px;
+            }
+            #bomPrintArea p {
+                margin: 8px 0;
+            }
+            #bomPrintArea table {
+                width: 100%;
+                margin-top: 18px;
+                border-collapse: collapse;
+            }
+            #bomPrintArea th,
+            #bomPrintArea td {
+                border: 1px solid #555;
+                padding: 8px;
+                text-align: left;
+            }
+            #bomPrintArea .bom-total {
+                margin-top: 18px;
+                font-size: 16px;
+                font-weight: bold;
+            }
+        }

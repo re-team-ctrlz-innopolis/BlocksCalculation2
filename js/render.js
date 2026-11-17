@@ -71,18 +71,18 @@ function drawGrid() {
 function drawHostWallSnapTicks(hostWallId) {
             const w = state.walls.find(item => item.id === hostWallId);
             if (!w) return;
-            const lenCm = getWallLengthCm(w);
+            const lenMm = getWallLengthMm(w);
             const angle = getWallAngleRad(w);
 
             state.ctx.save();
             state.ctx.translate(w.x1, w.y1);
             state.ctx.rotate(angle);
 
-            // Highlight 198 cm half-block boundaries and their centers for T-joint snapping.
-            for (let cellStartCm = HALF_BLOCK_CM; cellStartCm <= lenCm - FULL_BLOCK_CM; cellStartCm += HALF_BLOCK_CM) {
-                const startPx = cmToPx(cellStartCm);
-                const centerPx = cmToPx(cellStartCm + HALF_BLOCK_CM / 2);
-                const isActiveCell = state.activeSnapPreview && Math.abs(state.activeSnapPreview.cellStartCm - cellStartCm) < 1;
+            // Highlight 200 mm half-block boundaries and their centers for T-joint snapping.
+            for (let cellStartMm = HALF_BLOCK_MM; cellStartMm <= lenMm - FULL_BLOCK_MM; cellStartMm += HALF_BLOCK_MM) {
+                const startPx = mmToPx(cellStartMm);
+                const centerPx = mmToPx(cellStartMm + HALF_BLOCK_MM / 2);
+                const isActiveCell = state.activeSnapPreview && Math.abs(state.activeSnapPreview.cellStartMm - cellStartMm) < 1;
 
                 if (isActiveCell) {
                     state.ctx.fillStyle = 'rgba(34, 211, 238, 0.28)';
@@ -106,18 +106,14 @@ function drawHostWallSnapTicks(hostWallId) {
             state.ctx.restore();
         }
 
-function drawWall(wall, isSelected, allJoints) {
+function drawWall(wall, isSelected, allJoints, controlLayout) {
             const lenPx = getWallLength(wall);
-            const lenCm = getWallLengthCm(wall);
+            const lenMm = getWallLengthMm(wall);
             const angle = getWallAngleRad(wall);
             const halfThick = WALL_THICKNESS / 2;
 
-            // Рассчитываем раскладку для выбранного на плане ряда (1-й или 2-й) с учётом угловой перевязки
-            const baseLayout = buildWallRowLayout(
-                { ...wall, openings: wall.openings.map(o => ({ ...o, startRow: 1, rowCount: state.totalWallRows })) },
-                state.activePlanRow,
-                allJoints
-            );
+            // Calculate this wall's course layout, including automatic control joints.
+            const baseLayout = buildWallRowLayout(wall, state.activePlanRow, allJoints, controlLayout);
 
             // Если конец стены входит в L-угол, удлиняем визуальный контур на половину толщины (halfThick).
             // Если конец стены примыкает в Т-стык ("на клей"), отступаем от оси основной стены на её полутолщину (-halfThick),
@@ -144,20 +140,20 @@ function drawWall(wall, isSelected, allJoints) {
 
             for (const b of baseLayout.blocks) {
                 // Масштабируем координаты на случай внешнего углового нахлёста (L) или примыкания встык к боковой грани (T)
-                let bx = cmToPx(b.startCm);
-                let bw = cmToPx(b.lenCm);
+                let bx = mmToPx(b.startMm);
+                let bw = mmToPx(b.lenMm);
 
-                if (b.startCm === 0 && baseLayout.cornerState.startConnected) {
+                if (b.startMm === 0 && baseLayout.cornerState.startConnected) {
                     bx -= extStartPx;
                     bw += extStartPx;
-                } else if (b.startCm === HALF_BLOCK_CM && baseLayout.cornerState.startIsLCorner && baseLayout.cornerState.startInsetCm === HALF_BLOCK_CM) {
+                } else if (b.startMm === HALF_BLOCK_MM && baseLayout.cornerState.startIsLCorner && baseLayout.cornerState.startInsetMm === HALF_BLOCK_MM) {
                     bx -= extStartPx;
                     bw += extStartPx;
                 }
 
-                if (b.startCm + b.lenCm === lenCm && baseLayout.cornerState.endConnected) {
+                if (b.startMm + b.lenMm === lenMm && baseLayout.cornerState.endConnected) {
                     bw += extEndPx;
-                } else if (b.startCm + b.lenCm === lenCm - HALF_BLOCK_CM && baseLayout.cornerState.endIsLCorner && baseLayout.cornerState.endInsetCm === HALF_BLOCK_CM) {
+                } else if (b.startMm + b.lenMm === lenMm - HALF_BLOCK_MM && baseLayout.cornerState.endIsLCorner && baseLayout.cornerState.endInsetMm === HALF_BLOCK_MM) {
                     bw += extEndPx;
                 }
 
@@ -172,7 +168,7 @@ function drawWall(wall, isSelected, allJoints) {
                 state.ctx.fill();
                 state.ctx.stroke();
 
-                // Two studs mark a 400 cm block; one marks a 198 cm half block.
+                // Two studs mark a 400 mm block; one marks a 200 mm half block.
                 const studsCount = isFull ? 2 : 1;
                 for (let s = 0; s < studsCount; s++) {
                     const studX = bx + (bw / studsCount) * (s + 0.5);
@@ -186,8 +182,24 @@ function drawWall(wall, isSelected, allJoints) {
                 }
             }
 
+            for (const jointMm of baseLayout.controlJointsMm) {
+                const jointX = mmToPx(jointMm);
+                state.ctx.strokeStyle = '#e879f9';
+                state.ctx.lineWidth = 2 / state.zoom;
+                state.ctx.setLineDash([5 / state.zoom, 3 / state.zoom]);
+                state.ctx.beginPath();
+                state.ctx.moveTo(jointX, -halfThick + 1);
+                state.ctx.lineTo(jointX, halfThick - 1);
+                state.ctx.stroke();
+                state.ctx.setLineDash([]);
+                state.ctx.fillStyle = '#f5d0fe';
+                state.ctx.font = `${9 / state.zoom}px Inter, sans-serif`;
+                state.ctx.textAlign = 'center';
+                state.ctx.fillText('CJ', jointX, -halfThick - 8 / state.zoom);
+            }
+
             for (const segment of baseLayout.unfilledSegments) {
-                const markerX = cmToPx((segment.startCm + segment.endCm) / 2);
+                const markerX = mmToPx((segment.startMm + segment.endMm) / 2);
                 state.ctx.save();
                 state.ctx.strokeStyle = '#f87171';
                 state.ctx.lineWidth = 2 / state.zoom;
@@ -200,16 +212,31 @@ function drawWall(wall, isSelected, allJoints) {
 
             // Отрисовка проёмов поверх стены (с гарантией отсутствия наложений)
             for (const op of wall.openings) {
-                const { startCm, lenCm } = getOpeningBoundsCm(op);
-                const ox = cmToPx(startCm);
-                const ow = cmToPx(lenCm);
+                const startRow = op.startRow || 1;
+                const endRow = startRow + (op.rowCount || 7) - 1;
+                const isOpeningInCourse = state.activePlanRow >= startRow && state.activePlanRow <= endRow;
+                const isProjectedWindow = op.type === 'window' && !isOpeningInCourse;
+                if (!isOpeningInCourse && !isProjectedWindow) continue;
+
+                const { startMm, lenMm } = getOpeningBoundsMm(op);
+                const ox = mmToPx(startMm);
+                const ow = mmToPx(lenMm);
                 const isOpSelected = isSelected && (op.id === state.selectedOpeningId);
 
-                // Фон проёма
-                state.ctx.fillStyle = '#0f172a';
-                state.ctx.fillRect(ox, -halfThick + 1, ow, WALL_THICKNESS - 2);
+                if (isProjectedWindow) {
+                    state.ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
+                    state.ctx.fillRect(ox, -halfThick + 1, ow, WALL_THICKNESS - 2);
+                    state.ctx.strokeStyle = '#38bdf8';
+                    state.ctx.lineWidth = 1.5 / state.zoom;
+                    state.ctx.setLineDash([4 / state.zoom, 3 / state.zoom]);
+                    state.ctx.strokeRect(ox + 1, -halfThick + 1, Math.max(0, ow - 2), WALL_THICKNESS - 2);
+                    state.ctx.setLineDash([]);
+                } else {
+                    state.ctx.fillStyle = '#0f172a';
+                    state.ctx.fillRect(ox, -halfThick + 1, ow, WALL_THICKNESS - 2);
+                }
 
-                if (op.type === 'window') {
+                if (op.type === 'window' && !isProjectedWindow) {
                     // Окно: двойная голубая линия стеклопакета
                     state.ctx.fillStyle = 'rgba(56, 189, 248, 0.22)';
                     state.ctx.fillRect(ox, -halfThick + 2, ow, WALL_THICKNESS - 4);
@@ -237,15 +264,6 @@ function drawWall(wall, isSelected, allJoints) {
                     state.ctx.arc(ox, -halfThick, Math.min(ow, 34), -Math.PI / 2, 0);
                     state.ctx.stroke();
                     state.ctx.setLineDash([]);
-                } else {
-                    // Арка / пустой проём
-                    state.ctx.fillStyle = 'rgba(168, 85, 247, 0.18)';
-                    state.ctx.fillRect(ox, -halfThick + 2, ow, WALL_THICKNESS - 4);
-                    state.ctx.strokeStyle = '#c084fc';
-                    state.ctx.setLineDash([4, 3]);
-                    state.ctx.lineWidth = 1.5;
-                    state.ctx.strokeRect(ox + 1, -halfThick + 2, ow - 2, WALL_THICKNESS - 4);
-                    state.ctx.setLineDash([]);
                 }
 
                 // Рамка выделенного проёма и маркеры изменения его ширины
@@ -268,7 +286,7 @@ function drawWall(wall, isSelected, allJoints) {
                 state.ctx.font = 'bold 9px Inter, sans-serif';
                 state.ctx.textAlign = 'center';
                 state.ctx.textBaseline = 'middle';
-                state.ctx.fillText(`${lenCm}`, 0, 0);
+                state.ctx.fillText(`${lenMm}`, 0, 0);
                 state.ctx.restore();
             }
 
@@ -282,7 +300,7 @@ function drawWall(wall, isSelected, allJoints) {
             state.ctx.fillStyle = isSelected ? '#93c5fd' : '#94a3b8';
             state.ctx.font = '600 11px Inter, sans-serif';
             state.ctx.textAlign = 'center';
-            state.ctx.fillText(`${lenCm} cm`, 0, 0);
+            state.ctx.fillText(`${lenMm} mm`, 0, 0);
             state.ctx.restore();
 
             state.ctx.restore();
@@ -377,7 +395,7 @@ function drawConnectedJoints() {
             state.ctx.restore();
         }
 
-function drawElevationView(allJoints) {
+function drawElevationView(allJoints, controlLayout) {
             const w = state.elevCanvas.width;
             const h = state.elevCanvas.height;
             state.elevCtx.clearRect(0, 0, w, h);
@@ -395,10 +413,10 @@ function drawElevationView(allJoints) {
             }
 
             const joints = allJoints || getAllWallJoints();
-            const wallLenCm = getWallLengthCm(wall);
-            const stats = calculateWallBlocks(wall, joints);
-            titleEl.textContent = `Elevation: Wall #${wall.id} (${wallLenCm} cm × ${state.totalWallRows} courses)`;
-            subEl.textContent = `Full 400 cm blocks: ${stats.fullCount} | Half 198 cm blocks: ${stats.halfCount} | Remainder across courses: ${stats.unfilledCm} cm`;
+            const wallLenMm = getWallLengthMm(wall);
+            const stats = calculateWallBlocks(wall, joints, controlLayout);
+            titleEl.textContent = `Elevation: Wall #${wall.id} (${wallLenMm} mm × ${state.totalWallRows} courses)`;
+            subEl.textContent = `Full 400 mm blocks: ${stats.fullCount} | Half 200 mm blocks: ${stats.halfCount} | Control joints: ${controlLayout.count} | Unfilled: ${stats.unfilledMm} mm`;
 
             const padLeft = 44;
             const padRight = 24;
@@ -408,15 +426,15 @@ function drawElevationView(allJoints) {
             const availW = Math.max(100, w - padLeft - padRight);
             const availH = Math.max(40, h - padTop - padBottom);
 
-            const scaleX = Math.min(availW / wallLenCm, 1.8);
-            const drawWallW = wallLenCm * scaleX;
+            const scaleX = Math.min(availW / wallLenMm, 1.8);
+            const drawWallW = wallLenMm * scaleX;
             const startX = padLeft + (availW - drawWallW) / 2;
             const rowH = availH / state.totalWallRows;
 
             // Отрисовка рядов снизу вверх (1-й ряд внизу)
             for (let r = 1; r <= state.totalWallRows; r++) {
                 const y = padTop + (state.totalWallRows - r) * rowH;
-                const layout = buildWallRowLayout(wall, r, joints);
+                const layout = buildWallRowLayout(wall, r, joints, controlLayout);
 
                 // Номер ряда слева
                 if (state.totalWallRows <= 14 || r % 2 === 1) {
@@ -428,10 +446,10 @@ function drawElevationView(allJoints) {
                     state.elevCtx.fillText(`C${r}`, startX - 8, y + rowH / 2);
                 }
 
-                // Draw the 198 cm corner overlap contributed by the perpendicular wall.
-                if (layout.cornerState.startIsLCorner && layout.cornerState.startInsetCm === HALF_BLOCK_CM) {
+                // Draw the 200 mm corner overlap contributed by the perpendicular wall.
+                if (layout.cornerState.startIsLCorner && layout.cornerState.startInsetMm === HALF_BLOCK_MM) {
                     const bx = startX;
-                    const bw = HALF_BLOCK_CM * scaleX;
+                    const bw = HALF_BLOCK_MM * scaleX;
                     state.elevCtx.fillStyle = '#1e293b';
                     state.elevCtx.strokeStyle = '#10b981';
                     state.elevCtx.lineWidth = 1;
@@ -449,9 +467,9 @@ function drawElevationView(allJoints) {
                     }
                 }
 
-                if (layout.cornerState.endIsLCorner && layout.cornerState.endInsetCm === HALF_BLOCK_CM) {
-                    const bx = startX + (wallLenCm - HALF_BLOCK_CM) * scaleX;
-                    const bw = HALF_BLOCK_CM * scaleX;
+                if (layout.cornerState.endIsLCorner && layout.cornerState.endInsetMm === HALF_BLOCK_MM) {
+                    const bx = startX + (wallLenMm - HALF_BLOCK_MM) * scaleX;
+                    const bw = HALF_BLOCK_MM * scaleX;
                     state.elevCtx.fillStyle = '#1e293b';
                     state.elevCtx.strokeStyle = '#10b981';
                     state.elevCtx.lineWidth = 1;
@@ -471,8 +489,8 @@ function drawElevationView(allJoints) {
 
                 // Blocks in this course
                 for (const b of layout.blocks) {
-                    const bx = startX + b.startCm * scaleX;
-                    const bw = b.lenCm * scaleX;
+                    const bx = startX + b.startMm * scaleX;
+                    const bw = b.lenMm * scaleX;
                     const isFull = b.kind === 'full';
 
                     state.elevCtx.fillStyle = isFull ? '#2563eb' : '#d97706';
@@ -489,37 +507,47 @@ function drawElevationView(allJoints) {
                         state.elevCtx.font = 'bold 9px Inter, sans-serif';
                         state.elevCtx.textAlign = 'center';
                         state.elevCtx.textBaseline = 'middle';
-                        state.elevCtx.fillText(isFull ? '400' : '198', bx + bw / 2, y + rowH / 2);
+                        state.elevCtx.fillText(isFull ? '400' : '200', bx + bw / 2, y + rowH / 2);
                     }
                 }
 
                 for (const segment of layout.unfilledSegments) {
-                    const markerX = startX + ((segment.startCm + segment.endCm) / 2) * scaleX;
+                    const markerX = startX + ((segment.startMm + segment.endMm) / 2) * scaleX;
                     state.elevCtx.fillStyle = '#f87171';
                     state.elevCtx.fillRect(markerX - 1, y + 1, 2, Math.max(2, rowH - 2));
                 }
 
                 // Проёмы в этом ряду
                 for (const op of layout.openingsInRow) {
-                    const ox = startX + op.startCm * scaleX;
-                    const ow = op.lenCm * scaleX;
+                    const ox = startX + op.startMm * scaleX;
+                    const ow = op.lenMm * scaleX;
                     state.elevCtx.fillStyle = op.type === 'window'
                         ? 'rgba(56, 189, 248, 0.16)'
-                        : op.type === 'door'
-                            ? 'rgba(16, 185, 129, 0.16)'
-                            : 'rgba(168, 85, 247, 0.16)';
+                        : 'rgba(16, 185, 129, 0.16)';
                     state.elevCtx.fillRect(ox, y, ow, rowH);
+                }
+
+                for (const jointMm of layout.controlJointsMm) {
+                    const jointX = startX + jointMm * scaleX;
+                    state.elevCtx.strokeStyle = '#e879f9';
+                    state.elevCtx.lineWidth = 2;
+                    state.elevCtx.setLineDash([4, 3]);
+                    state.elevCtx.beginPath();
+                    state.elevCtx.moveTo(jointX, y);
+                    state.elevCtx.lineTo(jointX, y + rowH);
+                    state.elevCtx.stroke();
+                    state.elevCtx.setLineDash([]);
                 }
             }
 
-            // Линейка сантиметров снизу развёртки
+            // Millimetre ruler below the elevation.
             state.elevCtx.fillStyle = '#94a3b8';
             state.elevCtx.font = '10px Inter, sans-serif';
             state.elevCtx.textAlign = 'center';
-            const stepCm = wallLenCm > 2400 ? FULL_BLOCK_CM : HALF_BLOCK_CM;
-            for (let cm = 0; cm <= wallLenCm; cm += stepCm) {
-                const x = startX + cm * scaleX;
-                state.elevCtx.fillText(`${cm}`, x, padTop + availH + 13);
+            const stepMm = wallLenMm > 2400 ? FULL_BLOCK_MM : HALF_BLOCK_MM;
+            for (let mm = 0; mm <= wallLenMm; mm += stepMm) {
+                const x = startX + mm * scaleX;
+                state.elevCtx.fillText(`${mm}`, x, padTop + availH + 13);
             }
 
             // Индикатор клеевого шва (Т-стыка) по краям примыкающей стены на развёртке
@@ -533,7 +561,7 @@ function drawElevationView(allJoints) {
                 state.elevCtx.stroke();
             }
             if (cornerInfo.endIsTButt) {
-                const endX = startX + wallLenCm * scaleX;
+                const endX = startX + wallLenMm * scaleX;
                 state.elevCtx.strokeStyle = '#22d3ee';
                 state.elevCtx.lineWidth = 3;
                 state.elevCtx.beginPath();
@@ -542,11 +570,11 @@ function drawElevationView(allJoints) {
                 state.elevCtx.stroke();
             }
 
-            // Highlight the 198 cm host-wall cell used by each attached T-partition.
+            // Highlight the 200 mm host-wall cell used by each attached T-partition.
             const hostTJoints = joints.filter(jt => jt.type === 'T' && jt.hostWallId === wall.id);
             for (const jt of hostTJoints) {
-                const cellX = startX + jt.cellStartCm * scaleX;
-                const cellW = HALF_BLOCK_CM * scaleX;
+                const cellX = startX + jt.cellStartMm * scaleX;
+                const cellW = HALF_BLOCK_MM * scaleX;
 
                 state.elevCtx.save();
                 state.elevCtx.fillStyle = 'rgba(34, 211, 238, 0.12)';
@@ -561,7 +589,7 @@ function drawElevationView(allJoints) {
                 state.elevCtx.fillStyle = '#67e8f9';
                 state.elevCtx.font = 'bold 9px Inter, sans-serif';
                 state.elevCtx.textAlign = 'center';
-                state.elevCtx.fillText(`T-joint (${jt.cellStartCm}–${jt.cellEndCm})`, cellX + cellW / 2, padTop - 3);
+                state.elevCtx.fillText(`T-joint (${jt.cellStartMm}–${jt.cellEndMm})`, cellX + cellW / 2, padTop - 3);
                 state.elevCtx.restore();
             }
         }
@@ -574,6 +602,7 @@ function render() {
             drawGrid();
 
             const allJoints = getAllWallJoints();
+            const controlLayout = getControlJointLayout();
 
             // Show half-block snap divisions while dragging a T-joint.
             if (state.activeSnapPreview && state.activeSnapPreview.type === 'T') {
@@ -582,14 +611,14 @@ function render() {
 
             // Сначала рисуем невыбранные стены, затем выбранную поверх
             for (const w of state.walls) {
-                if (w.id !== state.selectedWallId) drawWall(w, false, allJoints);
+                if (w.id !== state.selectedWallId) drawWall(w, false, allJoints, controlLayout);
             }
             const selWall = state.walls.find(w => w.id === state.selectedWallId);
-            if (selWall) drawWall(selWall, true, allJoints);
+            if (selWall) drawWall(selWall, true, allJoints, controlLayout);
 
             drawConnectedJoints();
             state.ctx.restore();
-            drawElevationView(allJoints);
+            drawElevationView(allJoints, controlLayout);
         }
 
 function updateZoomLabel() {

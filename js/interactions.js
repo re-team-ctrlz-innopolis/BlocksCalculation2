@@ -36,9 +36,9 @@ function handlePointerDown(e) {
                 const loc = worldToWallLocal(selWall, pos.x, pos.y);
                 if (Math.abs(loc.perp) <= WALL_THICKNESS / 2 + 6 / state.zoom) {
                     for (const op of selWall.openings) {
-                        const { startCm, endCm } = getOpeningBoundsCm(op);
-                        const startPx = cmToPx(startCm);
-                        const endPx = cmToPx(endCm);
+                        const { startMm, endMm } = getOpeningBoundsMm(op);
+                        const startPx = mmToPx(startMm);
+                        const endPx = mmToPx(endMm);
 
                         if (Math.abs(loc.along - startPx) <= 8 / state.zoom) {
                             state.selectedOpeningId = op.id;
@@ -46,7 +46,7 @@ function handlePointerDown(e) {
                                 type: 'resize_opening_start',
                                 wall: selWall,
                                 opening: op,
-                                fixedEndCm: endCm
+                                fixedEndMm: endMm
                             };
                             updateInspector();
                             render();
@@ -58,7 +58,7 @@ function handlePointerDown(e) {
                                 type: 'resize_opening_end',
                                 wall: selWall,
                                 opening: op,
-                                fixedStartCm: startCm
+                                fixedStartMm: startMm
                             };
                             updateInspector();
                             render();
@@ -92,8 +92,8 @@ function handlePointerDown(e) {
                     // Проверяем, не кликнули ли прямо в проём этой стены
                     let clickedOp = null;
                     for (const op of w.openings) {
-                        const { startCm, endCm } = getOpeningBoundsCm(op);
-                        if (loc.along >= cmToPx(startCm) && loc.along <= cmToPx(endCm)) {
+                        const { startMm, endMm } = getOpeningBoundsMm(op);
+                        if (loc.along >= mmToPx(startMm) && loc.along <= mmToPx(endMm)) {
                             clickedOp = op;
                             break;
                         }
@@ -193,9 +193,9 @@ function handlePointerMove(e) {
                 }
 
                 const rawDistPx = dist(anchorX, anchorY, targetX, targetY);
-                const minAllowedCm = getMinAllowedWallLengthCm(wall);
-                const snappedLenCm = clamp(snapCmToGrid(pxToCm(rawDistPx)), minAllowedCm, MAX_WALL_CM);
-                const finalLenPx = cmToPx(snappedLenCm);
+                const minAllowedMm = getMinAllowedWallLengthMm(wall);
+                const snappedLenMm = clamp(snapMmToGrid(pxToMm(rawDistPx)), minAllowedMm, MAX_WALL_MM);
+                const finalLenPx = mmToPx(snappedLenMm);
                 const angle = snapAngleTo90(Math.atan2(targetY - anchorY, targetX - anchorX) * 180 / Math.PI) * Math.PI / 180;
 
                 if (isFirst) {
@@ -217,39 +217,39 @@ function handlePointerMove(e) {
 
             } else if (state.dragState.type === 'move_opening') {
                 const loc = worldToWallLocal(wall, pos.x, pos.y);
-                const { lenCm } = getOpeningBoundsCm(state.dragState.opening);
+                const { lenMm } = getOpeningBoundsMm(state.dragState.opening);
                 const desiredCenterPx = loc.along - state.dragState.grabDeltaPx;
-                const desiredStartCm = snapCmToGrid(pxToCm(desiredCenterPx - state.dragState.opening.length / 2));
+                const desiredStartMm = snapMmToGrid(pxToMm(desiredCenterPx - state.dragState.opening.length / 2));
 
                 // Строгое ограничение коридора между соседними проёмами
-                const limits = getOpeningLimitsCm(wall, state.dragState.opening);
-                const clampedStartCm = clamp(desiredStartCm, limits.minCm, limits.maxCm - lenCm);
+                const limits = getOpeningLimitsMm(wall, state.dragState.opening);
+                const clampedStartMm = clamp(desiredStartMm, limits.minMm, limits.maxMm - lenMm);
 
-                setOpeningBoundsCm(state.dragState.opening, clampedStartCm, lenCm);
+                setOpeningBoundsMm(state.dragState.opening, clampedStartMm, lenMm);
 
             } else if (state.dragState.type === 'resize_opening_start') {
                 const loc = worldToWallLocal(wall, pos.x, pos.y);
-                const limits = getOpeningLimitsCm(wall, state.dragState.opening);
+                const limits = getOpeningLimitsMm(wall, state.dragState.opening);
 
-                const newStartCm = clamp(
-                    snapCmToGrid(pxToCm(loc.along)),
-                    limits.minCm,
-                    state.dragState.fixedEndCm - HALF_BLOCK_CM
+                const newStartMm = clamp(
+                    snapMmToGrid(pxToMm(loc.along)),
+                    limits.minMm,
+                    state.dragState.fixedEndMm - HALF_BLOCK_MM
                 );
-                const newLenCm = state.dragState.fixedEndCm - newStartCm;
-                setOpeningBoundsCm(state.dragState.opening, newStartCm, newLenCm);
+                const newLenMm = state.dragState.fixedEndMm - newStartMm;
+                setOpeningBoundsMm(state.dragState.opening, newStartMm, newLenMm);
 
             } else if (state.dragState.type === 'resize_opening_end') {
                 const loc = worldToWallLocal(wall, pos.x, pos.y);
-                const limits = getOpeningLimitsCm(wall, state.dragState.opening);
+                const limits = getOpeningLimitsMm(wall, state.dragState.opening);
 
-                const newEndCm = clamp(
-                    snapCmToGrid(pxToCm(loc.along)),
-                    state.dragState.fixedStartCm + HALF_BLOCK_CM,
-                    limits.maxCm
+                const newEndMm = clamp(
+                    snapMmToGrid(pxToMm(loc.along)),
+                    state.dragState.fixedStartMm + HALF_BLOCK_MM,
+                    limits.maxMm
                 );
-                const newLenCm = newEndCm - state.dragState.fixedStartCm;
-                setOpeningBoundsCm(state.dragState.opening, state.dragState.fixedStartCm, newLenCm);
+                const newLenMm = newEndMm - state.dragState.fixedStartMm;
+                setOpeningBoundsMm(state.dragState.opening, state.dragState.fixedStartMm, newLenMm);
             }
 
             updateInspector();
@@ -285,6 +285,9 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             zoomAt(state.canvas.width / 2, state.canvas.height / 2, 1 / ZOOM_STEP);
         });
         document.getElementById('btnZoomReset').addEventListener('click', resetZoom);
+        document.getElementById('btnPrintBom').addEventListener('click', () => {
+            if (!document.getElementById('btnPrintBom').disabled) window.print();
+        });
 
         document.getElementById('btnAddWall').addEventListener('click', addNewWall);
         document.getElementById('btnAddOpening').addEventListener('click', addOpeningToSelectedWall);
@@ -380,12 +383,13 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
                 if (!op) return;
                 op.type = btn.dataset.optype;
                 if (op.type === 'window') {
-                    op.startRow = 4;
-                    op.rowCount = Math.min(4, Math.max(1, state.totalWallRows - 3));
+                    op.startRow = Math.max(2, op.startRow || 2);
+                    op.rowCount = Math.min(op.rowCount || 4, state.totalWallRows - op.startRow + 1);
                 } else {
                     op.startRow = 1;
-                    op.rowCount = Math.min(7, state.totalWallRows);
+                    op.rowCount = Math.min(op.rowCount || 7, state.totalWallRows);
                 }
+                clampWallOpenings(wall);
                 updateInspector();
                 render();
             });
@@ -397,11 +401,11 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             const op = wall.openings.find(o => o.id === state.selectedOpeningId);
             if (!op) return;
 
-            const limits = getOpeningLimitsCm(wall, op);
-            const { lenCm } = getOpeningBoundsCm(op);
-            const startCm = clamp(snapCmToGrid(Number(e.target.value)), limits.minCm, limits.maxCm - lenCm);
+            const limits = getOpeningLimitsMm(wall, op);
+            const { lenMm } = getOpeningBoundsMm(op);
+            const startMm = clamp(snapMmToGrid(Number(e.target.value)), limits.minMm, limits.maxMm - lenMm);
 
-            setOpeningBoundsCm(op, startCm, lenCm);
+            setOpeningBoundsMm(op, startMm, lenMm);
             updateInspector();
             render();
         });
@@ -412,11 +416,11 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             const op = wall.openings.find(o => o.id === state.selectedOpeningId);
             if (!op) return;
 
-            const limits = getOpeningLimitsCm(wall, op);
-            const { startCm } = getOpeningBoundsCm(op);
-            const newLenCm = clamp(snapCmToGrid(Number(e.target.value)), HALF_BLOCK_CM, limits.maxCm - startCm);
+            const limits = getOpeningLimitsMm(wall, op);
+            const { startMm } = getOpeningBoundsMm(op);
+            const newLenMm = clamp(snapMmToGrid(Number(e.target.value)), HALF_BLOCK_MM, limits.maxMm - startMm);
 
-            setOpeningBoundsCm(op, startCm, newLenCm);
+            setOpeningBoundsMm(op, startMm, newLenMm);
             updateInspector();
             render();
         });
@@ -426,7 +430,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             if (!wall) return;
             const op = wall.openings.find(o => o.id === state.selectedOpeningId);
             if (!op) return;
-            op.startRow = clamp(Number(e.target.value), 1, state.totalWallRows);
+            op.startRow = clamp(Number(e.target.value), 2, state.totalWallRows);
             op.rowCount = clamp(op.rowCount || 1, 1, state.totalWallRows - op.startRow + 1);
             updateInspector();
             render();
