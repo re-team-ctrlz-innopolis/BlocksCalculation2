@@ -303,6 +303,28 @@ function drawWall(wall, isSelected, allJoints, controlLayout) {
             state.ctx.fillText(`${lenMm} mm`, 0, 0);
             state.ctx.restore();
 
+            for (const mark of [
+                { x: 0, label: 'L', color: '#38bdf8' },
+                { x: lenPx, label: 'R', color: '#fbbf24' }
+            ]) {
+                state.ctx.save();
+                state.ctx.translate(mark.x, halfThick + 14 / state.zoom);
+                state.ctx.rotate(-angle);
+                state.ctx.fillStyle = '#0f172a';
+                state.ctx.strokeStyle = mark.color;
+                state.ctx.lineWidth = 1 / state.zoom;
+                state.ctx.beginPath();
+                state.ctx.arc(0, 0, 7 / state.zoom, 0, Math.PI * 2);
+                state.ctx.fill();
+                state.ctx.stroke();
+                state.ctx.fillStyle = '#f8fafc';
+                state.ctx.font = `bold ${9 / state.zoom}px Inter, sans-serif`;
+                state.ctx.textAlign = 'center';
+                state.ctx.textBaseline = 'middle';
+                state.ctx.fillText(mark.label, 0, 0);
+                state.ctx.restore();
+            }
+
             state.ctx.restore();
 
             // Если стена выбрана — рисуем ручки на концах и рычаг поворота
@@ -430,6 +452,15 @@ function drawElevationView(allJoints, controlLayout) {
             const drawWallW = wallLenMm * scaleX;
             const startX = padLeft + (availW - drawWallW) / 2;
             const rowH = availH / state.totalWallRows;
+
+            state.elevCtx.fillStyle = '#38bdf8';
+            state.elevCtx.font = 'bold 9px Inter, sans-serif';
+            state.elevCtx.textBaseline = 'bottom';
+            state.elevCtx.textAlign = 'left';
+            state.elevCtx.fillText('LEFT / START (x1)', startX, padTop - 2);
+            state.elevCtx.fillStyle = '#fbbf24';
+            state.elevCtx.textAlign = 'right';
+            state.elevCtx.fillText('RIGHT / END (x2)', startX + drawWallW, padTop - 2);
 
             // Отрисовка рядов снизу вверх (1-й ряд внизу)
             for (let r = 1; r <= state.totalWallRows; r++) {

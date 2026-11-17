@@ -386,8 +386,6 @@ function getControlJointLayout(walls = state.walls) {
                         }
                     }
                 }
-                if (component.length < 2) continue;
-
                 const axisLength = getWallLength(component[0]);
                 const axisX = (component[0].x2 - component[0].x1) / axisLength;
                 const axisY = (component[0].y2 - component[0].y1) / axisLength;
@@ -622,19 +620,16 @@ function getWallEndCornerState(wall, rowIndex, allJoints) {
             return state;
         }
 
-function decomposeSegmentIntoBlocks(startMm, endMm, seamPhase, fullBlocksOnly = false) {
+function decomposeSegmentIntoBlocks(startMm, endMm, seamPhase, preferSingleFullBlock = false) {
             const blocks = [];
             let curStart = startMm;
             const curEnd = endMm;
 
-            if (fullBlocksOnly) {
-                while (curEnd - curStart >= FULL_BLOCK_MM) {
-                    blocks.push({ startMm: curStart, lenMm: FULL_BLOCK_MM, kind: 'full' });
-                    curStart += FULL_BLOCK_MM;
-                }
+            if (preferSingleFullBlock && Math.abs(curEnd - curStart - FULL_BLOCK_MM) < 0.001) {
+                blocks.push({ startMm: curStart, lenMm: FULL_BLOCK_MM, kind: 'full' });
                 return {
                     blocks,
-                    unfilledSegments: curStart < curEnd ? [{ startMm: curStart, endMm: curEnd }] : []
+                    unfilledSegments: []
                 };
             }
 
@@ -720,6 +715,21 @@ function buildWallRowLayout(wall, rowIndex, precomputedJoints = null, controlLay
                 segments.push({ startMm: cursor, endMm: rowEndMm });
             }
 
+            const controlSplitSegments = [];
+            for (const segment of segments) {
+                let splitStartMm = segment.startMm;
+                const jointsInside = controlJointsMm
+                    .filter(jointMm => jointMm > segment.startMm && jointMm < segment.endMm)
+                    .sort((a, b) => a - b);
+                for (const jointMm of jointsInside) {
+                    controlSplitSegments.push({ startMm: splitStartMm, endMm: jointMm });
+                    splitStartMm = jointMm;
+                }
+                if (splitStartMm < segment.endMm) {
+                    controlSplitSegments.push({ startMm: splitStartMm, endMm: segment.endMm });
+                }
+            }
+
             const rowBlocks = [];
             const unfilledSegments = [];
             const forcedHalfBlocks = [];
@@ -733,19 +743,33 @@ function buildWallRowLayout(wall, rowIndex, precomputedJoints = null, controlLay
                 }
             }
 
-            for (const seg of segments) {
+            for (const seg of controlSplitSegments) {
                 const forced = forcedHalfBlocks
                     .filter(block => block.startMm >= seg.startMm && block.endMm <= seg.endMm)
                     .sort((a, b) => a.startMm - b.startMm);
+                const hasForcedEdgeBlocks = forced.length > 0;
+                const startsAtLCorner = seg.startMm === rowStartMm && cornerState.startIsLCorner;
+                const endsAtLCorner = seg.endMm === rowEndMm && cornerState.endIsLCorner;
                 let cursorMm = seg.startMm;
-                for (const forcedBlock of forced) {
-                    const result = decomposeSegmentIntoBlocks(cursorMm, forcedBlock.startMm, seamPhase, rowIndex === 1);
+                for (let i = 0; i < forced.length; i++) {
+                    const forcedBlock = forced[i];
+                    const result = decomposeSegmentIntoBlocks(
+                        cursorMm,
+                        forcedBlock.startMm,
+                        seamPhase,
+                        hasForcedEdgeBlocks && i === 0 && startsAtLCorner
+                    );
                     rowBlocks.push(...result.blocks);
                     unfilledSegments.push(...result.unfilledSegments);
                     rowBlocks.push({ startMm: forcedBlock.startMm, lenMm: HALF_BLOCK_MM, kind: 'half', controlJointBlock: true });
                     cursorMm = forcedBlock.endMm;
                 }
-                const result = decomposeSegmentIntoBlocks(cursorMm, seg.endMm, seamPhase, rowIndex === 1);
+                const result = decomposeSegmentIntoBlocks(
+                    cursorMm,
+                    seg.endMm,
+                    seamPhase,
+                    hasForcedEdgeBlocks && endsAtLCorner
+                );
                 rowBlocks.push(...result.blocks);
                 unfilledSegments.push(...result.unfilledSegments);
             }

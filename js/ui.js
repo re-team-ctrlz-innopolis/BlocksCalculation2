@@ -5,8 +5,6 @@ function updateBlockCalculator() {
             let grandFull = 0;
             let grandHalf = 0;
             let grandUnfilledMm = 0;
-            const breakdownEl = document.getElementById('wallsBreakdownList');
-            breakdownEl.innerHTML = '';
             const lCount = allJoints.filter(j => j.type === 'L').length;
             const tCount = allJoints.filter(j => j.type === 'T').length;
             const statusEl = document.getElementById('geometryStatus');
@@ -35,10 +33,6 @@ function updateBlockCalculator() {
                 document.getElementById('totUnfilled').textContent = 'Calculation unavailable';
                 document.getElementById('calcWallsCount').textContent = `${state.walls.length} walls`;
                 document.getElementById('totJointsBadge').textContent = `L: ${lCount} | T: ${tCount} | C: ${controlLayout.count}`;
-                const errorItem = document.createElement('div');
-                errorItem.className = 'text-rose-300';
-                errorItem.textContent = 'Bill of materials unavailable until geometry errors are fixed.';
-                breakdownEl.appendChild(errorItem);
                 printButton.disabled = true;
                 printArea.replaceChildren();
                 return;
@@ -50,17 +44,6 @@ function updateBlockCalculator() {
                 grandHalf += st.halfCount;
                 grandUnfilledMm += st.unfilledMm;
 
-                const row = document.createElement('div');
-                row.className = 'flex items-center justify-between bg-slate-900/80 px-2 py-1 rounded border border-slate-800';
-                row.innerHTML = `
-                    <span class="text-slate-300 font-medium">Wall #${w.id} (${getWallLengthMm(w)} mm)</span>
-                    <span class="text-slate-400">
-                        <b class="text-blue-400">${st.fullCount}</b>×400 +
-                        <b class="text-amber-400">${st.halfCount}</b>×200
-                        <span class="text-red-300">• ${st.unfilledMm} mm remainder across courses</span>
-                    </span>
-                `;
-                breakdownEl.appendChild(row);
             }
 
             document.getElementById('calcWallsCount').textContent = `${state.walls.length} walls`;
@@ -73,7 +56,7 @@ function updateBlockCalculator() {
             statusEl.classList.add(grandUnfilledMm ? 'border-amber-700' : 'border-emerald-700');
             statusEl.classList.add(grandUnfilledMm ? 'bg-amber-950/40' : 'bg-emerald-950/40');
             statusEl.classList.add(grandUnfilledMm ? 'text-amber-200' : 'text-emerald-200');
-            statusEl.textContent = `Geometry valid${grandUnfilledMm ? `; set-out/course remainder: ${grandUnfilledMm} mm` : ''}. Automatic control joints: ${controlLayout.count}. Openings use 200 mm modules; windows start at course 2 or above.`;
+            statusEl.textContent = `Geometry valid${grandUnfilledMm ? `; unfilled remainder: ${grandUnfilledMm} mm` : ''}. Automatic control joints: ${controlLayout.count}. Openings use 200 mm modules; windows start at course 2 or above.`;
             printButton.disabled = false;
             const bomRows = state.walls.map(wall => {
                 const stats = calculateWallBlocks(wall, allJoints, controlLayout);
@@ -82,8 +65,8 @@ function updateBlockCalculator() {
             printArea.innerHTML = `
                 <h1>Blocks Calculator — Bill of Materials</h1>
                 <p>Block sizes: full 400 × 200 × 176 mm; half 200 × 200 × 176 mm</p>
-                <p>Set-out: course 1 uses full blocks only; unfilled remainders are reported. Windows start no earlier than course 2.</p>
-                <p>Continuous-wall control joints: ${controlLayout.count} (every 5000 mm; zero-width marker)</p>
+                <p>All courses may use full and half blocks. Windows start no earlier than course 2.</p>
+                <p>Continuous-wall control joints: ${controlLayout.count} (every 5000 mm; no full block crosses a joint; zero-width marker)</p>
                 <table>
                     <thead><tr><th>Wall</th><th>Length</th><th>Full blocks</th><th>Half-blocks</th><th>Unfilled (mm)</th></tr></thead>
                     <tbody>${bomRows}</tbody>
@@ -189,12 +172,19 @@ function updateInspector() {
                             <span class="text-[10px] px-1.5 py-0.5 rounded border ${badgeColor}">${typeLabel} #${idx + 1}</span>
                             <span>${startMm}–${endMm} mm</span>
                         </div>
-                        <span class="font-semibold text-slate-200">${lenMm} mm</span>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="font-semibold text-slate-200">${lenMm} mm</span>
+                            <button type="button" class="delete-opening-item rounded px-1.5 text-rose-300 hover:bg-rose-950 hover:text-rose-200" aria-label="Delete ${typeLabel.toLowerCase()} ${idx + 1}" title="Delete opening">×</button>
+                        </div>
                     `;
                     item.addEventListener('click', () => {
                         state.selectedOpeningId = op.id;
                         updateInspector();
                         render();
+                    });
+                    item.querySelector('.delete-opening-item').addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        deleteOpeningFromWall(wall, op.id);
                     });
                     listEl.appendChild(item);
                 });

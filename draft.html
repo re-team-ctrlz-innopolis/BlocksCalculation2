@@ -85,6 +85,10 @@
                         <span>Window projection (above the set-out course)</span>
                     </div>
                     <div class="flex items-center gap-2">
+                        <span class="text-[9px] font-bold text-sky-300">L / R</span>
+                        <span>Left = start (x1); Right = end (x2)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-emerald-500/30 border border-emerald-400 inline-block"></span>
                         <span><b>L-joint</b> (corner bonded with full 400 mm blocks)</span>
                     </div>
@@ -94,7 +98,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-4 h-2.5 rounded-sm bg-red-500 inline-block"></span>
-                        <span>Unfilled remainder in the set-out course</span>
+                        <span>Unfilled remainder (geometry issue)</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-4 h-2.5 rounded-sm bg-fuchsia-500 inline-block"></span>
@@ -175,22 +179,10 @@
                         <div class="text-[10px] text-red-300" id="totUnfilled">Remainder across courses: 0 mm</div>
                     </div>
                 </div>
-                <p class="text-[11px] leading-relaxed text-slate-400 mb-3">
-                    Course 1 is the set-out course and uses full blocks only; any unfilled remainder is flagged. Windows start no earlier than course 2 and alternate full/half blocks between courses. Doors start at course 1. Opening sizes use exact 200 mm block modules without mortar gaps. Control joints are placed automatically after each 5000 mm of connected straight wall; every second course uses two half-blocks on each side of the zero-width joint marker.
-                </p>
                 <div id="geometryStatus" class="hidden mb-3 rounded-lg border px-3 py-2 text-xs" role="status" aria-live="polite"></div>
                 <button id="btnPrintBom" type="button" class="w-full mb-3 bg-indigo-700 hover:bg-indigo-600 disabled:bg-slate-800 disabled:text-slate-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition">
                     Print / Export Bill of Materials
                 </button>
-
-                <!-- Ведомость по стенам -->
-                <details class="group text-xs bg-slate-800/40 rounded-lg border border-slate-800 px-2.5 py-1.5">
-                    <summary class="cursor-pointer font-medium text-slate-300 flex items-center justify-between">
-                        <span>Wall and joint details</span>
-                        <span class="text-slate-500 group-open:rotate-180 transition">▼</span>
-                    </summary>
-                    <div id="wallsBreakdownList" class="mt-2 space-y-1.5 max-h-36 overflow-y-auto pr-1 text-[11px]"></div>
-                </details>
             </div>
 
             <!-- БЛОК 2: ИНСПЕКТОР ВЫБРАННОЙ СТЕНЫ -->
@@ -222,7 +214,7 @@
                         <span class="text-slate-300 font-medium">Wall length (200 mm increments):</span>
                         <span class="font-bold text-blue-400" id="valWallLength">400 mm</span>
                     </div>
-                    <input type="range" id="sliderWallLength" min="200" max="5000" step="200" value="400" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                    <input type="range" id="sliderWallLength" min="200" max="100000" step="200" value="400" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                     <div class="flex justify-between text-[10px] text-slate-400">
                         <span id="lblMinWallLen">Min: 200 mm</span>
                         <span>Course 1: <b id="lblRow1Summary" class="text-slate-200"></b></span>
@@ -263,7 +255,6 @@
                     <div id="openingEditor" class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 space-y-3 hidden">
                         <div class="flex items-center justify-between">
                             <span class="text-xs font-semibold text-white" id="openingEditorTitle">Opening settings</span>
-                            <button id="btnDeleteOpening" class="text-[11px] text-rose-400 hover:text-rose-300 underline">Delete</button>
                         </div>
 
                         <!-- Тип проёма -->

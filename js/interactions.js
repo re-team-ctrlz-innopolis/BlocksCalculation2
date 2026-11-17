@@ -9,6 +9,20 @@ function getPointerPos(e) {
         }
 
 function handlePointerDown(e) {
+            if (e.shiftKey && e.button === 0) {
+                e.preventDefault();
+                state.activeSnapPreview = null;
+                state.dragState = {
+                    type: 'pan',
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    origPanX: state.panX,
+                    origPanY: state.panY
+                };
+                state.canvas.style.cursor = 'grabbing';
+                return;
+            }
+
             const pos = getPointerPos(e);
             state.activeSnapPreview = null;
 
@@ -135,9 +149,16 @@ function handlePointerDown(e) {
         }
 
 function handlePointerMove(e) {
-            const pos = getPointerPos(e);
             if (!state.dragState) return;
 
+            if (state.dragState.type === 'pan') {
+                state.panX = state.dragState.origPanX + e.clientX - state.dragState.startX;
+                state.panY = state.dragState.origPanY + e.clientY - state.dragState.startY;
+                render();
+                return;
+            }
+
+            const pos = getPointerPos(e);
             const wall = state.dragState.wall;
             state.activeSnapPreview = null;
 
@@ -259,13 +280,36 @@ function handlePointerMove(e) {
 function handlePointerUp() {
             state.dragState = null;
             state.activeSnapPreview = null;
+            state.canvas.style.cursor = '';
             render();
+        }
+
+function handleDeleteKeyDown(event) {
+            if (event.key !== 'Delete') return;
+
+            const target = event.target;
+            if (target instanceof HTMLElement &&
+                (target.isContentEditable || target.matches('input, textarea, select'))) {
+                return;
+            }
+
+            const wall = state.walls.find(item => item.id === state.selectedWallId);
+            if (!wall) return;
+
+            event.preventDefault();
+            if (state.selectedOpeningId !== null &&
+                wall.openings.some(opening => opening.id === state.selectedOpeningId)) {
+                deleteOpeningFromWall(wall, state.selectedOpeningId);
+            } else {
+                deleteWallById(wall.id);
+            }
         }
 
 function bindEvents() {
 state.canvas.addEventListener('mousedown', handlePointerDown);
         window.addEventListener('mousemove', handlePointerMove);
         window.addEventListener('mouseup', handlePointerUp);
+        window.addEventListener('keydown', handleDeleteKeyDown);
 
         state.canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handlePointerDown(e); }, { passive: false });
         window.addEventListener('touchmove', (e) => { if (state.dragState) { e.preventDefault(); handlePointerMove(e); } }, { passive: false });
@@ -313,6 +357,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
         // });
 
         document.getElementById('btnClearAll').addEventListener('click', () => {
+            if (!window.confirm('Clear the entire canvas? This cannot be undone.')) return;
             state.walls = [];
             state.selectedWallId = null;
             state.selectedOpeningId = null;
@@ -321,7 +366,10 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             showToast('Drawing cleared');
         });
 
-        document.getElementById('btnDemoHouse').addEventListener('click', loadDemoHouse);
+        document.getElementById('btnDemoHouse').addEventListener('click', () => {
+            if (!window.confirm('Open the sample layout? The current drawing will be replaced.')) return;
+            loadDemoHouse();
+        });
 
         document.getElementById('sliderTotalRows').addEventListener('input', (e) => {
             state.totalWallRows = Number(e.target.value);
@@ -357,22 +405,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
         });
 
         document.getElementById('btnDeleteWall').addEventListener('click', () => {
-            state.walls = state.walls.filter(w => w.id !== state.selectedWallId);
-            state.selectedWallId = state.walls[0] ? state.walls[0].id : null;
-            state.selectedOpeningId = null;
-            updateInspector();
-            render();
-            showToast('Wall deleted');
-        });
-
-        document.getElementById('btnDeleteOpening').addEventListener('click', () => {
-            const wall = state.walls.find(w => w.id === state.selectedWallId);
-            if (!wall) return;
-            wall.openings = wall.openings.filter(o => o.id !== state.selectedOpeningId);
-            state.selectedOpeningId = wall.openings[0] ? wall.openings[0].id : null;
-            updateInspector();
-            render();
-            showToast('Opening deleted');
+            deleteWallById(state.selectedWallId);
         });
 
         document.querySelectorAll('.opening-type-btn').forEach(btn => {

@@ -88,6 +88,27 @@ function addOpeningToSelectedWall() {
             showToast(`Added a ${slot.lenMm} mm opening (position ${slot.startMm}–${slot.startMm + slot.lenMm} mm)`);
         }
 
+function deleteOpeningFromWall(wall, openingId) {
+            if (!wall || !wall.openings.some(opening => opening.id === openingId)) return;
+
+            wall.openings = wall.openings.filter(opening => opening.id !== openingId);
+            if (!wall.openings.some(opening => opening.id === state.selectedOpeningId)) {
+                state.selectedOpeningId = wall.openings[0] ? wall.openings[0].id : null;
+            }
+            updateInspector();
+            render();
+            showToast('Opening deleted');
+        }
+
+function deleteWallById(wallId) {
+            state.walls = state.walls.filter(wall => wall.id !== wallId);
+            state.selectedWallId = state.walls[0] ? state.walls[0].id : null;
+            state.selectedOpeningId = null;
+            updateInspector();
+            render();
+            showToast('Wall deleted');
+        }
+
 function loadDemoHouse() {
             state.walls = [];
             state.nextId = 1;
