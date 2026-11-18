@@ -35,6 +35,7 @@ function undoLastEdit() {
     state.walls = project.walls;
     state.nextId = project.nextId;
     state.totalWallRows = project.totalWallRows;
+    state.migrationNotes = project.migrationNotes || [];
     state.selectedWallId = previous.wall;
     state.selectedOpeningId = previous.opening;
     document.getElementById('sliderTotalRows').value = state.totalWallRows;

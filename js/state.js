@@ -4,7 +4,7 @@ const state = {
     elevCanvas: document.getElementById('elevationCanvas'),
     elevCtx: document.getElementById('elevationCanvas').getContext('2d'),
     walls: [], selectedWallId: null, selectedOpeningId: null, nextId: 1,
-    totalWallRows: 10, activePlanRow: 1,
+    totalWallRows: 10, activePlanRow: 1, migrationNotes: [],
     zoom: 1, panX: 0, panY: 0,
     dragState: null, activeSnapPreview: null
 };

@@ -50,18 +50,31 @@ function validateProject() {
             errors.push(`${label}: length must be ${MIN_WALL_CM}–${MAX_WALL_CM} cm in 20 cm modules. No cutting.`);
         if (Math.abs(getWallAngleRad(wall) / (Math.PI / 2) - Math.round(getWallAngleRad(wall) / (Math.PI / 2))) > 0.00001)
             errors.push(`${label}: only 90° rotations are supported.`);
+        if (!isWallOnGrid(wall))
+            errors.push(`${label}: align the wall faces with the common 20 cm grid. Move the wall to snap it into place.`);
         if (!Number.isInteger(getWallRows(wall)) || getWallRows(wall) < 2 || getWallRows(wall) > MAX_WALL_ROWS)
-            errors.push(`${label}: height must be 2–17 courses.`);
+            errors.push(`${label}: height must be 2–${MAX_WALL_ROWS} courses (up to ${MAX_WALL_HEIGHT_CM / 100} m, whole courses only).`);
         const length = getWallLengthCm(wall);
+        for (let row = 1; row <= getWallRows(wall); row++) {
+            const corner = getWallEndCornerState(wall, row, joints);
+            if (corner.startInsetCm + corner.endInsetCm > length) {
+                errors.push(`${label}: not enough length for both L-corners in course ${row}. Lengthen the wall or change its connections.`);
+                break;
+            }
+        }
         for (const op of wall.openings) {
             const b = getOpeningBoundsCm(op);
             if (b.startCm < HALF_BLOCK_CM || b.endCm > length - HALF_BLOCK_CM)
                 errors.push(`${label}: opening #${op.id} needs a 20 cm pier at both wall ends.`);
             if (!Number.isInteger(op.startRow) || !Number.isInteger(op.rowCount) || op.startRow < 1 || op.rowCount < 1 || op.startRow + op.rowCount - 1 > getWallRows(wall))
                 errors.push(`${label}: opening #${op.id} is outside the wall height.`);
+            if (op.type === 'door' && op.startRow !== 1)
+                errors.push(`${label}: door opening #${op.id} must start at course 1 (floor level). Select Door to place it at the floor, or use Window/Opening for a raised opening.`);
             if (b.lenCm > 150) errors.push(`${label}: opening #${op.id} exceeds the 1.5 m lintel detail supported by this MVP.`);
-            if (op.startRow + op.rowCount > getWallRows(wall) - 1)
-                errors.push(`${label}: leave at least three courses above opening #${op.id} for the documented lintel detail.`);
+            const openingTopRow = op.startRow + op.rowCount - 1;
+            const coursesAbove = getWallRows(wall) - openingTopRow;
+            if (coursesAbove < 3)
+                errors.push(`${label}: leave at least three courses above opening #${op.id} for the documented lintel detail (${Math.max(0, coursesAbove)} available).`);
             for (const other of wall.openings) {
                 if (other.id <= op.id) continue;
                 const c = getOpeningBoundsCm(other);
@@ -90,6 +103,8 @@ function validateProject() {
         const a = state.walls[i], b = state.walls[k];
         const p = worldToWallLocal(a, b.x1, b.y1), q = worldToWallLocal(a, b.x2, b.y2);
         const len = getWallLength(a), epsilon = 0.01;
+        const sharedCorner = joints.some(j => j.type === 'L' &&
+            ((j.wallA === a.id && j.wallB === b.id) || (j.wallA === b.id && j.wallB === a.id)));
         if (Math.abs(p.perp) < epsilon && Math.abs(q.perp) < epsilon) {
             if (Math.min(Math.max(p.along, q.along), len) - Math.max(Math.min(p.along, q.along), 0) > epsilon)
                 errors.push(`Walls #${a.id} and #${b.id} overlap. Remove duplicate masonry.`);
@@ -97,17 +112,31 @@ function validateProject() {
                 errors.push(`Walls #${a.id} and #${b.id}: use one continuous wall instead of a collinear joint.`);
         } else if (Math.abs(p.perp - q.perp) < epsilon && Math.abs(p.perp) < WALL_THICKNESS && Math.min(Math.max(p.along, q.along), len) - Math.max(Math.min(p.along, q.along), 0) > epsilon) {
             errors.push(`Walls #${a.id} and #${b.id} are closer than the nominal wall thickness. Separate them.`);
-        } else if (arePerpendicular(a, b) && p.perp * q.perp < -epsilon && p.along > epsilon && p.along < len - epsilon) {
+        } else if (!sharedCorner && arePerpendicular(a, b) && p.perp * q.perp < -epsilon && p.along > epsilon && p.along < len - epsilon) {
             errors.push(`Walls #${a.id} and #${b.id}: X intersections are unsupported; use L or T junctions.`);
+        } else if (arePerpendicular(a, b)) {
+            // Project the perpendicular wall's full thickness onto wall A.
+            // Axis-only checks miss overlaps beside or just beyond an endpoint.
+            const half = WALL_THICKNESS / 2;
+            const overlapAlong = Math.min(len, p.along + half) - Math.max(0, p.along - half);
+            const overlapAcross = Math.min(half, Math.max(p.perp, q.perp)) - Math.max(-half, Math.min(p.perp, q.perp));
+            // Supported L-corners share a nominal module, counted by one wall.
+            // Face-to-face T-junctions only touch and have no area overlap.
+            if (overlapAlong > epsilon && overlapAcross > epsilon && !sharedCorner)
+                errors.push(`Walls #${a.id} and #${b.id} overlap outside a supported L-corner. Move them apart or reconnect them as an L or T junction.`);
         }
     }
     // Three walls at the same corner are not an ordinary two-wall L connection.
     for (const j of joints.filter(j => j.type === 'L')) {
-        const touching = state.walls.filter(w => dist(w.x1, w.y1, j.x, j.y) < 0.01 || dist(w.x2, w.y2, j.x, j.y) < 0.01);
+        const touching = state.walls.filter(w => ['start', 'end'].some(end => {
+            const cell = getWallEndCellCenter(w, end);
+            return dist(cell.x, cell.y, j.x, j.y) < 0.01;
+        }));
         if (touching.length > 2) errors.push('A corner contains more than two walls. Use a T-junction on the host wall.');
     }
     warnings.push('Nominal 400/200 mm coordination; physical units 400/198 × 198 × 176 mm. Course height 179 mm. Mortar tolerances and joint width require customer confirmation.');
     warnings.push('Counts cover above-floor wall blocks, including block lintels. Foundations, gables, reinforcement, ties, concrete and waste allowance are excluded.');
+    warnings.push(...state.migrationNotes);
     return { errors: [...new Set(errors)], warnings };
 }
 
@@ -121,6 +150,11 @@ function updateProjectStatus() {
         line.textContent = message;
         status.appendChild(line);
     }
+    for (const message of state.migrationNotes) {
+        const line = document.createElement('p');
+        line.className = 'text-amber-300'; line.textContent = message; status.appendChild(line);
+    }
+    if (state.migrationNotes.length) status.closest('details').open = true;
     document.getElementById('btnPrint').disabled = result.errors.length > 0;
     document.getElementById('btnExportCsv').disabled = result.errors.length > 0;
     document.getElementById('resultsStatus').textContent = result.errors.length ? 'Draft quantities — resolve errors below' : 'Calculated quantities · nominal model';
@@ -171,14 +205,16 @@ function printReport() {
 }
 
 function projectSnapshot() {
-    return {version: PROJECT_VERSION, model: 'nominal-400-200-mm', planGeometry: 'face-t-v2', walls: state.walls, nextId: state.nextId, totalWallRows: state.totalWallRows};
+    return {version: PROJECT_VERSION, model: 'nominal-400-200-mm', planGeometry: PLAN_GEOMETRY,
+        walls: state.walls, nextId: state.nextId, totalWallRows: state.totalWallRows, migrationNotes: state.migrationNotes};
 }
 function saveProjectLocally() {
     commitEditHistory();
-    try { localStorage.setItem('blocks-calculator-v1', JSON.stringify(projectSnapshot())); } catch { /* Saving is optional when storage is unavailable. */ }
+    try { localStorage.setItem(LOCAL_PROJECT_KEY, JSON.stringify(projectSnapshot())); } catch { /* Saving is optional when storage is unavailable. */ }
 }
 function restoreProject(data) {
     if (!data || data.version !== PROJECT_VERSION || data.model !== 'nominal-400-200-mm' || !Array.isArray(data.walls) || data.walls.length > 200) throw new Error('Unsupported project format (maximum 200 walls).');
+    if (data.planGeometry != null && ![PLAN_GEOMETRY, 'face-t-v2'].includes(data.planGeometry)) throw new Error('Unsupported plan geometry.');
     const ids = new Set();
     const takeId = id => { if (!Number.isSafeInteger(id) || id < 1 || ids.has(id)) throw new Error('Invalid or duplicate object ID.'); ids.add(id); return id; };
     const rows = data.totalWallRows;
@@ -196,33 +232,14 @@ function restoreProject(data) {
         });
         return {id, x1: w.x1, y1: w.y1, x2: w.x2, y2: w.y2, rows: w.rows, openings};
     });
-    // Apply only after the entire file has passed structural checks.
+    const migrationNotes = data.planGeometry === PLAN_GEOMETRY
+        ? (Array.isArray(data.migrationNotes) ? data.migrationNotes.filter(s=>typeof s==='string').slice(0,201).map(s=>s.slice(0,300)) : [])
+        : migrateLegacyGeometry(walls);
+    // Apply only after structural checks and any geometry conversion succeed.
     state.walls = walls; state.totalWallRows = rows; state.nextId = Math.max(0, ...ids) + 1;
+    state.migrationNotes = migrationNotes;
     state.selectedWallId = walls[0]?.id ?? null; state.selectedOpeningId = null;
-    if (data.planGeometry !== 'face-t-v2') migrateLegacyTConnections();
     document.getElementById('sliderTotalRows').value = rows;
-}
-
-function migrateLegacyTConnections() {
-    const joints = getAllWallJoints();
-    for (const wall of state.walls) {
-        const ends = joints.filter(j => j.type === 'T' && j.branchWallId === wall.id && j.legacyAxis);
-        if (!ends.length) continue;
-        // A branch tied at its other end to an L corner needs a manual resize;
-        // don't silently break that connection during migration.
-        if (ends.length === 1 && joints.some(j => j.type === 'L' && (j.wallA === wall.id || j.wallB === wall.id))) continue;
-        const length = getWallLength(wall), ux = (wall.x2 - wall.x1) / length, uy = (wall.y2 - wall.y1) / length;
-        const half = WALL_THICKNESS / 2;
-        if (ends.length === 2) {
-            if (length - WALL_THICKNESS < cmToPx(getMinAllowedWallLengthCm(wall))) continue;
-            wall.x1 += ux * half; wall.y1 += uy * half;
-            wall.x2 -= ux * half; wall.y2 -= uy * half;
-        } else {
-            const sign = ends[0].branchEnd === 'start' ? 1 : -1;
-            wall.x1 += sign * ux * half; wall.y1 += sign * uy * half;
-            wall.x2 += sign * ux * half; wall.y2 += sign * uy * half;
-        }
-    }
 }
 
 function bindProjectEvents() {
@@ -257,7 +274,8 @@ function bindProjectEvents() {
         const limits = getOpeningLimitsCm(wall, opening), width = getOpeningBoundsCm(opening).lenCm;
         const desired = snapCmToGrid(startCm + (e.clientX - startX) / g.scaleX);
         setOpeningBoundsCm(opening, clamp(desired, limits.minCm, limits.maxCm - width), width);
-        opening.startRow = clamp(startRow - Math.round((e.clientY - startY) / g.rowH), 1, getWallRows(wall) - opening.rowCount + 1);
+        opening.startRow = opening.type === 'door' ? 1
+            : clamp(startRow - Math.round((e.clientY - startY) / g.rowH), 1, getWallRows(wall) - opening.rowCount + 1);
         updateInspector(); render();
     });
     const finishElevationDrag = () => { if (elevationDrag) { elevationDrag = null; saveProjectLocally(); } };
@@ -266,7 +284,7 @@ function bindProjectEvents() {
     document.getElementById('inputWallRows').addEventListener('change', e => {
         const wall = getPartnerWall(state.selectedWallId); if (!wall) return;
         const rows = Number(e.target.value);
-        if (!Number.isInteger(rows) || rows < 2 || rows > MAX_WALL_ROWS) { showToast('Use 2–17 whole courses.'); updateInspector(); return; }
+        if (!Number.isInteger(rows) || rows < 2 || rows > MAX_WALL_ROWS) { showToast(`Use 2–${MAX_WALL_ROWS} whole courses (maximum ${MAX_WALL_HEIGHT_CM / 100} m).`); updateInspector(); return; }
         wall.rows = rows; clampWallOpenings(wall); updateInspector(); render(); saveProjectLocally();
     });
     document.getElementById('btnPrint').addEventListener('click', printReport);

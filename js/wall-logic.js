@@ -38,6 +38,33 @@ function getWallCenter(w) {
             return { x: (w.x1 + w.x2) / 2, y: (w.y1 + w.y2) / 2 };
         }
 
+function getWallEndCellCenter(wall, endName) {
+    const along = endName === 'start' ? HALF_BLOCK_PX / 2 : getWallLength(wall) - HALF_BLOCK_PX / 2;
+    return wallLocalToWorld(wall, along, 0);
+}
+
+function snapWallStartToGrid(wall, x = wall.x1, y = wall.y1) {
+    const horizontal = Math.abs(wall.x2 - wall.x1) >= Math.abs(wall.y2 - wall.y1);
+    const step = HALF_BLOCK_PX, half = step / 2;
+    const snap = (value, phase) => Math.round((value - phase) / step) * step + phase;
+    return {x: snap(x, horizontal ? 0 : half), y: snap(y, horizontal ? half : 0)};
+}
+
+function alignWallToGrid(wall) {
+    const start = snapWallStartToGrid(wall);
+    const horizontal = Math.abs(wall.x2 - wall.x1) >= Math.abs(wall.y2 - wall.y1);
+    const sign = Math.sign(horizontal ? wall.x2 - wall.x1 : wall.y2 - wall.y1);
+    const length = cmToPx(getWallLengthCm(wall));
+    wall.x1 = start.x; wall.y1 = start.y;
+    wall.x2 = start.x + (horizontal ? sign * length : 0);
+    wall.y2 = start.y + (horizontal ? 0 : sign * length);
+}
+
+function isWallOnGrid(wall) {
+    const start = snapWallStartToGrid(wall);
+    return dist(start.x, start.y, wall.x1, wall.y1) < 0.001;
+}
+
 function worldToWallLocal(w, wx, wy) {
             const dx = wx - w.x1;
             const dy = wy - w.y1;
@@ -149,7 +176,7 @@ function getMinAllowedWallLengthCm(wall) {
             return Math.max(MIN_WALL_CM, totalOpeningsCm + HALF_BLOCK_CM * 2);
         }
 
-function setWallLengthFromCenter(wall, newLenCm) {
+function setWallLength(wall, newLenCm) {
             if (!Number.isFinite(newLenCm) || newLenCm % BLOCK_GRID_CM !== 0) {
                 showToast('Use multiples of 20 cm (200 mm). Cutting blocks is not supported.');
                 return;
@@ -157,14 +184,11 @@ function setWallLengthFromCenter(wall, newLenCm) {
             const minAllowed = getMinAllowedWallLengthCm(wall);
             const clampedCm = clamp(snapCmToGrid(newLenCm), minAllowed, MAX_WALL_CM);
             const newLenPx = cmToPx(clampedCm);
-            const center = getWallCenter(wall);
             const angle = getWallAngleRad(wall);
-            const half = newLenPx / 2;
-
-            wall.x1 = center.x - Math.cos(angle) * half;
-            wall.y1 = center.y - Math.sin(angle) * half;
-            wall.x2 = center.x + Math.cos(angle) * half;
-            wall.y2 = center.y + Math.sin(angle) * half;
+            // Keep the first face fixed; changing length by one cell must not
+            // shift both ends by half a cell and break the common grid.
+            wall.x2 = wall.x1 + Math.cos(angle) * newLenPx;
+            wall.y2 = wall.y1 + Math.sin(angle) * newLenPx;
             clampWallOpenings(wall);
         }
 
@@ -172,17 +196,18 @@ function setWallLengthFromCenter(wall, newLenCm) {
                     return Math.round(angleDeg / 90) * 90;
         }
 
-function setWallAngleFromCenter(wall, angleDeg) {
+function setWallAngle(wall, angleDeg) {
                     const snappedAngleDeg = snapAngleTo90(angleDeg);
             const angleRad = snappedAngleDeg * Math.PI / 180;
             const lenPx = cmToPx(getWallLengthCm(wall));
-            const center = getWallCenter(wall);
-            const half = lenPx / 2;
-
-            wall.x1 = center.x - Math.cos(angleRad) * half;
-            wall.y1 = center.y - Math.sin(angleRad) * half;
-            wall.x2 = center.x + Math.cos(angleRad) * half;
-            wall.y2 = center.y + Math.sin(angleRad) * half;
+            // The first cell centre is a grid-aligned, repeatable rotation pivot.
+            const pivot = getWallEndCellCenter(wall, 'start');
+            const half = HALF_BLOCK_PX / 2;
+            wall.x1 = pivot.x - Math.cos(angleRad) * half;
+            wall.y1 = pivot.y - Math.sin(angleRad) * half;
+            wall.x2 = wall.x1 + Math.cos(angleRad) * lenPx;
+            wall.y2 = wall.y1 + Math.sin(angleRad) * lenPx;
+            alignWallToGrid(wall);
         }
 
 function snapToHalfBlockCellCenterCm(rawAlongCm, wallLenCm) {
@@ -192,13 +217,30 @@ function snapToHalfBlockCellCenterCm(rawAlongCm, wallLenCm) {
             const rawCellStartCm = Math.round((rawAlongCm - HALF_BLOCK_CM / 2) / HALF_BLOCK_CM) * HALF_BLOCK_CM;
             const cellStartCm = clamp(rawCellStartCm, minCellStartCm, maxCellStartCm);
             return {
-                centerCm: cellStartCm + HALF_BLOCK_CM / 2, // Центр половинки блока (25, 75, 125...)
-                cellStartCm,                               // Начало половинки блока (0, 50, 100...)
-                cellEndCm: cellStartCm + HALF_BLOCK_CM     // Конец половинки блока (50, 100, 150...)
+                centerCm: cellStartCm + HALF_BLOCK_CM / 2,
+                cellStartCm,
+                cellEndCm: cellStartCm + HALF_BLOCK_CM
             };
         }
 
-function getSnapCandidates(x, y, excludeWallId) {
+function getWallFaceSnapPoints(host, moving) {
+    const points = [], length = getWallLengthCm(host);
+    for (let cellStartCm = HALF_BLOCK_CM; cellStartCm <= length - FULL_BLOCK_CM; cellStartCm += HALF_BLOCK_CM) {
+        if (host.openings.some(op => {
+            const b = getOpeningBoundsCm(op);
+            return b.startCm < cellStartCm + HALF_BLOCK_CM && b.endCm > cellStartCm && (!moving || op.startRow <= getWallRows(moving));
+        })) continue;
+        const centerCm = cellStartCm + HALF_BLOCK_CM / 2;
+        for (const side of [-1, 1]) {
+            const point = wallLocalToWorld(host, cmToPx(centerCm), side * WALL_THICKNESS / 2);
+            points.push({...point, wallId: host.id, type: 'T', side, offsetCm: centerCm,
+                cellStartCm, cellEndCm: cellStartCm + HALF_BLOCK_CM});
+        }
+    }
+    return points;
+}
+
+function getSnapCandidates(x, y, excludeWallId, endName = 'start') {
     const moving = state.walls.find(w => w.id === excludeWallId);
     const radius = SNAP_RADIUS / state.zoom;
     const candidates = [];
@@ -210,23 +252,19 @@ function getSnapCandidates(x, y, excludeWallId) {
     };
     for (const host of state.walls) {
         if (host.id === excludeWallId || (moving && !arePerpendicular(moving, host))) continue;
-        add({x: host.x1, y: host.y1, wallId: host.id, type: 'L', offsetCm: 0});
-        add({x: host.x2, y: host.y2, wallId: host.id, type: 'L', offsetCm: getWallLengthCm(host)});
-        const local = worldToWallLocal(host, x, y);
-        if (Math.abs(local.perp) > radius + WALL_THICKNESS / 2) continue;
-        const length = getWallLengthCm(host);
-        for (let cellStartCm = HALF_BLOCK_CM; cellStartCm <= length - FULL_BLOCK_CM; cellStartCm += HALF_BLOCK_CM) {
-            const centerCm = cellStartCm + HALF_BLOCK_CM / 2;
-            if (Math.abs(cmToPx(centerCm) - local.along) > radius) continue;
-            if (host.openings.some(op => {
-                const b = getOpeningBoundsCm(op);
-                return b.startCm < cellStartCm + HALF_BLOCK_CM && b.endCm > cellStartCm && (!moving || op.startRow <= getWallRows(moving));
-            })) continue;
-            for (const side of [-1, 1]) {
-                const point = wallLocalToWorld(host, cmToPx(centerCm), side * WALL_THICKNESS / 2);
-                add({...point, wallId: host.id, type: 'T', side, offsetCm: centerCm, cellStartCm, cellEndCm: cellStartCm + HALF_BLOCK_CM});
+        if (moving) {
+            const angle = getWallAngleRad(moving), sign = endName === 'start' ? 1 : -1;
+            for (const hostEnd of ['start', 'end']) {
+                const cell = getWallEndCellCenter(host, hostEnd);
+                add({x: cell.x - sign * Math.cos(angle) * HALF_BLOCK_PX / 2,
+                    y: cell.y - sign * Math.sin(angle) * HALF_BLOCK_PX / 2,
+                    wallId: host.id, type: 'L', hostEnd,
+                    offsetCm: hostEnd === 'start' ? 0 : getWallLengthCm(host)});
             }
         }
+        const local = worldToWallLocal(host, x, y);
+        if (Math.abs(local.perp) > radius + WALL_THICKNESS / 2) continue;
+        for (const point of getWallFaceSnapPoints(host, moving)) add(point);
     }
     return candidates.sort((a, b) => a.distance - b.distance || a.type.localeCompare(b.type) || a.wallId - b.wallId || a.offsetCm - b.offsetCm || (a.side || 0) - (b.side || 0));
 }
@@ -246,8 +284,8 @@ function snapWallTranslation(wall, proposed) {
         const host = state.walls.find(w => w.id === point.wallId);
         return worldToWallLocal(host, otherX, otherY).perp * point.side > WALL_THICKNESS / 2;
     };
-    const first = getSnapCandidates(proposed.x1, proposed.y1, wall.id).filter(p => onSide(p, proposed.x2, proposed.y2));
-    const second = getSnapCandidates(proposed.x2, proposed.y2, wall.id).filter(p => onSide(p, proposed.x1, proposed.y1));
+    const first = getSnapCandidates(proposed.x1, proposed.y1, wall.id, 'start').filter(p => onSide(p, proposed.x2, proposed.y2));
+    const second = getSnapCandidates(proposed.x2, proposed.y2, wall.id, 'end').filter(p => onSide(p, proposed.x1, proposed.y1));
     const options = [];
     for (const [end, points, other] of [[1, first, second], [2, second, first]]) {
         for (const point of points) {
@@ -259,8 +297,9 @@ function snapWallTranslation(wall, proposed) {
     }
     options.sort((a, b) => b.snaps.length - a.snaps.length || a.distance - b.distance || a.point.type.localeCompare(b.point.type) || a.point.wallId - b.point.wallId || a.point.offsetCm - b.point.offsetCm || a.end - b.end);
     const best = options[0];
-    const dx = best ? best.dx : snapWorldCoordinate(proposed.x1) - proposed.x1;
-    const dy = best ? best.dy : snapWorldCoordinate(proposed.y1) - proposed.y1;
+    const gridStart = snapWallStartToGrid(wall, proposed.x1, proposed.y1);
+    const dx = best ? best.dx : gridStart.x - proposed.x1;
+    const dy = best ? best.dy : gridStart.y - proposed.y1;
     return {x1: proposed.x1 + dx, y1: proposed.y1 + dy, x2: proposed.x2 + dx, y2: proposed.y2 + dy, snaps: best?.snaps || []};
 }
 
@@ -270,7 +309,7 @@ function resizeWallEndpoint(wall, first, position) {
     const ux = ((first ? wall.x1 : wall.x2) - anchor.x) / length;
     const uy = ((first ? wall.y1 : wall.y2) - anchor.y) / length;
     const minimum = getMinAllowedWallLengthCm(wall);
-    const candidates = getSnapCandidates(position.x, position.y, wall.id).filter(p => {
+    const candidates = getSnapCandidates(position.x, position.y, wall.id, first ? 'start' : 'end').filter(p => {
         const dx = p.x - anchor.x, dy = p.y - anchor.y;
         const along = pxToCm(dx * ux + dy * uy);
         if (p.type === 'T') {
@@ -290,68 +329,36 @@ function resizeWallEndpoint(wall, first, position) {
 }
 
 function getAllWallJoints() {
-            const joints = [];
-            const eps = 0.01;
-
-            for (let i = 0; i < state.walls.length; i++) {
-                const a = state.walls[i];
-                const endpointsA = [
-                    { x: a.x1, y: a.y1, endName: 'start' },
-                    { x: a.x2, y: a.y2, endName: 'end' }
-                ];
-
-                for (const ep of endpointsA) {
-                    for (let j = 0; j < state.walls.length; j++) {
-                        if (i === j || !arePerpendicular(a, state.walls[j])) continue;
-                        const b = state.walls[j];
-
-                        // Проверка L-соединения (конец-в-конец)
-                        const matchBStart = dist(ep.x, ep.y, b.x1, b.y1) <= eps;
-                        const matchBEnd = dist(ep.x, ep.y, b.x2, b.y2) <= eps;
-
-                        if (matchBStart || matchBEnd) {
-                            if (!joints.some(jt => jt.type === 'L' && dist(jt.x, jt.y, ep.x, ep.y) <= eps)) {
-                                const firstIsPrimary = a.id < b.id;
-                                joints.push({
-                                    type: 'L',
-                                    x: ep.x,
-                                    y: ep.y,
-                                    wallA: firstIsPrimary ? a.id : b.id,
-                                    endA: firstIsPrimary ? ep.endName : (matchBStart ? 'start' : 'end'),
-                                    wallB: firstIsPrimary ? b.id : a.id,
-                                    endB: firstIsPrimary ? (matchBStart ? 'start' : 'end') : ep.endName
-                                });
-                            }
-                        } else {
-                            // Проверка Т-соединения (конец стены A приклеен к одной половине блока стены B)
-                            const lenB = getWallLength(b);
-                            const lenBCm = getWallLengthCm(b);
-                            if (lenB > 0) {
-                                const loc = worldToWallLocal(b, ep.x, ep.y);
-                                if (loc.along >= HALF_BLOCK_PX - eps && loc.along <= lenB - HALF_BLOCK_PX + eps && (Math.abs(loc.perp) <= eps || Math.abs(Math.abs(loc.perp) - WALL_THICKNESS / 2) <= eps)) {
-                                    const cell = snapToHalfBlockCellCenterCm(pxToCm(loc.along), lenBCm);
-                                    if (!joints.some(jt => jt.type === 'T' && jt.hostWallId === b.id && Math.abs(jt.offsetCm - cell.centerCm) < 10 && jt.branchWallId === a.id)) {
-                                        joints.push({
-                                            type: 'T',
-                                            legacyAxis: Math.abs(loc.perp) <= eps,
-                                            x: ep.x,
-                                            y: ep.y,
-                                            hostWallId: b.id,
-                                            branchWallId: a.id,
-                                            branchEnd: ep.endName,
-                                            offsetCm: cell.centerCm,
-                                            cellStartCm: cell.cellStartCm,
-                                            cellEndCm: cell.cellEndCm
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+    const joints = [], eps = 0.01;
+    for (let i = 0; i < state.walls.length; i++) for (let k = i + 1; k < state.walls.length; k++) {
+        const a = state.walls[i], b = state.walls[k];
+        if (!arePerpendicular(a, b)) continue;
+        let corner = null;
+        for (const endA of ['start', 'end']) for (const endB of ['start', 'end']) {
+            const ca = getWallEndCellCenter(a, endA), cb = getWallEndCellCenter(b, endB);
+            if (!corner && dist(ca.x, ca.y, cb.x, cb.y) <= eps) {
+                const primary = a.id < b.id;
+                corner = {type: 'L', x: ca.x, y: ca.y,
+                    wallA: primary ? a.id : b.id, wallB: primary ? b.id : a.id,
+                    endA: primary ? endA : endB, endB: primary ? endB : endA};
             }
-            return joints;
         }
+        if (corner) { joints.push(corner); continue; }
+        for (const [branch, host] of [[a, b], [b, a]]) for (const end of ['start', 'end']) {
+            const x = end === 'start' ? branch.x1 : branch.x2;
+            const y = end === 'start' ? branch.y1 : branch.y2;
+            const loc = worldToWallLocal(host, x, y), length = getWallLength(host);
+            const onAxis = Math.abs(loc.perp) <= eps;
+            const onFace = Math.abs(Math.abs(loc.perp) - WALL_THICKNESS / 2) <= eps;
+            if (loc.along < HALF_BLOCK_PX - eps || loc.along > length - HALF_BLOCK_PX + eps || (!onAxis && !onFace)) continue;
+            const cell = snapToHalfBlockCellCenterCm(pxToCm(loc.along), getWallLengthCm(host));
+            joints.push({type: 'T', legacyAxis: onAxis, x, y, hostWallId: host.id,
+                branchWallId: branch.id, branchEnd: end, offsetCm: cell.centerCm,
+                cellStartCm: cell.cellStartCm, cellEndCm: cell.cellEndCm});
+        }
+    }
+    return joints;
+}
 
 function getWallEndCornerState(wall, rowIndex, allJoints) {
             const isOddRow = (rowIndex % 2 === 1);

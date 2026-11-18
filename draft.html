@@ -159,8 +159,8 @@
                         <span class="text-slate-300 font-medium">Apply height to all walls (courses):</span>
                         <span class="font-bold text-white" id="valTotalRows">10 courses / 179 cm</span>
                     </div>
-                    <input type="range" id="sliderTotalRows" min="2" max="17" step="1" value="10" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
-                    <p class="text-[10px] text-slate-400 mt-1">MVP range: 2–17 courses. Openings retain their dimensions when height changes.</p>
+                    <input type="range" id="sliderTotalRows" min="2" max="19" step="1" value="10" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                    <p class="text-[10px] text-slate-400 mt-1">Height limit: 3.5 m. Whole courses: 2–19 (up to 340.1 cm). Openings retain their dimensions when height changes.</p>
                 </div>
 
                 <!-- Карточки итогов -->
@@ -179,7 +179,7 @@
                         <div class="text-[10px] text-slate-300 uppercase font-semibold">Total blocks</div>
                         <div class="text-lg font-extrabold text-emerald-400 mt-0.5" id="totAllBlocks">0</div>
                         <div class="text-[10px] text-slate-400" id="totJointsBadge">0 joints</div>
-                        <div class="text-[10px] text-red-300" id="totUnfilled">Remainder across courses: 0 cm</div>
+                        <div class="hidden text-[10px] text-red-300" id="totUnfilled"></div>
                     </div>
                 </div>
 
@@ -203,7 +203,7 @@
                 <p id="resultsStatus" class="text-slate-400" aria-live="polite"></p>
                 <details><summary class="cursor-pointer text-slate-300">Validation and calculation model</summary>
                     <div id="projectStatus" class="space-y-1 mt-2" role="status" aria-live="polite"></div>
-                    <p class="mt-2 text-slate-400">Nominal modules: 40 / 20 cm. Physical blocks: 400 / 198 x 198 x 176 mm. Course: 17.9 cm (3 mm mortar). Single storey, 2-17 courses. Control sections up to 5 m. Rectangular openings up to 1.5 m, with 3 lintel courses above.</p>
+                    <p class="mt-2 text-slate-400">Nominal modules: 40 / 20 cm. Physical blocks: 400 / 198 x 198 x 176 mm. Course: 17.9 cm (3 mm mortar). Single storey, height limit 3.5 m: 2-19 whole courses, up to 340.1 cm. Control sections up to 5 m. Rectangular openings up to 1.5 m, with 3 lintel courses above.</p>
                     <p class="mt-1 text-slate-500">Above-floor block quantities only. Excludes foundations, gables, reinforcement, ties, concrete and waste. Mortar tolerances, joint width and junction details need customer confirmation.</p>
                 </details>
             </div>
@@ -231,7 +231,7 @@
 
                 <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-800 space-y-2 text-xs">
                     <div class="flex justify-between"><label for="inputWallRows">Wall height (courses):</label><b id="valWallHeight" class="text-blue-400"></b></div>
-                    <input id="inputWallRows" type="number" min="2" max="17" step="1" value="10" class="w-full rounded bg-slate-900 border border-slate-700 p-2">
+                    <input id="inputWallRows" type="number" min="2" max="19" step="1" value="10" class="w-full rounded bg-slate-900 border border-slate-700 p-2">
                     <p class="text-slate-400">Automatic control joints: <span id="wallControlJoints"></span></p>
                 </div>
                 <!-- Wall length -->
@@ -241,6 +241,7 @@
                         <span class="font-bold text-blue-400" id="valWallLength">40 cm</span>
                     </div>
                     <input type="number" id="sliderWallLength" aria-label="Wall length in centimetres" min="20" max="2400" step="20" value="400" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm">
+                    <p class="text-[10px] text-slate-400">T partitions: measure between wall faces. L corners share one 20 cm cell.</p>
                     <div class="flex justify-between text-[10px] text-slate-400">
                         <span id="lblMinWallLen">Min: 20 cm</span>
                         <span>Course 1: <b id="lblRow1Summary" class="text-slate-200"></b></span>
@@ -318,6 +319,7 @@
                                     <b class="text-slate-200" id="valOpStartRow">1</b>
                                 </div>
                                 <input type="range" id="sliderOpStartRow" min="1" max="10" step="1" value="1" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                                <p id="doorFloorNote" class="hidden mt-1 text-[10px] text-slate-400">Doors start at floor level (course 1).</p>
                             </div>
                             <div>
                                 <div class="flex justify-between text-[11px] mb-1">
@@ -337,6 +339,7 @@
     <script src="./js/constants.js"></script>
     <script src="./js/state.js"></script>
     <script src="./js/wall-logic.js"></script>
+    <script src="./js/geometry-migration.js"></script>
     <script src="./js/render.js"></script>
     <script src="./js/ui.js"></script>
     <script src="./js/wall-actions.js"></script>

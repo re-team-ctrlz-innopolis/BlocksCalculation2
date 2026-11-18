@@ -22,7 +22,7 @@ function updateBlockCalculator() {
                     <span class="text-slate-400">
                         <b class="text-blue-400">${st.fullCount}</b>×40 +
                         <b class="text-amber-400">${st.halfCount}</b>×20
-                        <span class="text-red-300">• ${st.unfilledCm} cm remainder across courses</span>
+                        ${st.unfilledCm > 0 ? `<span class="text-red-300">• ${st.unfilledCm} cm remainder across courses</span>` : ''}
                     </span>
                 `;
                 row.tabIndex = 0;
@@ -41,7 +41,9 @@ function updateBlockCalculator() {
             document.getElementById('totHalfBlocks').textContent = grandHalf;
             document.getElementById('totAllBlocks').textContent = grandFull + grandHalf;
             document.getElementById('totJointsBadge').textContent = `L: ${lCount} | T: ${tCount}`;
-            document.getElementById('totUnfilled').textContent = `Remainder across courses: ${grandUnfilledCm} cm`;
+            const unfilledEl = document.getElementById('totUnfilled');
+            unfilledEl.textContent = grandUnfilledCm > 0 ? `Remainder across courses: ${grandUnfilledCm} cm` : '';
+            unfilledEl.classList.toggle('hidden', grandUnfilledCm <= 0);
         }
 
 function updateInspector() {
@@ -69,7 +71,7 @@ function updateInspector() {
             const st = calculateWallBlocks(wall);
 
             document.getElementById('inspWallName').textContent = `Wall #${wall.id}`;
-            document.getElementById('inspWallBlocksBadge').textContent = `${st.fullCount} full / ${st.halfCount} half • ${st.unfilledCm} cm remainder`;
+            document.getElementById('inspWallBlocksBadge').textContent = `${st.fullCount} full / ${st.halfCount} half${st.unfilledCm > 0 ? ` • ${st.unfilledCm} cm remainder` : ''}`;
 
             // Информация об L и T соединениях выбранной стены
             const allJoints = getAllWallJoints();
@@ -92,7 +94,7 @@ function updateInspector() {
             const r1Full = r1.blocks.filter(b => b.kind === 'full').length;
             const r1Half = r1.blocks.filter(b => b.kind === 'half').length;
             document.getElementById('lblRow1Summary').textContent =
-                `${r1Full}×40, ${r1Half}×20, ${r1.unfilledCm} cm unfilled`;
+                `${r1Full}×40, ${r1Half}×20${r1.unfilledCm > 0 ? `, ${r1.unfilledCm} cm unfilled` : ''}`;
 
             // Ползунок угла
             document.getElementById('valWallDirection').textContent = Math.abs(Math.sin(getWallAngleRad(wall))) < 0.01 ? 'Horizontal' : 'Vertical';
@@ -195,6 +197,9 @@ function updateInspector() {
                 const sliderStartRow = document.getElementById('sliderOpStartRow');
                 sliderStartRow.max = Math.max(getWallRows(wall), selectedOp.startRow || 1);
                 sliderStartRow.value = selectedOp.startRow || 1;
+                sliderStartRow.disabled = selectedOp.type === 'door';
+                sliderStartRow.title = selectedOp.type === 'door' ? 'Doors start at floor level (course 1).' : '';
+                document.getElementById('doorFloorNote').classList.toggle('hidden', selectedOp.type !== 'door');
                 document.getElementById('valOpStartRow').textContent = `${selectedOp.startRow || 1} (${formatCm(((selectedOp.startRow || 1) - 1) * COURSE_HEIGHT_CM)} cm sill)`;
 
                 const sliderRowCount = document.getElementById('sliderOpRowCount');

@@ -13,6 +13,7 @@ function addNewWall() {
                 rows: state.totalWallRows,
                 openings: []
             };
+            alignWallToGrid(newWall);
             state.walls.push(newWall);
             state.selectedWallId = newWall.id;
             state.selectedOpeningId = null;
@@ -49,6 +50,7 @@ function addOpeningToSelectedWall() {
 
 function loadDemoHouse() {
     state.walls = [];
+    state.migrationNotes = [];
     state.nextId = 1;
     state.totalWallRows = 17;
     document.getElementById('sliderTotalRows').value = 17;
@@ -56,12 +58,13 @@ function loadDemoHouse() {
     const cy = snapWorldCoordinate((state.canvas.height / 2 - state.panY) / state.zoom);
     const x = cx - cmToPx(300), y = cy - cmToPx(200);
     const wall = (x1, y1, x2, y2, rows = 17) => ({id: state.nextId++, x1, y1, x2, y2, rows, openings: []});
-    const top = wall(x, y, x + cmToPx(600), y);
-    const bottom = wall(x, y + cmToPx(400), x + cmToPx(600), y + cmToPx(400));
-    const left = wall(x, y, x, y + cmToPx(400));
-    const right = wall(x + cmToPx(600), y, x + cmToPx(600), y + cmToPx(400));
+    const half = WALL_THICKNESS / 2;
+    const top = wall(x, y + half, x + cmToPx(600), y + half);
+    const bottom = wall(x, y + cmToPx(400) - half, x + cmToPx(600), y + cmToPx(400) - half);
+    const left = wall(x + half, y, x + half, y + cmToPx(400));
+    const right = wall(x + cmToPx(600) - half, y, x + cmToPx(600) - half, y + cmToPx(400));
     const cell = snapToHalfBlockCellCenterCm(300, 600);
-    const partition = wall(x + cmToPx(cell.centerCm), y + WALL_THICKNESS / 2, x + cmToPx(cell.centerCm), y + cmToPx(400) - WALL_THICKNESS / 2, 15);
+    const partition = wall(x + cmToPx(cell.centerCm), y + WALL_THICKNESS, x + cmToPx(cell.centerCm), y + cmToPx(400) - WALL_THICKNESS, 15);
     const opening = (host, start, width, startRow, rowCount, type) => host.openings.push({id: state.nextId++, offset: cmToPx(start + width / 2), length: cmToPx(width), startRow, rowCount, type});
     opening(top, 80, 120, 5, 6, 'window');
     opening(bottom, 80, 100, 1, 11, 'door');

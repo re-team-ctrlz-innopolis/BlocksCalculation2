@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "model": "nominal-400-200-mm",
+  "planGeometry": "face-t-v2",
+  "walls": [
+    {
+      "id": 1,
+      "x1": 200,
+      "y1": 150,
+      "x2": 800,
+      "y2": 150,
+      "rows": 17,
+      "openings": [
+        {
+          "id": 6,
+          "offset": 140,
+          "length": 120,
+          "startRow": 5,
+          "rowCount": 6,
+          "type": "window"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "x1": 200,
+      "y1": 550,
+      "x2": 800,
+      "y2": 550,
+      "rows": 17,
+      "openings": [
+        {
+          "id": 7,
+          "offset": 130,
+          "length": 100,
+          "startRow": 1,
+          "rowCount": 11,
+          "type": "door"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "x1": 200,
+      "y1": 150,
+      "x2": 200,
+      "y2": 550,
+      "rows": 17,
+      "openings": [
+        {
+          "id": 8,
+          "offset": 200,
+          "length": 120,
+          "startRow": 5,
+          "rowCount": 6,
+          "type": "window"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "x1": 800,
+      "y1": 150,
+      "x2": 800,
+      "y2": 550,
+      "rows": 17,
+      "openings": []
+    },
+    {
+      "id": 5,
+      "x1": 510,
+      "y1": 160,
+      "x2": 510,
+      "y2": 540,
+      "rows": 15,
+      "openings": [
+        {
+          "id": 9,
+          "offset": 200,
+          "length": 80,
+          "startRow": 1,
+          "rowCount": 10,
+          "type": "arch"
+        }
+      ]
+    }
+  ],
+  "nextId": 10,
+  "totalWallRows": 17
+}

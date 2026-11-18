@@ -38,7 +38,10 @@ function handlePointerDown(e) {
                 // Рычаг поворота
                 const rotPos = getRotateHandlePos(selWall);
                 if (dist(pos.x, pos.y, rotPos.x, rotPos.y) <= 12 / state.zoom) {
-                    state.dragState = { type: 'rotate_wall', wall: selWall };
+                    const pivot = getWallEndCellCenter(selWall, 'start');
+                    const handleAngle = Math.atan2(rotPos.y - pivot.y, rotPos.x - pivot.x);
+                    state.dragState = { type: 'rotate_wall', wall: selWall, pivot,
+                        angleOffset: handleAngle - getWallAngleRad(selWall) };
                     return;
                 }
 
@@ -188,12 +191,12 @@ function handlePointerMove(e) {
                 state.activeSnapPreview = resizeWallEndpoint(wall, state.dragState.type === 'endpoint_1', pos);
 
             } else if (state.dragState.type === 'rotate_wall') {
-                const center = getWallCenter(wall);
-                let angleDeg = Math.round(Math.atan2(pos.y - center.y, pos.x - center.x) * 180 / Math.PI + 90);
+                const {pivot, angleOffset} = state.dragState;
+                let angleDeg = Math.round((Math.atan2(pos.y - pivot.y, pos.x - pivot.x) - angleOffset) * 180 / Math.PI);
                 if (angleDeg > 180) angleDeg -= 360;
                 if (angleDeg < -180) angleDeg += 360;
 
-                setWallAngleFromCenter(wall, angleDeg);
+                setWallAngle(wall, angleDeg);
 
             } else if (state.dragState.type === 'move_opening') {
                 const loc = worldToWallLocal(wall, pos.x, pos.y);
@@ -296,6 +299,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
 
         document.getElementById('btnClearAll').addEventListener('click', () => {
             state.walls = [];
+            state.migrationNotes = [];
             state.selectedWallId = null;
             state.selectedOpeningId = null;
             updateInspector();
@@ -315,7 +319,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
         document.getElementById('sliderWallLength').addEventListener('change', (e) => {
             const wall = state.walls.find(w => w.id === state.selectedWallId);
             if (!wall) return;
-            setWallLengthFromCenter(wall, Number(e.target.value));
+            setWallLength(wall, Number(e.target.value));
             updateInspector();
             render();
         });
@@ -324,7 +328,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             document.getElementById(id).addEventListener('click', () => {
                 const wall = state.walls.find(w => w.id === state.selectedWallId);
                 if (!wall) return;
-                setWallAngleFromCenter(wall, getWallAngleDeg(wall) + turn);
+                setWallAngle(wall, getWallAngleDeg(wall) + turn);
                 updateInspector(); render();
             });
         }
@@ -402,7 +406,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             if (!wall) return;
             const op = wall.openings.find(o => o.id === state.selectedOpeningId);
             if (!op) return;
-            op.startRow = clamp(Number(e.target.value), 1, getWallRows(wall));
+            op.startRow = op.type === 'door' ? 1 : clamp(Number(e.target.value), 1, getWallRows(wall));
             op.rowCount = clamp(op.rowCount || 1, 1, getWallRows(wall) - op.startRow + 1);
             updateInspector();
             render();

@@ -52,6 +52,14 @@ async function main() {
             if (result.exceptionDetails) throw new Error(JSON.stringify(result.exceptionDetails));
             return result.result.value;
         };
+        const reloadPage = async () => {
+            const loaded = new Promise((resolve,reject) => {
+                const timer=setTimeout(()=>{socket.removeEventListener('message',listener);reject(new Error('Reload timed out'));},30000);
+                const listener=e=>{if(JSON.parse(e.data).method==='Page.loadEventFired'){clearTimeout(timer);socket.removeEventListener('message',listener);resolve();}};
+                socket.addEventListener('message',listener);
+            });
+            await call('Page.reload');await loaded;
+        };
         await call('Runtime.enable');
         await call('Page.enable');
         for (let i = 0; i < 100; i++) {
@@ -78,25 +86,47 @@ async function main() {
             return true;
         })()`));
         await evaluate(`window.dragSceneBackup=JSON.stringify(projectSnapshot());state.walls=[
-            {id:11,x1:500,y1:180,x2:900,y2:180,rows:10,openings:[]},
-            {id:12,x1:900,y1:480,x2:500,y2:480,rows:10,openings:[]},
-            {id:13,x1:650,y1:190,x2:650,y2:470,rows:10,openings:[]}
+            {id:11,x1:500,y1:190,x2:900,y2:190,rows:10,openings:[]},
+            {id:12,x1:900,y1:490,x2:500,y2:490,rows:10,openings:[]},
+            {id:13,x1:650,y1:200,x2:650,y2:480,rows:10,openings:[]}
         ];state.nextId=14;state.selectedWallId=13;state.selectedOpeningId=null;updateInspector();render();`);
         const canvasTop = await evaluate('state.canvas.getBoundingClientRect().top');
         const drag = async (x1,y1,x2,y2) => {
-            await call('Input.dispatchMouseEvent',{type:'mousePressed',x:x1,y:canvasTop+y1,button:'left',clickCount:1});
-            await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:x2,y:canvasTop+y2,button:'left',buttons:1});
-            await call('Input.dispatchMouseEvent',{type:'mouseReleased',x:x2,y:canvasTop+y2,button:'left',clickCount:1});
+            const top = await evaluate('state.canvas.getBoundingClientRect().top');
+            await call('Input.dispatchMouseEvent',{type:'mousePressed',x:x1,y:top+y1,button:'left',clickCount:1});
+            await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:x2,y:top+y2,button:'left',buttons:1});
+            await call('Input.dispatchMouseEvent',{type:'mouseReleased',x:x2,y:top+y2,button:'left',clickCount:1});
         };
-        await drag(650,330,657,333);
-        assert.deepEqual(await evaluate('({x1:state.walls[2].x1,y1:state.walls[2].y1,x2:state.walls[2].x2,y2:state.walls[2].y2})'),{x1:650,y1:190,x2:650,y2:470});
+        await drag(650,340,657,343);
+        assert.deepEqual(await evaluate('({x1:state.walls[2].x1,y1:state.walls[2].y1,x2:state.walls[2].x2,y2:state.walls[2].y2})'),{x1:650,y1:200,x2:650,y2:480});
         assert.equal(await evaluate('getAllWallJoints().filter(j=>j.type==="T").length'),2);
-        await drag(650,330,720,430);
+        await drag(650,340,720,440);
         assert.equal(await evaluate('getAllWallJoints().filter(j=>j.type==="T").length'),0);
-        await drag(720,430,654,331);
-        assert.deepEqual(await evaluate('({x1:state.walls[2].x1,y1:state.walls[2].y1,x2:state.walls[2].x2,y2:state.walls[2].y2})'),{x1:650,y1:190,x2:650,y2:470});
-        await drag(650,190,654,192);
+        const movedBranch = await evaluate('getWallCenter(state.walls[2])');
+        await drag(movedBranch.x,movedBranch.y,654,341);
+        assert.deepEqual(await evaluate('({x1:state.walls[2].x1,y1:state.walls[2].y1,x2:state.walls[2].x2,y2:state.walls[2].y2})'),{x1:650,y1:200,x2:650,y2:480});
+        await drag(650,200,654,202);
         assert.equal(await evaluate('getWallLengthCm(state.walls[2])'),280);
+        assert.deepEqual(await evaluate('validateProject().errors'),[]);
+        const beforeHandleTurn = await evaluate('JSON.stringify(projectSnapshot())');
+        const handle = await evaluate('({p:getWallEndCellCenter(state.walls[2],"start"),h:getRotateHandlePos(state.walls[2])})');
+        await drag(handle.h.x,handle.h.y,handle.p.x-(handle.h.y-handle.p.y),handle.p.y+(handle.h.x-handle.p.x));
+        assert.equal(await evaluate('getWallAngleDeg(state.walls[2])'),180);
+        assert.equal(await evaluate('isWallOnGrid(state.walls[2])'),true);
+        await evaluate('undoLastEdit();');
+        assert.equal(await evaluate('JSON.stringify(projectSnapshot())'),beforeHandleTurn);
+        await evaluate('restoreProject(JSON.parse(dragSceneBackup));updateInspector();render();saveProjectLocally();resetEditHistory();');
+        // Reproduce the user's cross-partition: both faces now lie on one grid.
+        const nested = await evaluate(`(() => {
+            const left=state.walls[2],middle=state.walls[4],x1=left.x1+10,x2=middle.x1-10,y=left.y1+90;
+            state.walls.push({id:state.nextId++,x1:x1+40,y1:y+40,x2:x2+40,y2:y+40,rows:10,openings:[]});
+            state.selectedWallId=state.walls.at(-1).id;state.selectedOpeningId=null;updateInspector();render();
+            return {x:(x1+x2)/2,y};
+        })()`);
+        await drag(nested.x+40,nested.y+40,nested.x+2,nested.y+1);
+        assert.equal(await evaluate('getWallLengthCm(state.walls.at(-1))'),280);
+        assert.equal(await evaluate('getAllWallJoints().filter(j=>j.type==="T" && j.branchWallId===state.walls.at(-1).id).length'),2,
+            JSON.stringify(await evaluate(`({wall:state.walls.at(-1),pan:[state.panX,state.panY],canvas:state.canvas.getBoundingClientRect().toJSON(),source:document.elementFromPoint(${nested.x+40},${canvasTop+nested.y+40})?.outerHTML.slice(0,180)})`)));
         assert.deepEqual(await evaluate('validateProject().errors'),[]);
         await evaluate('restoreProject(JSON.parse(dragSceneBackup));updateInspector();render();saveProjectLocally();resetEditHistory();');
         const cameraBefore = await evaluate('JSON.stringify(state.walls)');
@@ -162,23 +192,35 @@ async function main() {
         const pdf = await call('Page.printToPDF', {printBackground: true});
         assert.ok(Buffer.from(pdf.data, 'base64').length > 1000);
         const quantity = await evaluate('document.getElementById("totAllBlocks").textContent');
-        const reloaded = new Promise((resolve, reject) => {
-            const timer = setTimeout(() => { socket.removeEventListener('message', listener); reject(new Error('Reload timed out')); }, 30000);
-            const listener = e => {
-                if (JSON.parse(e.data).method === 'Page.loadEventFired') {
-                    clearTimeout(timer); socket.removeEventListener('message', listener); resolve();
-                }
-            };
-            socket.addEventListener('message', listener);
-        });
-        await call('Page.reload');
-        await reloaded;
+        await reloadPage();
         for (let i = 0; i < 100; i++) {
             if (await evaluate('typeof state !== "undefined" && document.readyState === "complete" && state.walls.length===5')) break;
             await new Promise(r => setTimeout(r, 100));
         }
         assert.equal(await evaluate('state.walls[0].rows'), 16);
         assert.equal(await evaluate('document.getElementById("totAllBlocks").textContent'), quantity);
+        // Imported review examples remain editable, but cannot produce a final bill.
+        const validProject = await evaluate('JSON.stringify(projectSnapshot())');
+        const legacy = JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures','legacy-nested-partition.json'),'utf8'));
+        await evaluate(`restoreProject(${JSON.stringify(legacy)});updateInspector();render();saveProjectLocally();`);
+        assert.deepEqual(await evaluate('validateProject().errors'),[]);
+        assert.equal(await evaluate('getWallLengthCm(getPartnerWall(10))'),280);
+        assert.ok(await evaluate('document.getElementById("projectStatus").textContent.includes("300 to 280")'));
+        assert.equal(await evaluate('JSON.parse(localStorage.getItem(LOCAL_PROJECT_KEY)).planGeometry'), 'modular-cells-v3');
+        for (const [file, message] of [
+            ['overlap-at-endpoint.json', 'overlap outside a supported L-corner'],
+            ['short-double-corner.json', 'overlap']
+        ]) {
+            const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', file), 'utf8'));
+            await evaluate(`restoreProject(${JSON.stringify(fixture)});updateInspector();render();`);
+            assert.ok(await evaluate(`document.getElementById('projectStatus').textContent.includes(${JSON.stringify(message)})`), file);
+            assert.equal(await evaluate('document.getElementById("btnPrint").disabled && document.getElementById("btnExportCsv").disabled'), true, file);
+            assert.ok(await evaluate('document.getElementById("resultsStatus").textContent.includes("Draft quantities")'), file);
+            assert.equal(await evaluate('getProjectReport()'), null, file);
+        }
+        await evaluate(`restoreProject(${validProject});updateInspector();render();`);
+        assert.deepEqual(await evaluate('validateProject().errors'), []);
+        assert.equal(await evaluate('document.getElementById("btnPrint").disabled || document.getElementById("btnExportCsv").disabled'), false);
         // Invalid geometry disables both final output actions.
         await evaluate('state.walls.push({...state.walls[0],id:999,openings:[]}); updateInspector();');
         assert.equal(await evaluate('document.getElementById("btnPrint").disabled && document.getElementById("btnExportCsv").disabled'), true);
@@ -186,12 +228,86 @@ async function main() {
         assert.equal(await evaluate('state.walls.length'), 0);
         await evaluate('document.getElementById("btnAddWall").click();');
         assert.equal(await evaluate('getWallLengthCm(state.walls[0])'), 400);
+        assert.equal(await evaluate('Number(document.getElementById("inputWallRows").max)'), 19);
+        assert.equal(await evaluate('Number(document.getElementById("sliderTotalRows").max)'), 19);
+        await evaluate('document.getElementById("inputWallRows").value=19; document.getElementById("inputWallRows").dispatchEvent(new Event("change",{bubbles:true}));');
+        assert.equal(await evaluate('state.walls[0].rows'), 19);
+        assert.equal(await evaluate('document.getElementById("valWallHeight").textContent'), '340.1 cm');
+        assert.equal(await evaluate('getProjectReport()[0].height'), 340.1);
+        assert.equal(await evaluate('document.getElementById("btnPrint").disabled'), false);
+        await evaluate('document.getElementById("inputWallRows").value=20; document.getElementById("inputWallRows").dispatchEvent(new Event("change",{bubbles:true}));');
+        assert.equal(await evaluate('state.walls[0].rows'), 19);
+        assert.ok(await evaluate('document.getElementById("toastText").textContent.includes("2–19")'));
+        await evaluate('document.getElementById("sliderTotalRows").value=18; document.getElementById("sliderTotalRows").dispatchEvent(new Event("input",{bubbles:true}));');
+        assert.equal(await evaluate('state.walls[0].rows'), 18);
+        await evaluate('document.getElementById("sliderTotalRows").value=19; document.getElementById("sliderTotalRows").dispatchEvent(new Event("input",{bubbles:true}));');
+        assert.equal(await evaluate('state.walls[0].rows'), 19);
+        assert.ok(await evaluate('document.getElementById("valTotalRows").textContent.includes("340.1 cm")'));
+        assert.deepEqual(await evaluate('validateProject().errors'), []);
+        await evaluate('document.getElementById("btnAddOpening").click();document.getElementById("sliderOpStartRow").value=1;document.getElementById("sliderOpStartRow").dispatchEvent(new Event("input",{bubbles:true}));');
+        // In a 19-course wall, a 17-course opening leaves two courses above it.
+        await evaluate('document.getElementById("sliderOpRowCount").value=17;document.getElementById("sliderOpRowCount").dispatchEvent(new Event("input",{bubbles:true}));');
+        assert.ok(await evaluate('document.getElementById("projectStatus").textContent.includes("three courses above") && document.getElementById("projectStatus").textContent.includes("2 available")'));
+        assert.equal(await evaluate('document.getElementById("btnPrint").disabled && document.getElementById("btnExportCsv").disabled'), true);
+        await evaluate('document.getElementById("sliderOpRowCount").value=16;document.getElementById("sliderOpRowCount").dispatchEvent(new Event("input",{bubbles:true}));');
+        assert.deepEqual(await evaluate('validateProject().errors'), []);
+        assert.equal(await evaluate('document.getElementById("btnPrint").disabled || document.getElementById("btnExportCsv").disabled'), false);
+        await evaluate('document.querySelector("[data-optype=door]").click();');
+        assert.equal(await evaluate('state.walls[0].openings[0].startRow'), 1);
+        assert.equal(await evaluate('document.getElementById("sliderOpStartRow").disabled'), true);
+        assert.equal(await evaluate('document.getElementById("doorFloorNote").classList.contains("hidden")'), false);
+        // Even an explicitly dispatched input event cannot raise a door.
+        await evaluate('document.getElementById("sliderOpStartRow").value=4;document.getElementById("sliderOpStartRow").dispatchEvent(new Event("input",{bubbles:true}));');
+        assert.equal(await evaluate('state.walls[0].openings[0].startRow'), 1);
+        await evaluate('document.getElementById("sliderOpRowCount").value=8;document.getElementById("sliderOpRowCount").dispatchEvent(new Event("input",{bubbles:true}));');
+        assert.equal(await evaluate('state.walls[0].openings[0].rowCount'), 8);
+        const dragSelectedOpening = async (horizontalCm, rowsUp) => {
+            const p = await evaluate(`(() => {
+                const g=state.elevationGeometry,w=getPartnerWall(g.wallId),op=w.openings.find(o=>o.id===state.selectedOpeningId),r=state.elevCanvas.getBoundingClientRect();
+                return {x:r.left+g.startX+op.offset*g.scaleX,y:r.top+g.padTop+(getWallRows(w)-op.startRow-op.rowCount/2+0.5)*g.rowH,scaleX:g.scaleX,rowH:g.rowH};
+            })()`);
+            await call('Input.dispatchMouseEvent', {type:'mousePressed',x:p.x,y:p.y,button:'left',clickCount:1});
+            await call('Input.dispatchMouseEvent', {type:'mouseMoved',x:p.x+horizontalCm*p.scaleX,y:p.y-rowsUp*p.rowH,button:'left',buttons:1});
+            await call('Input.dispatchMouseEvent', {type:'mouseReleased',x:p.x+horizontalCm*p.scaleX,y:p.y-rowsUp*p.rowH,button:'left',clickCount:1});
+        };
+        const doorOffset = await evaluate('state.walls[0].openings[0].offset');
+        await dragSelectedOpening(40,2);
+        assert.equal(await evaluate('state.walls[0].openings[0].startRow'), 1);
+        assert.equal(await evaluate('state.walls[0].openings[0].offset'), doorOffset+40);
+        for (const type of ['window','arch']) {
+            await evaluate(`document.querySelector('[data-optype=${type}]').click();`);
+            assert.equal(await evaluate('document.getElementById("sliderOpStartRow").disabled'), false);
+            assert.equal(await evaluate('document.getElementById("doorFloorNote").classList.contains("hidden")'), true);
+            await evaluate('document.getElementById("sliderOpStartRow").value=3;document.getElementById("sliderOpStartRow").dispatchEvent(new Event("input",{bubbles:true}));');
+            assert.equal(await evaluate('state.walls[0].openings[0].startRow'), 3);
+            await dragSelectedOpening(0,2);
+            assert.equal(await evaluate('state.walls[0].openings[0].startRow'), 5, type);
+        }
+        // A saved raised door is loaded unchanged for correction, with exports blocked.
+        await evaluate('const raisedDoor=JSON.parse(JSON.stringify(projectSnapshot()));raisedDoor.walls[0].openings[0].type="door";restoreProject(raisedDoor);updateInspector();render();');
+        assert.equal(await evaluate('state.walls[0].openings[0].startRow'), 5);
+        assert.ok(await evaluate('document.getElementById("projectStatus").textContent.includes("must start at course 1")'));
+        assert.equal(await evaluate('document.getElementById("btnPrint").disabled && document.getElementById("btnExportCsv").disabled'), true);
+        await evaluate('document.querySelector("[data-optype=door]").click();');
+        assert.equal(await evaluate('state.walls[0].openings[0].startRow'), 1);
+        assert.deepEqual(await evaluate('validateProject().errors'), []);
+        assert.equal(await evaluate('document.getElementById("btnPrint").disabled || document.getElementById("btnExportCsv").disabled'), false);
+        const currentProject = await evaluate('JSON.stringify(projectSnapshot())');
+        const legacyRaw = JSON.stringify(legacy);
+        await evaluate(`window.removeEventListener('beforeunload',saveProjectLocally);localStorage.removeItem(LOCAL_PROJECT_KEY);localStorage.setItem('blocks-calculator-v1',${JSON.stringify(legacyRaw)});`);
+        await reloadPage();
+        assert.deepEqual(await evaluate('validateProject().errors'),[]);
+        assert.equal(await evaluate('getWallLengthCm(getPartnerWall(10))'),280);
+        await evaluate('saveProjectLocally();');
+        assert.equal(await evaluate('localStorage.getItem("blocks-calculator-v1")'),legacyRaw);
+        assert.equal(await evaluate('JSON.parse(localStorage.getItem(LOCAL_PROJECT_KEY)).planGeometry'),'modular-cells-v3');
+        await evaluate(`restoreProject(${currentProject});updateInspector();render();saveProjectLocally();`);
         await call('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 1, mobile: false});
         await new Promise(r => setTimeout(r, 200));
         assert.ok(await evaluate('document.documentElement.scrollWidth <= window.innerWidth'));
         assert.ok(await evaluate('state.canvas.width > 0 && state.elevCanvas.height > 0'));
         assert.deepEqual(errors, []);
-        console.log('PASS: render, individual heights, invalid dimensions, elevation drag, CSV, print report, persistence, validation, clear/add.');
+        console.log('PASS: rendering, drag/rotation, nested T-junctions, heights/openings, CSV/print, persistence, legacy migration, validation, door floor constraint.');
         console.log('Screenshot: ' + image);
     } finally {
         socket?.close(); browser.kill(); server.close();
