@@ -306,23 +306,25 @@ function drawWall(wall, isSelected, allJoints) {
             state.ctx.fillText(`${lenCm * MM_PER_CM} mm`, 0, 0);
             state.ctx.restore();
 
-            for (const mark of [{ x: 0, label: 'L', color: '#38bdf8' }, { x: lenPx, label: 'R', color: '#fbbf24' }]) {
-                state.ctx.save();
-                state.ctx.translate(mark.x, halfThick + 14 / state.zoom);
-                state.ctx.rotate(-angle);
-                state.ctx.fillStyle = '#0f172a';
-                state.ctx.strokeStyle = mark.color;
-                state.ctx.lineWidth = 1 / state.zoom;
-                state.ctx.beginPath();
-                state.ctx.arc(0, 0, 7 / state.zoom, 0, Math.PI * 2);
-                state.ctx.fill();
-                state.ctx.stroke();
-                state.ctx.fillStyle = '#f8fafc';
-                state.ctx.font = `bold ${9 / state.zoom}px Inter, sans-serif`;
-                state.ctx.textAlign = 'center';
-                state.ctx.textBaseline = 'middle';
-                state.ctx.fillText(mark.label, 0, 0);
-                state.ctx.restore();
+            if (isSelected) {
+                for (const mark of [{ x: 0, label: 'L', color: '#38bdf8' }, { x: lenPx, label: 'R', color: '#fbbf24' }]) {
+                    state.ctx.save();
+                    state.ctx.translate(mark.x, halfThick + 14 / state.zoom);
+                    state.ctx.rotate(-angle);
+                    state.ctx.fillStyle = '#0f172a';
+                    state.ctx.strokeStyle = mark.color;
+                    state.ctx.lineWidth = 1 / state.zoom;
+                    state.ctx.beginPath();
+                    state.ctx.arc(0, 0, 7 / state.zoom, 0, Math.PI * 2);
+                    state.ctx.fill();
+                    state.ctx.stroke();
+                    state.ctx.fillStyle = '#f8fafc';
+                    state.ctx.font = `bold ${9 / state.zoom}px Inter, sans-serif`;
+                    state.ctx.textAlign = 'center';
+                    state.ctx.textBaseline = 'middle';
+                    state.ctx.fillText(mark.label, 0, 0);
+                    state.ctx.restore();
+                }
             }
 
             state.ctx.restore();
