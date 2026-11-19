@@ -49,11 +49,11 @@ function validateProject() {
                 errors.push(`${label}: door opening #${op.id} must start at course 1 (floor level).`);
             if (op.type === 'window' && op.startRow < 2)
                 errors.push(`${label}: window opening #${op.id} must start at course 2 or above.`);
-            if (b.lenCm > 150) errors.push(`${label}: opening #${op.id} exceeds the 1.5 m lintel detail supported by this MVP.`);
+            if (b.lenCm > 150) errors.push(`${label}: opening #${op.id} exceeds the supported lintel span of 1500 mm.`);
             const openingTopRow = op.startRow + op.rowCount - 1;
             const coursesAbove = getWallRows(wall) - openingTopRow;
             if (coursesAbove < 3)
-                errors.push(`${label}: leave at least three courses above opening #${op.id} for the documented lintel detail (${Math.max(0, coursesAbove)} available).`);
+                errors.push(`${label}: leave at least three courses above opening #${op.id} (${Math.max(0, coursesAbove)} available).`);
             for (const other of wall.openings) {
                 if (other.id <= op.id) continue;
                 const c = getOpeningBoundsCm(other);
@@ -132,9 +132,9 @@ function updateProjectStatus() {
     const result = validateProject();
     const status = document.getElementById('projectStatus');
     status.replaceChildren();
-    for (const message of result.errors.length ? result.errors : ['Layout valid within the MVP model.']) {
+    for (const message of result.errors) {
         const line = document.createElement('p');
-        line.className = result.errors.length ? 'text-red-300' : 'text-emerald-400';
+        line.className = 'text-red-300';
         line.textContent = message;
         status.appendChild(line);
     }
@@ -142,11 +142,10 @@ function updateProjectStatus() {
         const line = document.createElement('p');
         line.className = 'text-amber-300'; line.textContent = message; status.appendChild(line);
     }
-    if (state.migrationNotes.length) status.closest('details').open = true;
+    status.hidden = result.errors.length === 0 && state.migrationNotes.length === 0;
     document.getElementById('btnPrint').disabled = result.errors.length > 0;
     document.getElementById('btnExportCsv').disabled = result.errors.length > 0;
-    document.getElementById('resultsStatus').textContent = result.errors.length ? 'Draft quantities — resolve errors below' : 'Calculated quantities · nominal model';
-    if (result.errors.length) status.closest('details').open = true;
+    document.getElementById('resultsStatus').textContent = result.errors.length ? 'Draft quantities — fix the issues below to export' : 'Ready to export';
     const wall = getPartnerWall(state.selectedWallId);
     document.getElementById('btnAddOpening').disabled = !wall || getWallRows(wall) < 4 || !findFreeSlotForOpening(wall, HALF_BLOCK_CM);
 }

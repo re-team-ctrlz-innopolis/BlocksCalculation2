@@ -20,8 +20,8 @@ function updateBlockCalculator() {
                 row.innerHTML = `
                     <span class="text-slate-300 font-medium">Wall #${w.id} (${Math.round(getWallLengthCm(w) * MM_PER_CM)} × ${Math.round(getWallRows(w) * COURSE_HEIGHT_CM * MM_PER_CM)} mm)</span>
                     <span class="text-slate-400">
-                        <b class="text-blue-400">${st.fullCount}</b>×400 +
-                        <b class="text-amber-400">${st.halfCount}</b>×200
+                        <b class="text-blue-400">${st.fullCount}</b> full ·
+                        <b class="text-amber-400">${st.halfCount}</b> half
                         ${st.unfilledCm > 0 ? `<span class="text-red-300">• ${Math.round(st.unfilledCm * MM_PER_CM)} mm remainder across courses</span>` : ''}
                     </span>
                 `;
@@ -35,7 +35,7 @@ function updateBlockCalculator() {
             }
 
             updateProjectStatus();
-            document.getElementById('calcWallsCount').textContent = `${state.walls.length} walls`;
+            document.getElementById('calcWallsCount').textContent = `${state.walls.length} ${state.walls.length === 1 ? 'wall' : 'walls'}`;
             document.getElementById('valTotalRows').textContent = `${state.totalWallRows} courses / ${Math.round(state.totalWallRows * COURSE_HEIGHT_CM * MM_PER_CM)} mm`;
             document.getElementById('totFullBlocks').textContent = grandFull;
             document.getElementById('totHalfBlocks').textContent = grandHalf;
@@ -64,14 +64,10 @@ function updateInspector() {
 
             document.getElementById('inputWallRows').value = getWallRows(wall);
             document.getElementById('valWallHeight').textContent = `${Math.round(getWallRows(wall) * COURSE_HEIGHT_CM * MM_PER_CM)} mm`;
-            document.getElementById('wallControlJoints').textContent = getControlJoints(wall).map(x => `${Math.round(x * MM_PER_CM)} mm`).join(', ') || 'None required';
+            document.getElementById('wallControlJoints').textContent = getControlJoints(wall).map(x => `${Math.round(x * MM_PER_CM)} mm`).join(', ') || 'None';
             const lenCm = getWallLengthCm(wall);
             const minAllowedLenCm = getMinAllowedWallLengthCm(wall);
-            const angleDeg = getWallAngleDeg(wall);
-            const st = calculateWallBlocks(wall);
-
             document.getElementById('inspWallName').textContent = `Wall #${wall.id}`;
-            document.getElementById('inspWallBlocksBadge').textContent = `${st.fullCount} full / ${st.halfCount} half${st.unfilledCm > 0 ? ` • ${Math.round(st.unfilledCm * MM_PER_CM)} mm remainder` : ''}`;
 
             // Информация об L и T соединениях выбранной стены
             const allJoints = getAllWallJoints();
@@ -79,7 +75,7 @@ function updateInspector() {
             const myTBranch = allJoints.filter(j => j.type === 'T' && j.branchWallId === wall.id).length;
             const myTHost = allJoints.filter(j => j.type === 'T' && j.hostWallId === wall.id).length;
             document.getElementById('inspWallJointsInfo').textContent =
-                `L-joints: ${myL} • T-joints: ${myTBranch + myTHost}`;
+                myL || myTBranch || myTHost ? `Connections: ${myL} L · ${myTBranch + myTHost} T` : 'No connections';
 
             // Ползунок длины стены с учётом ограничения по проёмам
             const sliderLen = document.getElementById('sliderWallLength');
@@ -90,12 +86,6 @@ function updateInspector() {
             document.getElementById('valWallLength').textContent = `${lenCm * MM_PER_CM} mm`;
             document.getElementById('lblMinWallLen').textContent = `Min: ${minAllowedLenCm * MM_PER_CM} mm`;
 
-            const r1 = buildWallRowLayout(wall, 1);
-            const r1Full = r1.blocks.filter(b => b.kind === 'full').length;
-            const r1Half = r1.blocks.filter(b => b.kind === 'half').length;
-            document.getElementById('lblRow1Summary').textContent =
-                `${r1Full}×400, ${r1Half}×200${r1.unfilledCm > 0 ? `, ${Math.round(r1.unfilledCm * MM_PER_CM)} mm unfilled` : ''}`;
-
             // Ползунок угла
             document.getElementById('valWallDirection').textContent = Math.abs(Math.sin(getWallAngleRad(wall))) < 0.01 ? 'Horizontal' : 'Vertical';
 
@@ -103,16 +93,16 @@ function updateInspector() {
             const freeSlot = findFreeSlotForOpening(wall, HALF_BLOCK_CM);
             const btnAddOp = document.getElementById('btnAddOpening');
             btnAddOp.disabled = !freeSlot || getWallRows(wall) < 4;
-            btnAddOp.title = freeSlot
-                ? 'Add an opening in available wall space'
-                : 'No free space (min. 200 mm). Extend the wall or reduce the openings.';
+            btnAddOp.title = getWallRows(wall) < 4 ? 'Use at least 4 courses to add an opening.' : freeSlot
+                ? 'Add an opening'
+                : 'No space for an opening. Lengthen the wall or reduce existing openings.';
 
             // Список проёмов стены
             const listEl = document.getElementById('openingsList');
             listEl.innerHTML = '';
 
             if (wall.openings.length === 0) {
-                listEl.innerHTML = `<div class="text-xs text-slate-500 italic py-1">This wall has no openings yet</div>`;
+                listEl.innerHTML = `<div class="text-xs text-slate-500 py-1">No openings</div>`;
                 state.selectedOpeningId = null;
             } else {
                 if (!wall.openings.some(o => o.id === state.selectedOpeningId)) {
@@ -191,7 +181,8 @@ function updateInspector() {
                 sliderOpLen.step = BLOCK_GRID_MM;
                 sliderOpLen.value = lenCm * MM_PER_CM;
                 sliderOpLen.disabled = (maxLenAtCurrentPos <= HALF_BLOCK_CM);
-                document.getElementById('valOpeningLength').textContent = `${lenCm * MM_PER_CM} mm (max. ${maxLenAtCurrentPos * MM_PER_CM} mm)`;
+                document.getElementById('valOpeningLength').textContent = `${lenCm * MM_PER_CM} mm`;
+                sliderOpLen.title = `Maximum width at this position: ${maxLenAtCurrentPos * MM_PER_CM} mm`;
 
                 // Ряды проёма по высоте
                 const sliderStartRow = document.getElementById('sliderOpStartRow');
@@ -203,7 +194,7 @@ function updateInspector() {
                 sliderStartRow.disabled = selectedOp.type === 'door';
                 sliderStartRow.title = selectedOp.type === 'door' ? 'Doors start at floor level (course 1).' : '';
                 document.getElementById('doorFloorNote').classList.toggle('hidden', selectedOp.type !== 'door');
-                document.getElementById('valOpStartRow').textContent = `${selectedOp.type === 'window' ? Math.max(2, selectedOp.startRow || 2) : 1} (${Math.round(((selectedOp.startRow || 1) - 1) * COURSE_HEIGHT_CM * MM_PER_CM)} mm sill)`;
+                document.getElementById('valOpStartRow').textContent = `${selectedOp.type === 'window' ? Math.max(2, selectedOp.startRow || 2) : 1} · ${Math.round(((selectedOp.startRow || 1) - 1) * COURSE_HEIGHT_CM * MM_PER_CM)} mm`;
 
                 const sliderRowCount = document.getElementById('sliderOpRowCount');
                 sliderRowCount.max = Math.max(selectedOp.rowCount || 1, getWallRows(wall) - (selectedOp.startRow || 1) + 1, 1);

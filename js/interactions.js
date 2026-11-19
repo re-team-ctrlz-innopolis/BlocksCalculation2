@@ -259,12 +259,10 @@ function handleDeleteKeyDown(event) {
             if (state.selectedOpeningId !== null && wall.openings.some(opening => opening.id === state.selectedOpeningId)) {
                 wall.openings = wall.openings.filter(opening => opening.id !== state.selectedOpeningId);
                 state.selectedOpeningId = wall.openings[0] ? wall.openings[0].id : null;
-                showToast('Opening deleted');
             } else {
                 state.walls = state.walls.filter(item => item.id !== wall.id);
                 state.selectedWallId = state.walls[0] ? state.walls[0].id : null;
                 state.selectedOpeningId = null;
-                showToast('Wall deleted');
             }
             updateInspector();
             render();
@@ -322,18 +320,17 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
         // });
 
         document.getElementById('btnClearAll').addEventListener('click', () => {
-            if (!window.confirm('Clear the entire canvas? This cannot be undone.')) return;
+            if (!window.confirm('Clear all walls and openings?')) return;
             state.walls = [];
             state.migrationNotes = [];
             state.selectedWallId = null;
             state.selectedOpeningId = null;
             updateInspector();
             render();
-            showToast('Drawing cleared');
         });
 
         document.getElementById('btnDemoHouse').addEventListener('click', () => {
-            if (!window.confirm('Open the sample layout? The current drawing will be replaced.')) return;
+            if (!window.confirm('Show the example? This replaces your current plan.')) return;
             loadDemoHouse();
         });
 
@@ -367,7 +364,6 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             state.selectedOpeningId = null;
             updateInspector();
             render();
-            showToast('Wall deleted');
         });
 
         document.getElementById('btnDeleteOpening').addEventListener('click', () => {
@@ -377,7 +373,6 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             state.selectedOpeningId = wall.openings[0] ? wall.openings[0].id : null;
             updateInspector();
             render();
-            showToast('Opening deleted');
         });
 
         document.querySelectorAll('.opening-type-btn').forEach(btn => {

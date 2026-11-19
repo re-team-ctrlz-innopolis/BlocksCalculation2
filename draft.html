@@ -44,7 +44,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                <span>ADD WALL</span>
+                <span>Add wall</span>
             </button>
 
             <!-- <button id="btnToggleRowView" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs sm:text-sm font-medium px-3 py-2 rounded-lg flex items-center gap-1.5 transition" title="Switch between the first and second course on the plan">
@@ -61,7 +61,7 @@
                 </button>
             </div>
             <button id="btnClearAll" class="bg-rose-950 hover:bg-rose-900 border border-rose-950 text-slate-100 text-xs sm:text-sm font-medium px-2.5 py-2 rounded-lg transition" title="Clear the drawing">
-                CLEAR ALL
+                Clear all
             </button>
         </div>
     </header>
@@ -90,10 +90,10 @@
                         <span id="tipsToggleIcon" aria-hidden="true">—</span>
                     </button>
                     <div id="planTips" class="space-y-1.5">
-                    <label class="flex items-center justify-between gap-2 pointer-events-auto">Plan course
-                        <select id="planCourse" class="rounded bg-slate-800 border border-slate-700 p-1 text-slate-200" aria-label="Plan course">
-                            <option value="1">1 · odd</option>
-                            <option value="2">2 · even</option>
+                    <label class="flex items-center justify-between gap-2 pointer-events-auto">Show course
+                        <select id="planCourse" class="rounded bg-slate-800 border border-slate-700 p-1 text-slate-200" aria-label="Show course" title="Adjacent courses use different block layouts.">
+                            <option value="1">Course 1</option>
+                            <option value="2">Course 2</option>
                         </select>
                     </label>
                     <div class="flex items-center gap-2">
@@ -110,17 +110,17 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-emerald-500/30 border border-emerald-400 inline-block"></span>
-                        <span><b>L-joint</b> (corner bonded with full blocks)</span>
+                        <span><b>L-junction</b> — corner</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-cyan-500/30 border border-cyan-400 inline-block"></span>
-                        <span><b>T-joint</b> (butt connection with metal ties; no shared blocks)</span>
+                        <span><b>T-junction</b> — wall connection</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-4 border-t-2 border-dashed" style="border-color:#f472b6"></span>
-                        <span>Control joint every 5000 mm</span>
+                        <span>Control joint — every 5 m</span>
                     </div>
-                    <p class="text-slate-400">Wheel: zoom · Middle mouse drag: pan</p>
+                    <p class="text-slate-400">Scroll to zoom · Drag empty space to pan</p>
                     <div class="border-t border-slate-700/60 pt-2 mt-2">
                         <button id="btnDemoHouse" type="button" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium px-3 py-2 rounded-lg transition pointer-events-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400" title="Load an example layout (replaces the current drawing)">
                             Show example
@@ -142,13 +142,13 @@
             <div class="h-52 bg-slate-900 border-t border-slate-800 flex flex-col shrink-0 select-none">
                 <div class="px-4 py-1.5 border-b border-slate-800/80 flex items-center justify-between text-xs bg-slate-900/90">
                     <div class="flex items-center gap-2">
-                        <span class="font-semibold text-slate-200" id="elevationTitle">Block layout (side view by courses)</span>
-                        <span class="text-slate-400 text-[11px]" id="elevationSubtitle">— select a wall on the plan</span>
+                        <span class="font-semibold text-slate-200" id="elevationTitle">Block layout</span>
+                        <span class="text-slate-400 text-[11px]" id="elevationSubtitle">Add a wall to begin</span>
                     </div>
                     <div class="flex items-center gap-4 text-[11px] text-slate-400">
                         <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-blue-600 inline-block rounded-sm"></i> 400 mm (full)</span>
                         <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-amber-500 inline-block rounded-sm"></i> 200 mm (half)</span>
-                        <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-slate-700 border border-emerald-400/70 inline-block rounded-sm"></i> Corner overlap (200 mm)</span>
+                        <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-slate-700 border border-emerald-400/70 inline-block rounded-sm"></i> Shared corner</span>
                     </div>
                 </div>
                 <div class="flex-1 relative overflow-hidden">
@@ -167,7 +167,7 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
                         </svg>
-                        Block Calculator
+                        Block quantities
                     </h2>
                     <span class="text-[11px] text-slate-400" id="calcWallsCount">0 walls</span>
                 </div>
@@ -175,24 +175,22 @@
                 <!-- Высота всех стен в рядах -->
                 <div class="bg-slate-800/70 rounded-lg p-2.5 mb-3 border border-slate-700/60">
                     <div class="flex justify-between text-xs mb-1">
-                        <span class="text-slate-300 font-medium">Apply height to all walls (courses):</span>
+                        <label for="sliderTotalRows" class="text-slate-300 font-medium">Set all wall heights:</label>
                         <span class="font-bold text-white" id="valTotalRows">10 courses / 2000 mm</span>
                     </div>
                     <input type="range" id="sliderTotalRows" min="2" max="17" step="1" value="10" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
-                    <p class="text-[10px] text-slate-400 mt-1">Height limit: 3,500 mm. Whole courses: 2–17 (up to 3,400 mm). Openings retain their dimensions when height changes.</p>
+                    <p class="text-[11px] text-slate-400 mt-1">2–17 courses · 400–3400 mm</p>
                 </div>
 
                 <!-- Карточки итогов -->
                 <div class="grid grid-cols-3 gap-2 mb-3">
                     <div class="bg-blue-950/50 border border-blue-700/50 rounded-xl p-2.5 text-center">
-                        <div class="text-[10px] text-blue-300 uppercase font-semibold">Full blocks (400 mm)</div>
+                        <div class="text-[10px] text-blue-300 uppercase font-semibold" title="400×200×200 mm">Full blocks</div>
                         <div class="text-lg font-extrabold text-white mt-0.5" id="totFullBlocks">0</div>
-                        <div class="text-[10px] text-blue-400">pcs.</div>
                     </div>
                     <div class="bg-amber-950/50 border border-amber-700/50 rounded-xl p-2.5 text-center">
-                        <div class="text-[10px] text-amber-300 uppercase font-semibold">Half blocks (200 mm)</div>
+                        <div class="text-[10px] text-amber-300 uppercase font-semibold" title="200×200×200 mm">Half blocks</div>
                         <div class="text-lg font-extrabold text-white mt-0.5" id="totHalfBlocks">0</div>
-                        <div class="text-[10px] text-amber-400">pcs.</div>
                     </div>
                     <div class="bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-center">
                         <div class="text-[10px] text-slate-300 uppercase font-semibold">Total blocks</div>
@@ -205,7 +203,7 @@
                 <!-- Ведомость по стенам -->
                 <details class="group text-xs bg-slate-800/40 rounded-lg border border-slate-800 px-2.5 py-1.5">
                     <summary class="cursor-pointer font-medium text-slate-300 flex items-center justify-between">
-                        <span>Wall and joint details</span>
+                        <span>Walls</span>
                         <span class="text-slate-500 group-open:rotate-180 transition">▼</span>
                     </summary>
                     <div id="wallsBreakdownList" class="mt-2 space-y-1.5 max-h-36 overflow-y-auto pr-1 text-[11px]"></div>
@@ -215,10 +213,11 @@
             <!-- БЛОК 2: ИНСПЕКТОР ВЫБРАННОЙ СТЕНЫ -->
             <div class="p-4 border-b border-slate-800 text-xs space-y-2">
                 <p id="resultsStatus" class="text-slate-400" aria-live="polite"></p>
-                <details><summary class="cursor-pointer text-slate-300">Validation and calculation model</summary>
-                    <div id="projectStatus" class="space-y-1 mt-2" role="status" aria-live="polite"></div>
-                    <p class="mt-2 text-slate-400">Full block: 400×200×200 mm; half block: 200×200×200 mm. One course is 200 mm. Mortar joints are not included. Wall length limit: 100,000 mm; control joints every 5,000 mm.</p>
-                    <p class="mt-1 text-slate-500">Above-floor block quantities only. Excludes foundations, gables, reinforcement, ties, concrete and waste. Mortar tolerances, joint width and junction details need customer confirmation.</p>
+                <div id="projectStatus" class="space-y-1" role="status" aria-live="polite" hidden></div>
+                <details><summary class="cursor-pointer text-slate-300">Calculation details</summary>
+                    <p class="mt-2 text-slate-400">One course is 200 mm. Mortar and control-joint widths are not included.</p>
+                    <p class="mt-1 text-slate-400">Quantities cover wall and lintel blocks only. Foundations, gables, reinforcement, ties, concrete and waste are excluded.</p>
+                    <p class="mt-1 text-slate-500">Block quantity estimate only; structural safety is not assessed.</p>
                 </details>
             </div>
             <div id="emptyInspector" class="p-6 text-center text-slate-500 flex-1 flex flex-col items-center justify-center">
@@ -226,7 +225,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
                 </svg>
                 <p class="text-sm font-medium text-slate-400">No wall selected</p>
-                <p class="text-xs mt-1">Select a wall on the plan to adjust its length, direction, T-joints, and openings.</p>
+                <p class="text-xs mt-1">Select a wall to edit its properties.</p>
             </div>
 
             <div id="wallInspector" class="p-4 space-y-4 hidden flex-1">
@@ -234,7 +233,6 @@
                     <div>
                         <h3 class="text-sm font-bold text-white flex items-center gap-2">
                             <span id="inspWallName">Wall #1</span>
-                            <span id="inspWallBlocksBadge" class="text-[11px] font-medium bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700"></span>
                         </h3>
                         <p class="text-[11px] text-slate-400" id="inspWallJointsInfo">Joints: none</p>
                     </div>
@@ -246,19 +244,17 @@
                 <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-800 space-y-2 text-xs">
                     <div class="flex justify-between"><label for="inputWallRows">Wall height (courses):</label><b id="valWallHeight" class="text-blue-400"></b></div>
                     <input id="inputWallRows" type="number" min="2" max="17" step="1" value="10" class="w-full rounded bg-slate-900 border border-slate-700 p-2">
-                    <p class="text-slate-400">Automatic control joints: <span id="wallControlJoints"></span></p>
+                    <p class="text-slate-400">Control joints: <span id="wallControlJoints"></span></p>
                 </div>
                 <!-- Wall length -->
                 <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-800 space-y-2">
                     <div class="flex justify-between items-center text-xs">
-                        <span class="text-slate-300 font-medium">Wall length (200 mm increments):</span>
+                        <label for="sliderWallLength" class="text-slate-300 font-medium">Wall length:</label>
                         <span class="font-bold text-blue-400" id="valWallLength">400 mm</span>
                     </div>
-                    <input type="number" id="sliderWallLength" aria-label="Wall length in millimetres" min="200" max="100000" step="200" value="400" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm">
-                    <p class="text-[10px] text-slate-400">T partitions: measure between wall faces. L corners share one 200 mm cell.</p>
-                    <div class="flex justify-between text-[10px] text-slate-400">
-                        <span id="lblMinWallLen">Min: 200 mm</span>
-                        <span>Course 1: <b id="lblRow1Summary" class="text-slate-200"></b></span>
+                    <input type="number" id="sliderWallLength" aria-label="Wall length in millimetres" title="Use 200 mm steps. Measure T-partitions between wall faces." min="200" max="100000" step="200" value="400" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm">
+                    <div class="flex justify-between text-[11px] text-slate-400">
+                        <span id="lblMinWallLen">Min: 200 mm</span><span>200 mm steps</span>
                     </div>
                 </div>
 
@@ -279,7 +275,6 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <h4 class="text-xs font-bold uppercase tracking-wider text-slate-300">Wall openings</h4>
-                            <p class="text-[10px] text-slate-400">Non-overlapping • block-aligned dimensions</p>
                         </div>
                         <button id="btnAddOpening" class="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:border-slate-700 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition shadow">
                             <span>+ Opening</span>
@@ -328,11 +323,11 @@
                         <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-700/70">
                             <div>
                                 <div class="flex justify-between text-[11px] mb-1">
-                                    <span class="text-slate-400">Start course:</span>
+                                    <span class="text-slate-400">Bottom course:</span>
                                     <b class="text-slate-200" id="valOpStartRow">2</b>
                                 </div>
                                 <input type="range" id="sliderOpStartRow" min="2" max="17" step="1" value="2" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
-                                <p id="doorFloorNote" class="hidden mt-1 text-[10px] text-slate-400">Doors start at floor level (course 1).</p>
+                                <p id="doorFloorNote" class="hidden mt-1 text-[11px] text-slate-400">At floor level.</p>
                             </div>
                             <div>
                                 <div class="flex justify-between text-[11px] mb-1">
