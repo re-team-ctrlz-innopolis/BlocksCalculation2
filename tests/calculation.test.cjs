@@ -59,15 +59,25 @@ test('openings remove only their active courses and retain all other masonry', (
     assert.equal(run('validateProject().errors.length'), 0);
 });
 
-test('5 m control joints have two half blocks on each side in every second course', () => {
+test('5 m control joints reserve one half block on each side in every second course', () => {
     const run = app();
     run(`const make=${wall}; state.walls=[make(1,0,10,1200,10)];`);
     assert.equal(run('getControlJoints(state.walls[0]).join(",")'), '500,1000');
     assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.some(b=>b.startCm<500 && b.startCm+b.lenCm>500)'), false);
-    assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.filter(b=>[460,480,500,520].includes(b.startCm)).length'), 4);
+    assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.filter(b=>[480,500].includes(b.startCm) && b.kind==="half").length'), 2);
     assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.some(b=>b.startCm<1000 && b.startCm+b.lenCm>1000)'), false);
-    assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.filter(b=>[960,980,1000,1020].includes(b.startCm)).length'), 4);
+    assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.filter(b=>[980,1000].includes(b.startCm) && b.kind==="half").length'), 2);
     assert.equal(run('validateProject().errors.length'), 0);
+});
+
+test('control joint near an L-corner uses full-half | half instead of three halves | half', () => {
+    const run = app();
+    run(`const make=${wall}; state.walls=[make(1,0,10,540,10),make(2,530,0,530,140)];`);
+    assert.equal(run('getAllWallJoints().filter(j=>j.type==="L").length'),1);
+    assert.equal(run('JSON.stringify(buildWallRowLayout(state.walls[0],2).blocks.filter(b=>b.startCm>=440).map(b=>[b.startCm,b.lenCm,b.kind]))'),
+        '[[440,40,"full"],[480,20,"half"],[500,20,"half"]]');
+    assert.equal(run('calculateWallBlocks(state.walls[0]).unfilledCm'),0);
+    assert.equal(run('validateProject().errors.length'),0);
 });
 
 test('control joints stay at fixed 5 m intervals and report openings in their clearance zones', () => {
@@ -167,6 +177,34 @@ test('undo restores deletion, next IDs, heights and recalculated quantities', ()
     assert.equal(run('state.walls[0].rows'), 15);
     run('undoLastEdit();');
     assert.equal(run('JSON.stringify(projectSnapshot())===original'), true);
+});
+
+test('redo restores edits, selection and quantities; repeated undo/redo preserves history', () => {
+    const run = app();
+    run('loadDemoHouse(); resetEditHistory(); const original=JSON.stringify(projectSnapshot()); const originalSelection=state.selectedWallId; state.selectedWallId=state.walls.at(-1).id; state.walls[0].rows=15; state.nextId+=1; saveProjectLocally(); const edited=JSON.stringify(projectSnapshot()); const editedSelection=state.selectedWallId; const editedFull=calculateWallBlocks(state.walls[0]).fullCount;');
+    for (let i=0;i<2;i++) {
+        run('undoLastEdit();');
+        assert.equal(run('JSON.stringify(projectSnapshot())===original'), true);
+        assert.equal(run('state.selectedWallId===originalSelection'), true);
+        assert.equal(run('document.getElementById("btnRedo").disabled'), false);
+        run('redoLastEdit();');
+        assert.equal(run('JSON.stringify(projectSnapshot())===edited'), true);
+        assert.equal(run('state.selectedWallId===editedSelection'), true);
+        assert.equal(run('calculateWallBlocks(state.walls[0]).fullCount===editedFull'), true);
+        assert.equal(run('document.getElementById("btnRedo").disabled'), true);
+    }
+});
+
+test('new edits clear redo, while no-op saves and camera changes preserve it', () => {
+    const run=app();
+    run('loadDemoHouse(); resetEditHistory(); state.walls[0].rows=15; saveProjectLocally(); undoLastEdit(); state.panX=80; saveProjectLocally();');
+    assert.equal(run('redoHistory.length'),1);
+    run('state.walls[0].rows=14; saveProjectLocally(); const edited=JSON.stringify(projectSnapshot()); redoLastEdit();');
+    assert.equal(run('redoHistory.length'),0);
+    assert.equal(run('JSON.stringify(projectSnapshot())===edited'),true);
+    assert.equal(run('document.getElementById("btnRedo").disabled'),true);
+    run('resetEditHistory();');
+    assert.equal(run('document.getElementById("btnUndo").disabled'),true);
 });
 
 test('a whole drag is one undo; no-op saves and camera changes do not add history', () => {

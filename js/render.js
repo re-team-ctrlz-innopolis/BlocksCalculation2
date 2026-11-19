@@ -442,7 +442,7 @@ function drawElevationView(allJoints) {
 
             const padLeft = 44;
             const padRight = 24;
-            const padTop = 14;
+            const padTop = 18;
             const padBottom = 22;
 
             const availW = Math.max(100, w - padLeft - padRight);
@@ -455,13 +455,14 @@ function drawElevationView(allJoints) {
             state.elevationGeometry = {wallId: wall.id, startX, scaleX, padTop, availH, rowH};
 
             state.elevCtx.fillStyle = '#38bdf8';
-            state.elevCtx.font = 'bold 9px Inter, sans-serif';
+            state.elevCtx.font = '600 11px Inter, sans-serif';
             state.elevCtx.textBaseline = 'bottom';
-            state.elevCtx.textAlign = 'left';
-            state.elevCtx.fillText('LEFT / START (x1)', startX, padTop - 2);
-            state.elevCtx.fillStyle = '#fbbf24';
+            // Labels extend outwards from the wall ends, so short walls cannot make them overlap.
             state.elevCtx.textAlign = 'right';
-            state.elevCtx.fillText('RIGHT / END (x2)', startX + drawWallW, padTop - 2);
+            state.elevCtx.fillText('Start', startX, padTop - 4);
+            state.elevCtx.fillStyle = '#fbbf24';
+            state.elevCtx.textAlign = 'left';
+            state.elevCtx.fillText('End', startX + drawWallW, padTop - 4);
 
             // Отрисовка рядов снизу вверх (1-й ряд внизу)
             for (let r = 1; r <= getWallRows(wall); r++) {
