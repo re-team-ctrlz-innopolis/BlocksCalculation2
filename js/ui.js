@@ -92,14 +92,16 @@ function updateInspector() {
             // Check whether there is room for a new opening.
             const freeSlot = findFreeSlotForOpening(wall, HALF_BLOCK_CM);
             const btnAddOp = document.getElementById('btnAddOpening');
-            btnAddOp.disabled = !freeSlot || getWallRows(wall) < 4;
-            btnAddOp.title = getWallRows(wall) < 4 ? 'Use at least 4 courses to add an opening.' : freeSlot
+            btnAddOp.disabled = !freeSlot;
+            btnAddOp.title = getWallRows(wall) < 5 ? 'Use at least 5 courses to add a window and its lintel.' : freeSlot
                 ? 'Add an opening'
                 : 'No space for an opening. Lengthen the wall or reduce existing openings.';
 
             // Список проёмов стены
             const listEl = document.getElementById('openingsList');
             listEl.innerHTML = '';
+            document.getElementById('stackedOpeningsNote').hidden = !wall.openings.some((op, i) =>
+                wall.openings.slice(i + 1).some(other => openingWidthsOverlap(op, other)));
 
             if (wall.openings.length === 0) {
                 listEl.innerHTML = `<div class="text-xs text-slate-500 py-1">No openings</div>`;
@@ -125,16 +127,22 @@ function updateInspector() {
                         isSel ? 'bg-slate-800 border-blue-500 text-white' : 'bg-slate-900/70 border-slate-800 text-slate-300 hover:bg-slate-800/50'
                     }`;
                     item.innerHTML = `
-                        <div class="flex items-center gap-2">
+                        <div>
                             <span class="text-[10px] px-1.5 py-0.5 rounded border ${badgeColor}">${typeLabel} #${idx + 1}</span>
-                            <span>${startCm * MM_PER_CM}–${endCm * MM_PER_CM} mm</span>
+                            <div class="mt-1 text-[11px] text-slate-400">${startCm * MM_PER_CM}–${endCm * MM_PER_CM} mm · Rows ${op.startRow}–${op.startRow + op.rowCount - 1}</div>
                         </div>
                         <span class="font-semibold text-slate-200">${lenCm * MM_PER_CM} mm</span>
                     `;
-                    item.addEventListener('click', () => {
+                    item.tabIndex = 0;
+                    item.setAttribute('role', 'button');
+                    const selectOpening = () => {
                         state.selectedOpeningId = op.id;
                         updateInspector();
                         render();
+                    };
+                    item.addEventListener('click', selectOpening);
+                    item.addEventListener('keydown', e => {
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectOpening(); }
                     });
                     listEl.appendChild(item);
                 });
@@ -185,19 +193,18 @@ function updateInspector() {
                 sliderOpLen.title = `Maximum width at this position: ${maxLenAtCurrentPos * MM_PER_CM} mm`;
 
                 // Ряды проёма по высоте
+                const verticalLimits = getOpeningVerticalLimits(wall, selectedOp);
                 const sliderStartRow = document.getElementById('sliderOpStartRow');
-                sliderStartRow.min = selectedOp.type === 'window' ? 2 : 1;
-                sliderStartRow.max = Math.max(getWallRows(wall), selectedOp.startRow || 1);
-                sliderStartRow.value = selectedOp.type === 'window'
-                    ? Math.max(2, selectedOp.startRow || 2)
-                    : 1;
+                sliderStartRow.min = verticalLimits.minRow;
+                sliderStartRow.max = Math.max(verticalLimits.minRow, selectedOp.startRow, verticalLimits.maxEndRow - selectedOp.rowCount);
+                sliderStartRow.value = selectedOp.startRow;
                 sliderStartRow.disabled = selectedOp.type === 'door';
                 sliderStartRow.title = selectedOp.type === 'door' ? 'Doors start at floor level (course 1).' : '';
                 document.getElementById('doorFloorNote').classList.toggle('hidden', selectedOp.type !== 'door');
-                document.getElementById('valOpStartRow').textContent = `${selectedOp.type === 'window' ? Math.max(2, selectedOp.startRow || 2) : 1} · ${Math.round(((selectedOp.startRow || 1) - 1) * COURSE_HEIGHT_CM * MM_PER_CM)} mm`;
+                document.getElementById('valOpStartRow').textContent = `${selectedOp.startRow} · ${Math.round((selectedOp.startRow - 1) * COURSE_HEIGHT_CM * MM_PER_CM)} mm`;
 
                 const sliderRowCount = document.getElementById('sliderOpRowCount');
-                sliderRowCount.max = Math.max(selectedOp.rowCount || 1, getWallRows(wall) - (selectedOp.startRow || 1) + 1, 1);
+                sliderRowCount.max = Math.max(selectedOp.rowCount || 1, verticalLimits.maxEndRow - selectedOp.startRow, 1);
                 sliderRowCount.value = selectedOp.rowCount || 7;
                 document.getElementById('valOpRowCount').textContent = `${selectedOp.rowCount || 7} (${Math.round((selectedOp.rowCount || 7) * COURSE_HEIGHT_CM * MM_PER_CM)} mm)`;
             }

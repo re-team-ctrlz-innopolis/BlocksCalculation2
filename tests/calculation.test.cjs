@@ -4,14 +4,28 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
 
-function app() {
+function app(withInteractions = false) {
     const elements = new Map();
     const element = id => {
-        if (!elements.has(id)) elements.set(id, {width: 1000, height: 700, value: '', style: {}, getContext: () => ({})});
+        if (!elements.has(id)) elements.set(id, {
+            width: 1000, height: 700, value: '', style: {}, listeners: {},
+            getContext: () => ({}), getBoundingClientRect: () => ({left:0,top:0}),
+            addEventListener(type, fn) { (this.listeners[type] ??= []).push(fn); },
+            querySelector: () => element('file-menu-summary'), querySelectorAll: () => [],
+            setPointerCapture() {}
+        });
         return elements.get(id);
     };
-    const context = vm.createContext({console, document: {getElementById: element}, updateInspector() {}, render() {}, showToast() {}});
+    const typeButtons = ['window','door'].map(type => Object.assign(element('type-' + type), {dataset:{optype:type}}));
+    const context = vm.createContext({console, document: {
+        getElementById: element, addEventListener() {},
+        querySelectorAll: selector => selector === '.opening-type-btn' ? typeButtons : []
+    }, window: {addEventListener() {}, confirm:()=>true}, updateInspector() {}, render() {}, showToast() {}});
     for (const file of ['constants', 'state', 'wall-logic', 'geometry-migration', 'wall-actions', 'project', 'history']) vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', file + '.js'), 'utf8'), context);
+    if (withInteractions) {
+        for (const file of ['render','interactions']) vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', file + '.js'), 'utf8'), context);
+        vm.runInContext('render=()=>{};showToast=()=>{};bindEvents();bindProjectEvents();',context);
+    }
     return code => vm.runInContext(code, context);
 }
 const wall = `(id, x1, y1, x2, y2, rows = 10) => ({id, x1, y1, x2, y2, rows, openings: []})`;
@@ -576,4 +590,134 @@ test('conflicting legacy corner dimensions and future geometry formats keep the 
     assert.equal(run('JSON.stringify(projectSnapshot())===before'),true);
     assert.throws(()=>run("const future=JSON.parse(before);future.planGeometry='unknown-future-format';restoreProject(future);"),/Unsupported plan geometry/);
     assert.equal(run('JSON.stringify(projectSnapshot())===before'),true);
+});
+
+test('stacked openings share a horizontal footprint and remove masonry only in their own rows', () => {
+    const run=app();
+    run(`const make=${wall}; state.walls=[make(1,0,10,400,10,17)]; state.walls[0].openings=[
+        {id:2,offset:120,length:80,startRow:2,rowCount:3,type:'window'},
+        {id:3,offset:120,length:120,startRow:8,rowCount:3,type:'window'}];`);
+    assert.equal(run('JSON.stringify(validateProject().errors)'),'[]');
+    assert.equal(run('openingsOverlap(...state.walls[0].openings)'),false);
+    assert.equal(run('openingWidthsOverlap(...state.walls[0].openings)'),true);
+    for (const [row, length] of [[1,400],[2,320],[4,320],[5,400],[7,400],[8,280],[10,280],[11,400]]) {
+        assert.equal(run(`buildWallRowLayout(state.walls[0],${row}).blocks.reduce((sum,b)=>sum+b.lenCm,0)`),length);
+    }
+    assert.equal(run('Array.from({length:17},(_,i)=>buildWallRowLayout(state.walls[0],i+1).blocks.reduce((sum,b)=>sum+b.lenCm,0)).reduce((sum,n)=>sum+n,0)'),6200);
+    assert.notEqual(run('getProjectReport()'),null);
+});
+
+test('rectangular intersection detects partial overlap, containment and shared rows; touching edges are not overlap', () => {
+    const run=app();
+    run("const a={id:2,offset:100,length:80,startRow:2,rowCount:3,type:'window'};");
+    for (const [offset,startRow,rowCount,expected] of [[120,3,3,true],[100,3,1,true],[100,1,10,true],[180,2,3,false],[100,5,3,false],[140,4,2,true],[140,5,2,false]]) {
+        assert.equal(run(`openingsOverlap(a,{id:3,offset:${offset},length:80,startRow:${startRow},rowCount:${rowCount},type:'window'})`),expected);
+    }
+});
+
+test('horizontal edits can pass under an upper opening but cannot intersect another rectangle', () => {
+    const run=app();
+    run(`const make=${wall}; state.walls=[make(1,0,10,400,10,17)]; const upper={id:2,offset:100,length:80,startRow:9,rowCount:3,type:'window'}; const lower={id:3,offset:280,length:80,startRow:2,rowCount:3,type:'window'}; state.walls[0].openings=[upper,lower];`);
+    assert.equal(run('getOpeningLimitsCm(state.walls[0],lower).minCm'),20);
+    assert.equal(run('tryUpdateOpening(state.walls[0],lower,{startCm:60})'),true);
+    assert.equal(run('getOpeningBoundsCm(lower).startCm'),60);
+    run('const before=JSON.stringify(lower);');
+    for (const change of ['{startRow:8}','{rowCount:9}','{startCm:-20}','{startCm:380}']) {
+        assert.equal(run(`tryUpdateOpening(state.walls[0],lower,${change})`),false);
+        assert.equal(run('JSON.stringify(lower)===before'),true);
+    }
+    assert.equal(run('getOpeningVerticalLimits(state.walls[0],lower).maxEndRow'),9);
+    assert.equal(run('JSON.stringify(validateProject().errors)'),'[]');
+});
+
+test('width changes and door conversion reject collisions without partially changing the opening', () => {
+    const run=app();
+    run(`const make=${wall}; state.walls=[make(1,0,10,400,10,17)]; const a={id:2,offset:60,length:80,startRow:2,rowCount:3,type:'window'}, b={id:3,offset:180,length:80,startRow:3,rowCount:3,type:'window'}; state.walls[0].openings=[a,b]; const before=JSON.stringify(a);`);
+    assert.equal(run('tryUpdateOpening(state.walls[0],a,{lenCm:160})'),false);
+    assert.equal(run('JSON.stringify(a)===before'),true);
+    run(`b.offset=60;b.startRow=9;const upperBefore=JSON.stringify(b);`);
+    assert.equal(run("tryUpdateOpening(state.walls[0],b,{type:'door',startRow:1})"),false);
+    assert.equal(run('JSON.stringify(b)===upperBefore'),true);
+});
+
+test('wall edits preserve stacked positions and use the rightmost opening for the minimum length', () => {
+    const run=app();
+    run(`const make=${wall}; state.walls=[make(1,0,10,160,10,17)]; state.walls[0].openings=[{id:2,offset:80,length:120,startRow:2,rowCount:3,type:'window'},{id:3,offset:80,length:120,startRow:8,rowCount:3,type:'window'}]; const before=JSON.stringify(state.walls[0].openings); clampWallOpenings(state.walls[0]);`);
+    assert.equal(run('getMinAllowedWallLengthCm(state.walls[0])'),160);
+    assert.equal(run('JSON.stringify(state.walls[0].openings)===before'),true);
+    run('setWallLength(state.walls[0],140);');
+    assert.equal(run('getWallLengthCm(state.walls[0])'),160);
+    assert.equal(run('JSON.stringify(state.walls[0].openings)===before'),true);
+    assert.equal(run('JSON.stringify(validateProject().errors)'),'[]');
+});
+
+test('adding an opening can use free vertical space when the entire horizontal range is occupied', () => {
+    const run=app();
+    run(`const make=${wall}; state.walls=[make(1,0,10,160,10,17)]; state.walls[0].openings=[{id:2,offset:80,length:120,startRow:2,rowCount:3,type:'window'}]; state.selectedWallId=1; state.nextId=3; const slot=findFreeSlotForOpening(state.walls[0],100);`);
+    assert.equal(run('slot.startRow>=8'),true);
+    run('addOpeningToSelectedWall();');
+    assert.equal(run('state.walls[0].openings.length'),2);
+    assert.equal(run('openingsOverlap(...state.walls[0].openings)'),false);
+    assert.equal(run('JSON.stringify(validateProject().errors)'),'[]');
+});
+
+test('stacked JSON round trips preserve coordinates; intersecting imports fail atomically', () => {
+    const run=app();
+    run(`const make=${wall}; state.walls=[make(1,0,10,400,10,17)]; state.walls[0].openings=[{id:2,offset:100,length:80,type:'window',startRow:2,rowCount:3},{id:3,offset:100,length:80,type:'window',startRow:8,rowCount:3}]; state.nextId=4; const saved=JSON.stringify(projectSnapshot()); restoreProject(JSON.parse(saved)); const counts=JSON.stringify(getProjectReport()); const before=JSON.stringify(projectSnapshot());`);
+    assert.equal(run('JSON.stringify(projectSnapshot())===saved'),true);
+    assert.notEqual(run('getProjectReport()'),null);
+    assert.throws(()=>run('const bad=JSON.parse(saved);bad.walls[0].openings[1].startRow=3;restoreProject(bad);'),/overlap/);
+    assert.equal(run('JSON.stringify(projectSnapshot())===before'),true);
+    assert.equal(run('JSON.stringify(getProjectReport())===counts'),true);
+});
+
+test('stacked openings retain the existing three-course lintel clearance', () => {
+    const run=app();
+    run(`const make=${wall}; state.walls=[make(1,0,10,400,10,17)]; state.walls[0].openings=[{id:2,offset:100,length:80,startRow:2,rowCount:3,type:'window'},{id:3,offset:100,length:80,startRow:7,rowCount:3,type:'window'}];`);
+    assert.equal(run('openingsOverlap(...state.walls[0].openings)'),false);
+    assert.ok(run('validateProject().errors.some(s=>s.includes("three courses above opening #2 before another opening"))'));
+    assert.equal(run('getProjectReport()'),null);
+    run('state.walls[0].openings[1].startRow=8;');
+    assert.equal(run('JSON.stringify(validateProject().errors)'),'[]');
+});
+
+test('property input handlers permit stacking and stop height, position and type edits at collisions', () => {
+    const run=app(true);
+    run(`const make=${wall}; state.walls=[make(1,0,10,400,10,17)]; state.walls[0].openings=[{id:2,offset:100,length:80,type:'window',startRow:9,rowCount:3},{id:3,offset:280,length:80,type:'window',startRow:2,rowCount:3}]; state.selectedWallId=1;state.selectedOpeningId=3; const lower=state.walls[0].openings[1];`);
+    run('document.getElementById("sliderOpeningOffset").listeners.input[0]({target:{value:600}});');
+    assert.equal(run('getOpeningBoundsCm(lower).startCm'),60);
+    run('document.getElementById("sliderOpStartRow").listeners.input[0]({target:{value:9}});');
+    assert.equal(run('lower.startRow'),6);
+    assert.equal(run('openingsOverlap(...state.walls[0].openings)'),false);
+    run('document.getElementById("sliderOpStartRow").listeners.input[0]({target:{value:2}}); document.getElementById("sliderOpRowCount").listeners.input[0]({target:{value:12}});');
+    assert.equal(run('lower.rowCount'),7);
+    assert.equal(run('openingsOverlap(...state.walls[0].openings)'),false);
+    run('document.getElementById("sliderOpRowCount").listeners.input[0]({target:{value:3}}); state.selectedOpeningId=2; document.getElementById("type-door").listeners.click[0]();');
+    assert.equal(run('state.walls[0].openings[0].type'),'window');
+    assert.equal(run('JSON.stringify(validateProject().errors)'),'[]');
+});
+
+test('elevation pointer handlers move below another opening, reject collision and retain undo/redo', () => {
+    const run=app(true);
+    run(`const make=${wall}; state.walls=[make(1,0,10,400,10,17)]; state.walls[0].openings=[{id:2,offset:100,length:80,type:'window',startRow:9,rowCount:3},{id:3,offset:280,length:80,type:'window',startRow:2,rowCount:3}]; state.selectedWallId=1;state.selectedOpeningId=3;state.nextId=4;state.elevationGeometry={wallId:1,startX:0,scaleX:1,padTop:0,rowH:10};resetEditHistory();`);
+    run('state.elevCanvas.listeners.pointerdown[0]({clientX:280,clientY:145,pointerId:1}); state.elevCanvas.listeners.pointermove[0]({clientX:100,clientY:145});');
+    assert.equal(run('getOpeningBoundsCm(state.walls[0].openings[1]).startCm'),60);
+    run('state.elevCanvas.listeners.pointermove[0]({clientX:100,clientY:75});');
+    assert.equal(run('state.walls[0].openings[1].startRow'),2);
+    assert.equal(run('openingsOverlap(...state.walls[0].openings)'),false);
+    run('state.elevCanvas.listeners.pointerup[0]();undoLastEdit();');
+    assert.equal(run('getOpeningBoundsCm(state.walls[0].openings[1]).startCm'),240);
+    run('redoLastEdit();');
+    assert.equal(run('getOpeningBoundsCm(state.walls[0].openings[1]).startCm'),60);
+    assert.equal(run('JSON.stringify(validateProject().errors)'),'[]');
+});
+
+test('plan selection and dragging prefer the selected stacked opening', () => {
+    const run=app(true);
+    run(`const make=${wall}; state.walls=[make(1,0,10,400,10,17)]; state.walls[0].openings=[{id:2,offset:100,length:80,type:'window',startRow:9,rowCount:3},{id:3,offset:100,length:80,type:'window',startRow:2,rowCount:3}]; state.selectedWallId=1;state.selectedOpeningId=3;`);
+    assert.equal(run('getPlanOpenings(state.walls[0]).at(-1).id'),3);
+    run('handlePointerDown({clientX:100,clientY:10,button:0});');
+    assert.equal(run('state.selectedOpeningId'),3);
+    run('handlePointerUp();state.selectedOpeningId=2;handlePointerDown({clientX:100,clientY:10,button:0});');
+    assert.equal(run('state.selectedOpeningId'),2);
 });

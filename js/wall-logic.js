@@ -105,80 +105,114 @@ function setOpeningBoundsCm(op, startCm, lenCm) {
             op.offset = cmToPx(s + l / 2);
         }
 
+// Opening rectangles use half-open ranges: touching edges do not overlap.
+function getOpeningRowRange(op) {
+    const startRow = op.startRow || 1;
+    return { startRow, endRow: startRow + (op.rowCount || 1) };
+}
+
+function openingWidthsOverlap(a, b) {
+    const x = getOpeningBoundsCm(a), y = getOpeningBoundsCm(b);
+    return x.startCm < y.endCm && y.startCm < x.endCm;
+}
+
+function openingRowsOverlap(a, b) {
+    const x = getOpeningRowRange(a), y = getOpeningRowRange(b);
+    return x.startRow < y.endRow && y.startRow < x.endRow;
+}
+
+function openingsOverlap(a, b) {
+    return openingWidthsOverlap(a, b) && openingRowsOverlap(a, b);
+}
+
 function getOpeningLimitsCm(wall, targetOp) {
-            const wallLenCm = getWallLengthCm(wall);
-            const sorted = [...wall.openings].sort((a, b) => a.offset - b.offset);
-            const idx = sorted.findIndex(o => o.id === targetOp.id);
+    const target = getOpeningBoundsCm(targetOp);
+    let minCm = HALF_BLOCK_CM, maxCm = getWallLengthCm(wall) - HALF_BLOCK_CM;
+    for (const other of wall.openings) {
+        if (other.id === targetOp.id || !openingRowsOverlap(targetOp, other)) continue;
+        const bounds = getOpeningBoundsCm(other);
+        if (bounds.endCm <= target.startCm) minCm = Math.max(minCm, bounds.endCm);
+        if (bounds.startCm >= target.endCm) maxCm = Math.min(maxCm, bounds.startCm);
+    }
+    return { minCm, maxCm };
+}
 
-            let minCm = HALF_BLOCK_CM;
-            let maxCm = wallLenCm - HALF_BLOCK_CM;
+function getOpeningVerticalLimits(wall, targetOp) {
+    const target = getOpeningRowRange(targetOp);
+    let minRow = targetOp.type === 'window' ? 2 : 1;
+    let maxEndRow = getWallRows(wall) + 1;
+    for (const other of wall.openings) {
+        if (other.id === targetOp.id || !openingWidthsOverlap(targetOp, other)) continue;
+        const rows = getOpeningRowRange(other);
+        if (rows.endRow <= target.startRow) minRow = Math.max(minRow, rows.endRow);
+        if (rows.startRow >= target.endRow) maxEndRow = Math.min(maxEndRow, rows.startRow);
+    }
+    return { minRow, maxEndRow };
+}
 
-            if (idx > 0) {
-                const prev = getOpeningBoundsCm(sorted[idx - 1]);
-                minCm = prev.endCm;
-            }
-            if (idx !== -1 && idx < sorted.length - 1) {
-                const next = getOpeningBoundsCm(sorted[idx + 1]);
-                maxCm = next.startCm;
-            }
-            return { minCm, maxCm };
-        }
+function tryUpdateOpening(wall, op, changes, notify = false) {
+    const candidate = { ...op, ...changes };
+    const current = getOpeningBoundsCm(op);
+    setOpeningBoundsCm(candidate, changes.startCm ?? current.startCm, changes.lenCm ?? current.lenCm);
+    delete candidate.startCm;
+    delete candidate.lenCm;
+    const start = pxToCm(candidate.offset - candidate.length / 2), rows = getOpeningRowRange(candidate);
+    if (!Number.isFinite(start) || !Number.isFinite(candidate.length) ||
+        start < HALF_BLOCK_CM || start + pxToCm(candidate.length) > getWallLengthCm(wall) - HALF_BLOCK_CM ||
+        !Number.isInteger(candidate.startRow) || !Number.isInteger(candidate.rowCount) || candidate.rowCount < 1 ||
+        rows.startRow < (candidate.type === 'window' ? 2 : 1) || rows.endRow > getWallRows(wall) + 1 ||
+        (candidate.type === 'door' && candidate.startRow !== 1)) {
+        if (notify) showToast('Keep the opening inside the wall. Doors start at floor level.');
+        return false;
+    }
+    if (wall.openings.some(other => other.id !== op.id && openingsOverlap(candidate, other))) {
+        if (notify) showToast('Openings cannot overlap. Move or resize the opening first.');
+        return false;
+    }
+    Object.assign(op, candidate);
+    return true;
+}
 
 function clampWallOpenings(wall) {
-            const wallLenCm = getWallLengthCm(wall);
-            wall.openings.sort((a, b) => a.offset - b.offset);
-            let cursorCm = HALF_BLOCK_CM;
-
-            for (let i = 0; i < wall.openings.length; i++) {
-                const op = wall.openings[i];
-                const remainingOps = wall.openings.length - 1 - i;
-                const maxEndForThis = wallLenCm - HALF_BLOCK_CM - remainingOps * HALF_BLOCK_CM;
-                let { startCm, lenCm } = getOpeningBoundsCm(op);
-
-                startCm = clamp(startCm, cursorCm, Math.max(cursorCm, maxEndForThis - HALF_BLOCK_CM));
-                lenCm = clamp(lenCm, HALF_BLOCK_CM, Math.max(HALF_BLOCK_CM, maxEndForThis - startCm));
-
-                setOpeningBoundsCm(op, startCm, lenCm);
-                if (op.type === 'door') {
-                    op.startRow = 1;
-                } else {
-                    op.startRow = Math.max(2, op.startRow || 2);
-                }
-                cursorCm = startCm + lenCm;
-            }
-        }
+    // Preserve 2D positions and sizes: repacking a single horizontal row destroys stacked openings.
+    // Wall resizing is bounded by the rightmost opening; height changes are validated separately.
+    wall.openings.sort((a, b) => a.offset - b.offset);
+}
 
 function findFreeSlotForOpening(wall, desiredLenCm = 100) {
-            const wallLenCm = getWallLengthCm(wall);
-            const sorted = [...wall.openings]
-                .map(op => getOpeningBoundsCm(op))
-                .sort((a, b) => a.startCm - b.startCm);
-
+    const height = getWallRows(wall), wallEnd = getWallLengthCm(wall) - HALF_BLOCK_CM;
+    // Search for a window position, retaining the existing three-course lintel clearance.
+    for (let rowCount = Math.min(4, height - 4); rowCount >= 1; rowCount--) {
+        const maxStart = height - rowCount - 2;
+        const preferred = Math.min(4, maxStart);
+        const starts = [...new Set([preferred, ...Array.from({ length: Math.max(0, maxStart - 1) }, (_, i) => i + 2)])];
+        for (const startRow of starts) {
+            if (startRow < 2) continue;
+            const endRow = startRow + rowCount;
+            const blockers = wall.openings.filter(op => {
+                const rows = getOpeningRowRange(op);
+                return rows.startRow < endRow + 3 && startRow < rows.endRow + 3;
+            }).map(getOpeningBoundsCm).sort((a, b) => a.startCm - b.startCm);
             const gaps = [];
             let cursor = HALF_BLOCK_CM;
-            for (const b of sorted) {
-                if (b.startCm > cursor) {
-                    gaps.push({ startCm: cursor, freeCm: b.startCm - cursor });
-                }
-                cursor = Math.max(cursor, b.endCm);
+            for (const bounds of blockers) {
+                if (Math.min(bounds.startCm, wallEnd) > cursor) gaps.push({ startCm: cursor, freeCm: Math.min(bounds.startCm, wallEnd) - cursor });
+                cursor = Math.max(cursor, bounds.endCm);
             }
-            if (wallLenCm - HALF_BLOCK_CM > cursor) {
-                gaps.push({ startCm: cursor, freeCm: (wallLenCm - HALF_BLOCK_CM) - cursor });
-            }
-
-            const bestGap = gaps.find(g => g.freeCm >= desiredLenCm) || gaps.find(g => g.freeCm >= HALF_BLOCK_CM);
-            if (!bestGap) return null;
-
-            const actualLenCm = Math.min(desiredLenCm, snapCmToGrid(bestGap.freeCm));
-            const startCm = snapCmToGrid(bestGap.startCm + (bestGap.freeCm - actualLenCm) / 2);
-            return { startCm, lenCm: actualLenCm };
+            if (cursor < wallEnd) gaps.push({ startCm: cursor, freeCm: wallEnd - cursor });
+            const gap = gaps.find(g => g.freeCm >= desiredLenCm) || gaps.find(g => g.freeCm >= HALF_BLOCK_CM);
+            if (!gap) continue;
+            const lenCm = Math.min(desiredLenCm, snapCmToGrid(gap.freeCm));
+            const startCm = snapCmToGrid(gap.startCm + (gap.freeCm - lenCm) / 2);
+            return { startCm, lenCm, startRow, rowCount };
         }
+    }
+    return null;
+}
 
 function getMinAllowedWallLengthCm(wall) {
-            if (!wall.openings || wall.openings.length === 0) return MIN_WALL_CM;
-            const totalOpeningsCm = wall.openings.reduce((acc, op) => acc + getOpeningBoundsCm(op).lenCm, 0);
-            return Math.max(MIN_WALL_CM, totalOpeningsCm + HALF_BLOCK_CM * 2);
-        }
+    return wall.openings.reduce((length, op) => Math.max(length, getOpeningBoundsCm(op).endCm + HALF_BLOCK_CM), MIN_WALL_CM);
+}
 
 function setWallLength(wall, newLenCm) {
             if (!Number.isFinite(newLenCm) || newLenCm % BLOCK_GRID_CM !== 0) {

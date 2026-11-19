@@ -123,6 +123,12 @@ function getWallPlanProjection(wall) {
             ));
         }
 
+function getPlanOpenings(wall) {
+    // The chosen rectangle stays on top when different heights share the same plan footprint.
+    return [...wall.openings].sort((a, b) =>
+        Number(a.id === state.selectedOpeningId) - Number(b.id === state.selectedOpeningId));
+}
+
 function drawWall(wall, isSelected, allJoints) {
             const lenPx = getWallLength(wall);
             const lenCm = getWallLengthCm(wall);
@@ -206,7 +212,7 @@ function drawWall(wall, isSelected, allJoints) {
             }
 
             // Отрисовка проёмов поверх стены (с гарантией отсутствия наложений)
-            for (const op of wall.openings) {
+            for (const op of getPlanOpenings(wall)) {
                 const { startCm, lenCm } = getOpeningBoundsCm(op);
                 const ox = projection.project(startCm);
                 const ow = projection.project(startCm + lenCm) - ox;
@@ -276,7 +282,8 @@ function drawWall(wall, isSelected, allJoints) {
                 state.ctx.textAlign = 'center';
                 state.ctx.textBaseline = 'middle';
                 const openingLabel = `${Math.round(lenCm * MM_PER_CM)} mm`;
-                if (state.ctx.measureText(openingLabel).width <= ow - 8) {
+                const sharedFootprint = wall.openings.some(other => other.id !== op.id && openingWidthsOverlap(op, other));
+                if ((!sharedFootprint || isOpSelected) && state.ctx.measureText(openingLabel).width <= ow - 8) {
                     state.ctx.fillText(openingLabel, 0, 0);
                 }
                 state.ctx.restore();
