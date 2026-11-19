@@ -553,22 +553,20 @@ function buildWallRowLayout(wall, rowIndex, precomputedJoints = null) {
                 const bounds = [seg.startCm, ...cuts, seg.endCm];
                 for (let i = 0; i < bounds.length - 1; i++) {
                     let start = bounds[i], end = bounds[i + 1];
-                    // Every second course uses two half blocks on each side of the control-joint line.
+                    // MVP decision: every second course uses one half block on each side of the joint.
                     const hasStartJoint = rowIndex % 2 === 0 && cuts.includes(start) &&
-                        end - start >= 2 * HALF_BLOCK_CM;
+                        end - start >= HALF_BLOCK_CM;
                     const hasEndJoint = rowIndex % 2 === 0 && cuts.includes(end) &&
-                        end - start >= 2 * HALF_BLOCK_CM;
+                        end - start >= HALF_BLOCK_CM;
                     if (hasStartJoint) {
                         rowBlocks.push({startCm: start, lenCm: HALF_BLOCK_CM, kind: 'half'});
-                        rowBlocks.push({startCm: start + HALF_BLOCK_CM, lenCm: HALF_BLOCK_CM, kind: 'half'});
-                        start += 2 * HALF_BLOCK_CM;
+                        start += HALF_BLOCK_CM;
                     }
-                    const endHalfStart = end - 2 * HALF_BLOCK_CM;
-                    const result = decomposeSegmentIntoBlocks(start, end - (hasEndJoint ? 2 * HALF_BLOCK_CM : 0), seamPhase);
+                    const endHalfStart = end - HALF_BLOCK_CM;
+                    const result = decomposeSegmentIntoBlocks(start, end - (hasEndJoint ? HALF_BLOCK_CM : 0), seamPhase);
                     rowBlocks.push(...result.blocks);
                     if (hasEndJoint) {
                         rowBlocks.push({startCm: endHalfStart, lenCm: HALF_BLOCK_CM, kind: 'half'});
-                        rowBlocks.push({startCm: endHalfStart + HALF_BLOCK_CM, lenCm: HALF_BLOCK_CM, kind: 'half'});
                     }
                     unfilledSegments.push(...result.unfilledSegments);
                 }
