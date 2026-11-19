@@ -169,6 +169,34 @@ test('undo restores deletion, next IDs, heights and recalculated quantities', ()
     assert.equal(run('JSON.stringify(projectSnapshot())===original'), true);
 });
 
+test('redo restores edits, selection and quantities; repeated undo/redo preserves history', () => {
+    const run = app();
+    run('loadDemoHouse(); resetEditHistory(); const original=JSON.stringify(projectSnapshot()); const originalSelection=state.selectedWallId; state.selectedWallId=state.walls.at(-1).id; state.walls[0].rows=15; state.nextId+=1; saveProjectLocally(); const edited=JSON.stringify(projectSnapshot()); const editedSelection=state.selectedWallId; const editedFull=calculateWallBlocks(state.walls[0]).fullCount;');
+    for (let i=0;i<2;i++) {
+        run('undoLastEdit();');
+        assert.equal(run('JSON.stringify(projectSnapshot())===original'), true);
+        assert.equal(run('state.selectedWallId===originalSelection'), true);
+        assert.equal(run('document.getElementById("btnRedo").disabled'), false);
+        run('redoLastEdit();');
+        assert.equal(run('JSON.stringify(projectSnapshot())===edited'), true);
+        assert.equal(run('state.selectedWallId===editedSelection'), true);
+        assert.equal(run('calculateWallBlocks(state.walls[0]).fullCount===editedFull'), true);
+        assert.equal(run('document.getElementById("btnRedo").disabled'), true);
+    }
+});
+
+test('new edits clear redo, while no-op saves and camera changes preserve it', () => {
+    const run=app();
+    run('loadDemoHouse(); resetEditHistory(); state.walls[0].rows=15; saveProjectLocally(); undoLastEdit(); state.panX=80; saveProjectLocally();');
+    assert.equal(run('redoHistory.length'),1);
+    run('state.walls[0].rows=14; saveProjectLocally(); const edited=JSON.stringify(projectSnapshot()); redoLastEdit();');
+    assert.equal(run('redoHistory.length'),0);
+    assert.equal(run('JSON.stringify(projectSnapshot())===edited'),true);
+    assert.equal(run('document.getElementById("btnRedo").disabled'),true);
+    run('resetEditHistory();');
+    assert.equal(run('document.getElementById("btnUndo").disabled'),true);
+});
+
 test('a whole drag is one undo; no-op saves and camera changes do not add history', () => {
     const run = app();
     run('loadDemoHouse(); resetEditHistory(); state.panX=80; state.zoom=2; saveProjectLocally();');
