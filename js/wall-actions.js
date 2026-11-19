@@ -10,7 +10,7 @@ function addNewWall() {
                 y1: cy + offset,
                 x2: cx + lenPx / 2 + offset,
                 y2: cy + offset,
-                rows: state.totalWallRows,
+                rows: clamp(state.totalWallRows, 2, MAX_WALL_ROWS),
                 openings: []
             };
             alignWallToGrid(newWall);

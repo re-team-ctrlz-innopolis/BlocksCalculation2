@@ -98,11 +98,11 @@
                     </label>
                     <div class="flex items-center gap-2">
                         <span class="w-4 h-2.5 rounded-sm bg-blue-600 inline-block border border-blue-300"></span>
-                        <span>Full block <b>400×200×176 mm</b></span>
+                        <span>Full block <b>400×200×200 mm</b></span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block border border-amber-200"></span>
-                        <span>Half block <b>200×200×176 mm</b></span>
+                        <span>Half block <b>200×200×200 mm</b></span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-[9px] font-bold text-sky-300">L / R</span>
@@ -181,10 +181,10 @@
                 <div class="bg-slate-800/70 rounded-lg p-2.5 mb-3 border border-slate-700/60">
                     <div class="flex justify-between text-xs mb-1">
                         <span class="text-slate-300 font-medium">Apply height to all walls (courses):</span>
-                        <span class="font-bold text-white" id="valTotalRows">10 courses / 1790 mm</span>
+                        <span class="font-bold text-white" id="valTotalRows">10 courses / 2000 mm</span>
                     </div>
-                    <input type="range" id="sliderTotalRows" min="2" max="19" step="1" value="10" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
-                    <p class="text-[10px] text-slate-400 mt-1">Height limit: 3,500 mm. Whole courses: 2–19 (up to 3,401 mm). Openings retain their dimensions when height changes.</p>
+                    <input type="range" id="sliderTotalRows" min="2" max="17" step="1" value="10" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                    <p class="text-[10px] text-slate-400 mt-1">Height limit: 3,500 mm. Whole courses: 2–17 (up to 3,400 mm). Openings retain their dimensions when height changes.</p>
                 </div>
 
                 <!-- Карточки итогов -->
@@ -222,7 +222,7 @@
                 <p id="resultsStatus" class="text-slate-400" aria-live="polite"></p>
                 <details><summary class="cursor-pointer text-slate-300">Validation and calculation model</summary>
                     <div id="projectStatus" class="space-y-1 mt-2" role="status" aria-live="polite"></div>
-                    <p class="mt-2 text-slate-400">The half-block is 198 mm actual and 200 mm nominal; the 2 mm difference is deliberate mortar allowance. With an approximately 3 mm thin-bed joint, two exact 200 mm halves would exceed a 400 mm full-block module and break uniform bonding. The calculator therefore uses nominal 400 / 200 mm modules. Block dimensions: full 400×200×176 mm; half 200×200×176 mm. Course height is 179 mm (176 mm block + 3 mm mortar). Wall limit: 100,000 mm; control joints every 5,000 mm.</p>
+                    <p class="mt-2 text-slate-400">Full block: 400×200×200 mm; half block: 200×200×200 mm. One course is 200 mm. Mortar joints are not included. Wall length limit: 100,000 mm; control joints every 5,000 mm.</p>
                     <p class="mt-1 text-slate-500">Above-floor block quantities only. Excludes foundations, gables, reinforcement, ties, concrete and waste. Mortar tolerances, joint width and junction details need customer confirmation.</p>
                 </details>
             </div>
@@ -250,7 +250,7 @@
 
                 <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-800 space-y-2 text-xs">
                     <div class="flex justify-between"><label for="inputWallRows">Wall height (courses):</label><b id="valWallHeight" class="text-blue-400"></b></div>
-                    <input id="inputWallRows" type="number" min="2" max="19" step="1" value="10" class="w-full rounded bg-slate-900 border border-slate-700 p-2">
+                    <input id="inputWallRows" type="number" min="2" max="17" step="1" value="10" class="w-full rounded bg-slate-900 border border-slate-700 p-2">
                     <p class="text-slate-400">Automatic control joints: <span id="wallControlJoints"></span></p>
                 </div>
                 <!-- Wall length -->
@@ -336,7 +336,7 @@
                                     <span class="text-slate-400">Start course:</span>
                                     <b class="text-slate-200" id="valOpStartRow">2</b>
                                 </div>
-                                <input type="range" id="sliderOpStartRow" min="2" max="19" step="1" value="2" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                                <input type="range" id="sliderOpStartRow" min="2" max="17" step="1" value="2" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                                 <p id="doorFloorNote" class="hidden mt-1 text-[10px] text-slate-400">Doors start at floor level (course 1).</p>
                             </div>
                             <div>
