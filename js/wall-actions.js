@@ -23,7 +23,7 @@ function addNewWall() {
 
 function addOpeningToSelectedWall() {
             const wall = state.walls.find(w => w.id === state.selectedWallId);
-            if (!wall || getWallRows(wall) < 4) return;
+            if (!wall) return;
 
             const slot = findFreeSlotForOpening(wall, 100);
             if (!slot) {
@@ -36,8 +36,8 @@ function addOpeningToSelectedWall() {
                 offset: cmToPx(slot.startCm + slot.lenCm / 2),
                 length: cmToPx(slot.lenCm),
                 type: 'window',
-                startRow: Math.min(4, getWallRows(wall) - 3),
-                rowCount: Math.max(1, Math.min(4, getWallRows(wall) - Math.min(4, getWallRows(wall) - 3) - 2))
+                startRow: slot.startRow,
+                rowCount: slot.rowCount
             };
             wall.openings.push(newOp);
             clampWallOpenings(wall);

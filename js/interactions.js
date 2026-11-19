@@ -58,7 +58,7 @@ function handlePointerDown(e) {
                 // Проверка клика по проёму выбранной стены (или его краям для изменения ширины)
                 const loc = worldToWallLocal(selWall, pos.x, pos.y);
                 if (Math.abs(loc.perp) <= WALL_THICKNESS / 2 + 6 / state.zoom) {
-                    for (const op of selWall.openings) {
+                    for (const op of getPlanOpenings(selWall).reverse()) {
                         const { startCm, endCm } = getOpeningBoundsCm(op);
                         const projection = getWallPlanProjection(selWall);
                         const startPx = projection.project(startCm);
@@ -115,7 +115,7 @@ function handlePointerDown(e) {
 
                     // Проверяем, не кликнули ли прямо в проём этой стены
                     let clickedOp = null;
-                    for (const op of w.openings) {
+                    for (const op of getPlanOpenings(w).reverse()) {
                         const { startCm, endCm } = getOpeningBoundsCm(op);
                         if (loc.along >= getWallPlanProjection(w).project(startCm) && loc.along <= getWallPlanProjection(w).project(endCm)) {
                             clickedOp = op;
@@ -204,11 +204,11 @@ function handlePointerMove(e) {
                 const desiredCenterPx = cmToPx(getWallPlanProjection(wall).unproject(loc.along)) - state.dragState.grabDeltaPx;
                 const desiredStartCm = snapCmToGrid(pxToCm(desiredCenterPx - state.dragState.opening.length / 2));
 
-                // Строгое ограничение коридора между соседними проёмами
+                // Only openings occupying the same courses constrain horizontal movement.
                 const limits = getOpeningLimitsCm(wall, state.dragState.opening);
                 const clampedStartCm = clamp(desiredStartCm, limits.minCm, limits.maxCm - lenCm);
 
-                setOpeningBoundsCm(state.dragState.opening, clampedStartCm, lenCm);
+                tryUpdateOpening(wall, state.dragState.opening, { startCm: clampedStartCm, lenCm });
 
             } else if (state.dragState.type === 'resize_opening_start') {
                 const loc = worldToWallLocal(wall, pos.x, pos.y);
@@ -220,7 +220,7 @@ function handlePointerMove(e) {
                     state.dragState.fixedEndCm - HALF_BLOCK_CM
                 );
                 const newLenCm = state.dragState.fixedEndCm - newStartCm;
-                setOpeningBoundsCm(state.dragState.opening, newStartCm, newLenCm);
+                tryUpdateOpening(wall, state.dragState.opening, { startCm: newStartCm, lenCm: newLenCm });
 
             } else if (state.dragState.type === 'resize_opening_end') {
                 const loc = worldToWallLocal(wall, pos.x, pos.y);
@@ -232,7 +232,7 @@ function handlePointerMove(e) {
                     limits.maxCm
                 );
                 const newLenCm = newEndCm - state.dragState.fixedStartCm;
-                setOpeningBoundsCm(state.dragState.opening, state.dragState.fixedStartCm, newLenCm);
+                tryUpdateOpening(wall, state.dragState.opening, { startCm: state.dragState.fixedStartCm, lenCm: newLenCm });
             }
 
             updateInspector();
@@ -381,13 +381,13 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
                 if (!wall) return;
                 const op = wall.openings.find(o => o.id === state.selectedOpeningId);
                 if (!op) return;
-                op.type = btn.dataset.optype;
-                if (op.type === 'window') {
-                    op.startRow = 2;
-                    op.rowCount = Math.min(4, Math.max(1, getWallRows(wall) - 1));
+                const type = btn.dataset.optype;
+                if (op.type === type) return;
+                if (type === 'window') {
+                    tryUpdateOpening(wall, op, { type, startRow: Math.max(2, op.startRow),
+                        rowCount: Math.min(op.rowCount, getWallRows(wall) - Math.max(2, op.startRow) + 1) }, true);
                 } else {
-                    op.startRow = 1;
-                    op.rowCount = Math.min(7, getWallRows(wall));
+                    tryUpdateOpening(wall, op, { type, startRow: 1, rowCount: op.rowCount }, true);
                 }
                 updateInspector();
                 render();
@@ -404,7 +404,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             const { lenCm } = getOpeningBoundsCm(op);
             const startCm = clamp(snapCmToGrid(Number(e.target.value) / MM_PER_CM), limits.minCm, limits.maxCm - lenCm);
 
-            setOpeningBoundsCm(op, startCm, lenCm);
+            tryUpdateOpening(wall, op, { startCm, lenCm }, true);
             updateInspector();
             render();
         });
@@ -419,7 +419,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             const { startCm } = getOpeningBoundsCm(op);
             const newLenCm = clamp(snapCmToGrid(Number(e.target.value) / MM_PER_CM), HALF_BLOCK_CM, limits.maxCm - startCm);
 
-            setOpeningBoundsCm(op, startCm, newLenCm);
+            tryUpdateOpening(wall, op, { startCm, lenCm: newLenCm }, true);
             updateInspector();
             render();
         });
@@ -429,8 +429,9 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             if (!wall) return;
             const op = wall.openings.find(o => o.id === state.selectedOpeningId);
             if (!op) return;
-            op.startRow = op.type === 'door' ? 1 : clamp(Number(e.target.value), 2, getWallRows(wall));
-            op.rowCount = clamp(op.rowCount || 1, 1, getWallRows(wall) - op.startRow + 1);
+            const limits = getOpeningVerticalLimits(wall, op);
+            const startRow = op.type === 'door' ? 1 : clamp(Number(e.target.value), limits.minRow, limits.maxEndRow - op.rowCount);
+            tryUpdateOpening(wall, op, { startRow }, true);
             updateInspector();
             render();
         });
@@ -440,7 +441,9 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             if (!wall) return;
             const op = wall.openings.find(o => o.id === state.selectedOpeningId);
             if (!op) return;
-            op.rowCount = clamp(Number(e.target.value), 1, getWallRows(wall) - (op.startRow || 1) + 1);
+            const limits = getOpeningVerticalLimits(wall, op);
+            const rowCount = clamp(Number(e.target.value), 1, limits.maxEndRow - op.startRow);
+            tryUpdateOpening(wall, op, { rowCount }, true);
             updateInspector();
             render();
         });

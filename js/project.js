@@ -56,9 +56,12 @@ function validateProject() {
                 errors.push(`${label}: leave at least three courses above opening #${op.id} (${Math.max(0, coursesAbove)} available).`);
             for (const other of wall.openings) {
                 if (other.id <= op.id) continue;
-                const c = getOpeningBoundsCm(other);
-                if (b.startCm < c.endCm && c.startCm < b.endCm) errors.push(`${label}: openings overlap horizontally.`);
+                if (openingsOverlap(op, other)) errors.push(`${label}: openings #${op.id} and #${other.id} overlap.`);
             }
+            const lintelStart = getOpeningRowRange(op).endRow;
+            if (wall.openings.some(other => other.id !== op.id && openingWidthsOverlap(op, other) &&
+                getOpeningRowRange(other).startRow < lintelStart + 3 && getOpeningRowRange(other).endRow > lintelStart))
+                errors.push(`${label}: leave at least three courses above opening #${op.id} before another opening.`);
         }
         const controls = [0, ...getControlJoints(wall), length];
         if (controls.some((x, i) => i && x - controls[i - 1] > MAX_CONTROL_SECTION_CM))
@@ -147,7 +150,7 @@ function updateProjectStatus() {
     document.getElementById('btnExportCsv').disabled = result.errors.length > 0;
     document.getElementById('resultsStatus').textContent = result.errors.length ? 'Draft quantities — fix the issues below to export' : 'Ready to export';
     const wall = getPartnerWall(state.selectedWallId);
-    document.getElementById('btnAddOpening').disabled = !wall || getWallRows(wall) < 4 || !findFreeSlotForOpening(wall, HALF_BLOCK_CM);
+    document.getElementById('btnAddOpening').disabled = !wall || !findFreeSlotForOpening(wall, HALF_BLOCK_CM);
 }
 
 function getProjectReport() {
@@ -227,6 +230,9 @@ function restoreProject(data) {
             if (rowCount < 1) throw new Error('Opening is outside the wall height.');
             return {id: oid, offset: o.offset, length: o.length, type: o.type, startRow, rowCount};
         });
+        for (let i = 0; i < openings.length; i++) for (let j = i + 1; j < openings.length; j++) {
+            if (openingsOverlap(openings[i], openings[j])) throw new Error(`Wall #${id}: openings overlap. Import was cancelled.`);
+        }
         return {id, x1: w.x1, y1: w.y1, x2: w.x2, y2: w.y2, rows: w.rows, openings};
     });
     const migrationNotes = data.planGeometry === PLAN_GEOMETRY
@@ -305,11 +311,14 @@ function bindProjectEvents() {
     state.elevCanvas.addEventListener('pointermove', e => {
         if (!elevationDrag) return;
         const {wall, opening, startX, startY, startCm, startRow, g} = elevationDrag;
-        const limits = getOpeningLimitsCm(wall, opening), width = getOpeningBoundsCm(opening).lenCm;
+        const width = getOpeningBoundsCm(opening).lenCm;
         const desired = snapCmToGrid(startCm + (e.clientX - startX) / g.scaleX);
-        setOpeningBoundsCm(opening, clamp(desired, limits.minCm, limits.maxCm - width), width);
-        opening.startRow = opening.type === 'door' ? 1
-            : clamp(startRow - Math.round((e.clientY - startY) / g.rowH), 1, getWallRows(wall) - opening.rowCount + 1);
+        const desiredRow = opening.type === 'door' ? 1
+            : clamp(startRow - Math.round((e.clientY - startY) / g.rowH), opening.type === 'window' ? 2 : 1, getWallRows(wall) - opening.rowCount + 1);
+        tryUpdateOpening(wall, opening, {
+            startCm: clamp(desired, HALF_BLOCK_CM, getWallLengthCm(wall) - HALF_BLOCK_CM - width),
+            startRow: desiredRow
+        });
         updateInspector(); render();
     });
     const finishElevationDrag = () => { if (elevationDrag) { elevationDrag = null; saveProjectLocally(); } };
