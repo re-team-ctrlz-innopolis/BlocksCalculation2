@@ -1,7 +1,7 @@
 const FULL_BLOCK_MM = 400;
 const HALF_BLOCK_MM = 200;
 const BLOCK_HEIGHT_MM = 200;
-const BLOCK_DEPTH_MM = 176;
+const BLOCK_DEPTH_MM = 200;
 const MM_PER_CM = 10;
 const FULL_BLOCK_CM = FULL_BLOCK_MM / MM_PER_CM;
 const HALF_BLOCK_CM = HALF_BLOCK_MM / MM_PER_CM;
@@ -23,10 +23,12 @@ const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 1.2;
 
-// The physical half-block is 198 mm long; the nominal 200 mm module includes mortar.
-const COURSE_HEIGHT_CM = 17.9; // 176 mm + 3 mm TBM (report p.19).
+// Team-confirmed block sizes: 400×200×200 mm and 200×200×200 mm; mortar is excluded.
+const COURSE_HEIGHT_CM = BLOCK_HEIGHT_MM / MM_PER_CM;
 const MAX_WALL_HEIGHT_CM = 350; // Wall plate limit in the report, p.81.
 const MAX_WALL_ROWS = Math.floor(MAX_WALL_HEIGHT_CM / COURSE_HEIGHT_CM);
+// Keep older 18/19-course projects editable; validation blocks their final reports.
+const MAX_SAVED_WALL_ROWS = Math.max(19, MAX_WALL_ROWS);
 const MAX_CONTROL_SECTION_MM = 5000;
 const MAX_CONTROL_SECTION_CM = MAX_CONTROL_SECTION_MM / MM_PER_CM;
 const PROJECT_VERSION = 1;

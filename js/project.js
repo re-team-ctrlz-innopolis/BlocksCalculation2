@@ -122,7 +122,7 @@ function validateProject() {
         }));
         if (touching.length > 2) errors.push('A corner contains more than two walls. Use a T-junction on the host wall.');
     }
-    warnings.push('The half-block is 198 mm actual and 200 mm nominal; the 2 mm difference is intentional mortar allowance. Two exact 200 mm halves plus an approximately 3 mm thin-bed joint would exceed one 400 mm full-block module. The calculator uses nominal 400/200 mm modules. Full block: 400×200×176 mm; half block: 200×200×176 mm; course height: 179 mm.');
+    warnings.push('Full block: 400×200×200 mm; half block: 200×200×200 mm. One course is 200 mm. Mortar joints are not included in the dimensions or quantities.');
     warnings.push('Counts cover above-floor wall blocks, including block lintels. Foundations, gables, reinforcement, ties, concrete and waste allowance are excluded.');
     warnings.push(...state.migrationNotes);
     return { errors: [...new Set(errors)], warnings };
@@ -174,7 +174,7 @@ function downloadFile(name, content, type) {
 function exportCsv() {
     const rows = getProjectReport(); if (!rows) return;
     const total = rows.reduce((s, r) => [s[0] + r.fullCount, s[1] + r.halfCount], [0, 0]);
-    const lines = ['Wall,Length mm,Height mm,Courses,Full blocks,Half blocks,Total blocks,Control joints mm', ...rows.map(r => [r.id, r.length, r.height, r.rows, r.fullCount, r.halfCount, r.totalCount, r.controls.join(';')].join(',')), `TOTAL,,,,${total[0]},${total[1]},${total[0] + total[1]},`, '', 'MODEL: nominal full block 400×200×176 mm; nominal half block 200×200×176 mm (198 mm actual length; 2 mm intentional mortar allowance); ~3 mm thin-bed mortar gives a 179 mm course; control joints every 5000 mm.', 'Above-floor block quantities only. Excludes foundations, gables, reinforcement, concrete and waste.'];
+    const lines = ['Wall,Length mm,Height mm,Courses,Full blocks,Half blocks,Total blocks,Control joints mm', ...rows.map(r => [r.id, r.length, r.height, r.rows, r.fullCount, r.halfCount, r.totalCount, r.controls.join(';')].join(',')), `TOTAL,,,,${total[0]},${total[1]},${total[0] + total[1]},`, '', 'MODEL: full block 400×200×200 mm; half block 200×200×200 mm; course height 200 mm; mortar joints excluded; control joints every 5000 mm.', 'Above-floor block quantities only. Excludes foundations, gables, reinforcement, concrete and waste.'];
     downloadFile('blocks-materials.csv', '\ufeff' + lines.join('\r\n'), 'text/csv;charset=utf-8');
 }
 
@@ -213,16 +213,16 @@ function restoreProject(data) {
     const ids = new Set();
     const takeId = id => { if (!Number.isSafeInteger(id) || id < 1 || ids.has(id)) throw new Error('Invalid or duplicate object ID.'); ids.add(id); return id; };
     const rows = data.totalWallRows;
-    if (!Number.isInteger(rows) || rows < 2 || rows > MAX_WALL_ROWS) throw new Error('Invalid default height.');
+    if (!Number.isInteger(rows) || rows < 2 || rows > MAX_SAVED_WALL_ROWS) throw new Error('Invalid default height.');
     const walls = data.walls.map(w => {
         const id = takeId(w.id);
-        if (![w.x1, w.y1, w.x2, w.y2].every(x => Number.isFinite(x) && Math.abs(x) < 100000) || !Array.isArray(w.openings) || w.openings.length > 100 || !Number.isInteger(w.rows) || w.rows < 2 || w.rows > MAX_WALL_ROWS) throw new Error('Invalid wall geometry or height.');
+        if (![w.x1, w.y1, w.x2, w.y2].every(x => Number.isFinite(x) && Math.abs(x) < 100000) || !Array.isArray(w.openings) || w.openings.length > 100 || !Number.isInteger(w.rows) || w.rows < 2 || w.rows > MAX_SAVED_WALL_ROWS) throw new Error('Invalid wall geometry or height.');
         const raw = pxToCm(dist(w.x1,w.y1,w.x2,w.y2));
         if (raw < MIN_WALL_CM || raw > MAX_WALL_CM || Math.abs(raw / BLOCK_GRID_CM - Math.round(raw / BLOCK_GRID_CM)) > 0.00001 || Math.abs((w.x2-w.x1)*(w.y2-w.y1)) > 0.001) throw new Error('Wall dimensions must follow the 200 mm grid and 90° angles.');
         const openings = w.openings.map(o => {
             const oid = takeId(o.id);
             const start = pxToCm(o.offset - o.length / 2), width = pxToCm(o.length);
-            if (!Number.isFinite(start) || !Number.isFinite(width) || width < HALF_BLOCK_CM || start < HALF_BLOCK_CM || start + width > raw - HALF_BLOCK_CM || Math.abs(start / 20 - Math.round(start / 20)) > 0.00001 || Math.abs(width / 20 - Math.round(width / 20)) > 0.00001 || !Number.isInteger(o.startRow) || !Number.isInteger(o.rowCount) || o.startRow < 1 || o.rowCount < 1 || o.startRow + o.rowCount - 1 > MAX_WALL_ROWS || !['window', 'door', 'arch'].includes(o.type)) throw new Error('Invalid opening dimensions.');
+            if (!Number.isFinite(start) || !Number.isFinite(width) || width < HALF_BLOCK_CM || start < HALF_BLOCK_CM || start + width > raw - HALF_BLOCK_CM || Math.abs(start / 20 - Math.round(start / 20)) > 0.00001 || Math.abs(width / 20 - Math.round(width / 20)) > 0.00001 || !Number.isInteger(o.startRow) || !Number.isInteger(o.rowCount) || o.startRow < 1 || o.rowCount < 1 || o.startRow + o.rowCount - 1 > MAX_SAVED_WALL_ROWS || !['window', 'door', 'arch'].includes(o.type)) throw new Error('Invalid opening dimensions.');
             const startRow = o.type === 'door' ? 1 : (o.type === 'window' ? Math.max(2, o.startRow) : o.startRow);
             const rowCount = Math.min(o.rowCount, w.rows - startRow + 1);
             if (rowCount < 1) throw new Error('Opening is outside the wall height.');

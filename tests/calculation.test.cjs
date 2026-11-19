@@ -352,26 +352,31 @@ test('a 40 cm wall fits two corner insets exactly and conserves masonry per cour
     assert.notEqual(run('getProjectReport()'), null);
 });
 
-test('3.5 m height limit permits 19 whole courses and rejects 20', () => {
+test('200 mm block height permits 17 courses within 3.5 m and rejects 18', () => {
     const run = app();
-    run(`const make=${wall}; state.walls=[make(1,0,10,400,10,19)];`);
+    run(`const make=${wall}; state.walls=[make(1,0,10,400,10,17)];`);
     assert.equal(run('MAX_WALL_HEIGHT_CM'), 350);
-    assert.equal(run('MAX_WALL_ROWS'), 19);
+    assert.equal(run('MAX_WALL_ROWS'), 17);
+    assert.equal(run('FULL_BLOCK_MM'), 400);
+    assert.equal(run('HALF_BLOCK_MM'), 200);
+    assert.equal(run('BLOCK_HEIGHT_MM'), 200);
+    assert.equal(run('BLOCK_DEPTH_MM'), 200);
+    assert.equal(run('COURSE_HEIGHT_CM * MM_PER_CM'), 200);
     assert.equal(run('JSON.stringify(validateProject().errors)'), '[]');
-    assert.equal(run('getProjectReport()[0].height'), 340.1);
-    assert.equal(run('getProjectReport()[0].fullCount'), 181);
-    assert.equal(run('getProjectReport()[0].halfCount'), 18);
-    run('state.walls[0].rows=20;');
-    assert.ok(run('validateProject().errors.some(s=>s.includes("2–19 courses"))'));
+    assert.equal(run('getProjectReport()[0].height'), 3400);
+    assert.equal(run('getProjectReport()[0].fullCount'), 162);
+    assert.equal(run('getProjectReport()[0].halfCount'), 16);
+    run('state.walls[0].rows=18;');
+    assert.ok(run('validateProject().errors.some(s=>s.includes("2–17 courses"))'));
     assert.equal(run('getProjectReport()'), null);
 });
 
-test('19-course projects and openings round trip; over-limit imports are atomic', () => {
+test('17-course projects and openings round trip; malformed imports are atomic', () => {
     const run = app();
-    run(`const make=${wall}; state.totalWallRows=19; state.walls=[make(1,0,10,400,10,19)]; state.walls[0].openings=[{id:2,offset:160,length:80,startRow:16,rowCount:1,type:'window'}]; const saved=JSON.stringify(projectSnapshot()); restoreProject(JSON.parse(saved)); const before=JSON.stringify(getProjectReport());`);
-    assert.equal(run('state.totalWallRows'), 19);
-    assert.equal(run('state.walls[0].rows'), 19);
-    assert.equal(run('state.walls[0].openings[0].startRow'), 16);
+    run(`const make=${wall}; state.totalWallRows=17; state.walls=[make(1,0,10,400,10,17)]; state.walls[0].openings=[{id:2,offset:160,length:80,startRow:14,rowCount:1,type:'window'}]; const saved=JSON.stringify(projectSnapshot()); restoreProject(JSON.parse(saved)); const before=JSON.stringify(getProjectReport());`);
+    assert.equal(run('state.totalWallRows'), 17);
+    assert.equal(run('state.walls[0].rows'), 17);
+    assert.equal(run('state.walls[0].openings[0].startRow'), 14);
     assert.equal(run('JSON.stringify(validateProject().errors)'), '[]');
     assert.throws(() => run('const badWall=JSON.parse(saved); badWall.walls[0].rows=20; restoreProject(badWall);'), /height/);
     assert.equal(run('JSON.stringify(getProjectReport())===before'), true);
@@ -379,10 +384,31 @@ test('19-course projects and openings round trip; over-limit imports are atomic'
     assert.equal(run('JSON.stringify(getProjectReport())===before'), true);
 });
 
+test('older 19-course projects remain editable without trimming walls or openings', () => {
+    const run = app();
+    run(`loadDemoHouse(); const saved=JSON.parse(JSON.stringify(projectSnapshot())); saved.totalWallRows=19; saved.walls[0].rows=19; saved.walls[0].openings[0].startRow=18; saved.walls[0].openings[0].rowCount=1; const opening=JSON.stringify(saved.walls[0].openings[0]); restoreProject(saved);`);
+    assert.equal(run('state.totalWallRows'),19);
+    assert.equal(run('state.walls[0].rows'),19);
+    assert.deepEqual(JSON.parse(run('JSON.stringify(state.walls[0].openings[0])')),JSON.parse(run('opening')));
+    assert.ok(run('validateProject().errors.some(s=>s.includes("2–17 courses"))'));
+    assert.equal(run('getProjectReport()'),null);
+    run('state.walls[0].rows=17; state.walls[0].openings[0].startRow=10;');
+    assert.equal(run('getProjectReport()[0].height'),3400);
+});
+
+test('CSV exports use 200 mm courses and the corrected three-dimensional block sizes', () => {
+    const run = app();
+    run(`const make=${wall}; state.walls=[make(1,0,10,400,10,10)]; let csv=''; downloadFile=(name,content)=>{csv=content;}; exportCsv();`);
+    assert.equal(run('getProjectReport()[0].height'),2000);
+    assert.ok(run('csv.includes("1,4000,2000,10,")'));
+    assert.ok(run('csv.includes("400×200×200 mm") && csv.includes("200×200×200 mm")'));
+    assert.ok(run('csv.includes("mortar joints excluded")'));
+});
+
 test('lintels require exactly three or more complete courses above the opening', () => {
     const run = app();
     run(`const make=${wall};`);
-    for (const height of [4,10,19]) for (const startRow of [1,3]) for (const coursesAbove of [0,1,2,3,4]) {
+    for (const height of [4,10,17]) for (const startRow of [1,3]) for (const coursesAbove of [0,1,2,3,4]) {
         const rowCount = height - coursesAbove - startRow + 1;
         if (rowCount < 1) continue;
         run(`state.walls=[make(1,0,10,400,10,${height})]; state.walls[0].openings=[{id:2,offset:160,length:80,startRow:${startRow},rowCount:${rowCount},type:'${startRow === 1 ? 'door' : 'window'}'}];`);
@@ -402,7 +428,7 @@ test('doors start at the first course while windows and generic openings may be 
     const run = app();
     run(`const make=${wall};`);
     for (const type of ['door','window','arch']) for (const startRow of [1,2,5]) {
-        run(`state.walls=[make(1,0,10,400,10,19)]; state.walls[0].openings=[{id:2,offset:160,length:80,startRow:${startRow},rowCount:4,type:'${type}'}];`);
+        run(`state.walls=[make(1,0,10,400,10,17)]; state.walls[0].openings=[{id:2,offset:160,length:80,startRow:${startRow},rowCount:4,type:'${type}'}];`);
         const invalid = type === 'door' && startRow !== 1;
         assert.equal(run('validateProject().errors.some(s=>s.includes("must start at course 1"))'), invalid, `${type}, row ${startRow}`);
         assert.equal(run('getProjectReport() === null'), invalid, `${type}, row ${startRow}`);
@@ -411,7 +437,7 @@ test('doors start at the first course while windows and generic openings may be 
 
 test('imported raised doors keep their position but block reports until corrected', () => {
     const run = app();
-    run(`const make=${wall}; state.totalWallRows=19; state.walls=[make(1,0,10,400,10,19)]; state.walls[0].openings=[{id:2,offset:160,length:80,startRow:3,rowCount:4,type:'door'}]; const saved=JSON.stringify(projectSnapshot()); restoreProject(JSON.parse(saved));`);
+    run(`const make=${wall}; state.totalWallRows=17; state.walls=[make(1,0,10,400,10,17)]; state.walls[0].openings=[{id:2,offset:160,length:80,startRow:3,rowCount:4,type:'door'}]; const saved=JSON.stringify(projectSnapshot()); restoreProject(JSON.parse(saved));`);
     assert.equal(run('state.walls[0].openings[0].startRow'), 3);
     assert.ok(run('validateProject().errors.some(s=>s.includes("must start at course 1"))'));
     assert.equal(run('getProjectReport()'), null);
