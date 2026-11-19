@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "model": "nominal-400-200-mm",
+  "planGeometry": "modular-cells-v3",
+  "walls": [
+    {"id": 1, "x1": 100, "y1": 100, "x2": 500, "y2": 100, "rows": 10, "openings": []},
+    {"id": 2, "x1": 100, "y1": 90, "x2": 100, "y2": 290, "rows": 10, "openings": []}
+  ],
+  "nextId": 3,
+  "totalWallRows": 10
+}

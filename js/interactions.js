@@ -8,7 +8,27 @@ function getPointerPos(e) {
             };
         }
 
+function startCameraPan(e) {
+            const pointer = e.touches ? e.touches[0] : e;
+            state.dragState = {
+                type: 'pan_camera',
+                startClientX: pointer.clientX,
+                startClientY: pointer.clientY,
+                panX: state.panX,
+                panY: state.panY
+            };
+            state.canvas.style.cursor = 'grabbing';
+            e.preventDefault();
+        }
+
 function handlePointerDown(e) {
+            // Middle-button dragging pans even when the pointer is over a wall.
+            if (!e.touches && e.button === 1) {
+                state.activeSnapPreview = null;
+                startCameraPan(e);
+                return;
+            }
+            if (!e.touches && e.button !== 0) return;
             const pos = getPointerPos(e);
             state.activeSnapPreview = null;
 
@@ -18,7 +38,10 @@ function handlePointerDown(e) {
                 // Рычаг поворота
                 const rotPos = getRotateHandlePos(selWall);
                 if (dist(pos.x, pos.y, rotPos.x, rotPos.y) <= 12 / state.zoom) {
-                    state.dragState = { type: 'rotate_wall', wall: selWall };
+                    const pivot = getWallEndCellCenter(selWall, 'start');
+                    const handleAngle = Math.atan2(rotPos.y - pivot.y, rotPos.x - pivot.x);
+                    state.dragState = { type: 'rotate_wall', wall: selWall, pivot,
+                        angleOffset: handleAngle - getWallAngleRad(selWall) };
                     return;
                 }
 
@@ -37,8 +60,9 @@ function handlePointerDown(e) {
                 if (Math.abs(loc.perp) <= WALL_THICKNESS / 2 + 6 / state.zoom) {
                     for (const op of selWall.openings) {
                         const { startCm, endCm } = getOpeningBoundsCm(op);
-                        const startPx = cmToPx(startCm);
-                        const endPx = cmToPx(endCm);
+                        const projection = getWallPlanProjection(selWall);
+                        const startPx = projection.project(startCm);
+                        const endPx = projection.project(endCm);
 
                         if (Math.abs(loc.along - startPx) <= 8 / state.zoom) {
                             state.selectedOpeningId = op.id;
@@ -70,7 +94,7 @@ function handlePointerDown(e) {
                                 type: 'move_opening',
                                 wall: selWall,
                                 opening: op,
-                                grabDeltaPx: loc.along - op.offset
+                                grabDeltaPx: cmToPx(getWallPlanProjection(selWall).unproject(loc.along)) - op.offset
                             };
                             updateInspector();
                             render();
@@ -93,7 +117,7 @@ function handlePointerDown(e) {
                     let clickedOp = null;
                     for (const op of w.openings) {
                         const { startCm, endCm } = getOpeningBoundsCm(op);
-                        if (loc.along >= cmToPx(startCm) && loc.along <= cmToPx(endCm)) {
+                        if (loc.along >= getWallPlanProjection(w).project(startCm) && loc.along <= getWallPlanProjection(w).project(endCm)) {
                             clickedOp = op;
                             break;
                         }
@@ -105,7 +129,7 @@ function handlePointerDown(e) {
                             type: 'move_opening',
                             wall: w,
                             opening: clickedOp,
-                            grabDeltaPx: loc.along - clickedOp.offset
+                            grabDeltaPx: cmToPx(getWallPlanProjection(w).unproject(loc.along)) - clickedOp.offset
                         };
                     } else {
                         state.selectedOpeningId = w.openings[0] ? w.openings[0].id : null;
@@ -130,13 +154,21 @@ function handlePointerDown(e) {
             // Клик в пустое место — снимаем выделение
             state.selectedWallId = null;
             state.selectedOpeningId = null;
+            startCameraPan(e);
             updateInspector();
             render();
         }
 
 function handlePointerMove(e) {
-            const pos = getPointerPos(e);
             if (!state.dragState) return;
+            if (state.dragState.type === 'pan_camera') {
+                const pointer = e.touches ? e.touches[0] : e;
+                state.panX = state.dragState.panX + pointer.clientX - state.dragState.startClientX;
+                state.panY = state.dragState.panY + pointer.clientY - state.dragState.startClientY;
+                render();
+                return;
+            }
+            const pos = getPointerPos(e);
 
             const wall = state.dragState.wall;
             state.activeSnapPreview = null;
@@ -150,75 +182,26 @@ function handlePointerMove(e) {
                 let nx2 = state.dragState.origX2 + dx;
                 let ny2 = state.dragState.origY2 + dy;
 
-                // Проверяем магнитную привязку обоих концов стены (как L, так и T-соединения)
-                const snap1 = findSnapPoint(nx1, ny1, wall.id);
-                const snap2 = findSnapPoint(nx2, ny2, wall.id);
-
-                if (snap1) {
-                    const sdx = snap1.x - nx1;
-                    const sdy = snap1.y - ny1;
-                    nx1 += sdx;
-                    ny1 += sdy;
-                    nx2 += sdx;
-                    ny2 += sdy;
-                    state.activeSnapPreview = snap1;
-                } else if (snap2) {
-                    const sdx = snap2.x - nx2;
-                    const sdy = snap2.y - ny2;
-                    nx1 += sdx;
-                    ny1 += sdy;
-                    nx2 += sdx;
-                    ny2 += sdy;
-                    state.activeSnapPreview = snap2;
-                }
-
-                wall.x1 = nx1;
-                wall.y1 = ny1;
-                wall.x2 = nx2;
-                wall.y2 = ny2;
+                const placement = snapWallTranslation(wall, {x1: nx1, y1: ny1, x2: nx2, y2: ny2});
+                wall.x1 = placement.x1; wall.y1 = placement.y1;
+                wall.x2 = placement.x2; wall.y2 = placement.y2;
+                state.activeSnapPreview = placement.snaps[0] || null;
 
             } else if (state.dragState.type === 'endpoint_1' || state.dragState.type === 'endpoint_2') {
-                const isFirst = state.dragState.type === 'endpoint_1';
-                const anchorX = isFirst ? wall.x2 : wall.x1;
-                const anchorY = isFirst ? wall.y2 : wall.y1;
-
-                let targetX = pos.x;
-                let targetY = pos.y;
-
-                const snap = findSnapPoint(targetX, targetY, wall.id);
-                if (snap) {
-                    targetX = snap.x;
-                    targetY = snap.y;
-                    state.activeSnapPreview = snap;
-                }
-
-                const rawDistPx = dist(anchorX, anchorY, targetX, targetY);
-                const minAllowedCm = getMinAllowedWallLengthCm(wall);
-                const snappedLenCm = clamp(snapCmToGrid(pxToCm(rawDistPx)), minAllowedCm, MAX_WALL_CM);
-                const finalLenPx = cmToPx(snappedLenCm);
-                const angle = snapAngleTo90(Math.atan2(targetY - anchorY, targetX - anchorX) * 180 / Math.PI) * Math.PI / 180;
-
-                if (isFirst) {
-                    wall.x1 = anchorX + Math.cos(angle) * finalLenPx;
-                    wall.y1 = anchorY + Math.sin(angle) * finalLenPx;
-                } else {
-                    wall.x2 = anchorX + Math.cos(angle) * finalLenPx;
-                    wall.y2 = anchorY + Math.sin(angle) * finalLenPx;
-                }
-                clampWallOpenings(wall);
+                state.activeSnapPreview = resizeWallEndpoint(wall, state.dragState.type === 'endpoint_1', pos);
 
             } else if (state.dragState.type === 'rotate_wall') {
-                const center = getWallCenter(wall);
-                let angleDeg = Math.round(Math.atan2(pos.y - center.y, pos.x - center.x) * 180 / Math.PI + 90);
+                const {pivot, angleOffset} = state.dragState;
+                let angleDeg = Math.round((Math.atan2(pos.y - pivot.y, pos.x - pivot.x) - angleOffset) * 180 / Math.PI);
                 if (angleDeg > 180) angleDeg -= 360;
                 if (angleDeg < -180) angleDeg += 360;
 
-                setWallAngleFromCenter(wall, angleDeg);
+                setWallAngle(wall, angleDeg);
 
             } else if (state.dragState.type === 'move_opening') {
                 const loc = worldToWallLocal(wall, pos.x, pos.y);
                 const { lenCm } = getOpeningBoundsCm(state.dragState.opening);
-                const desiredCenterPx = loc.along - state.dragState.grabDeltaPx;
+                const desiredCenterPx = cmToPx(getWallPlanProjection(wall).unproject(loc.along)) - state.dragState.grabDeltaPx;
                 const desiredStartCm = snapCmToGrid(pxToCm(desiredCenterPx - state.dragState.opening.length / 2));
 
                 // Строгое ограничение коридора между соседними проёмами
@@ -232,7 +215,7 @@ function handlePointerMove(e) {
                 const limits = getOpeningLimitsCm(wall, state.dragState.opening);
 
                 const newStartCm = clamp(
-                    snapCmToGrid(pxToCm(loc.along)),
+                    snapCmToGrid(getWallPlanProjection(wall).unproject(loc.along)),
                     limits.minCm,
                     state.dragState.fixedEndCm - HALF_BLOCK_CM
                 );
@@ -244,7 +227,7 @@ function handlePointerMove(e) {
                 const limits = getOpeningLimitsCm(wall, state.dragState.opening);
 
                 const newEndCm = clamp(
-                    snapCmToGrid(pxToCm(loc.along)),
+                    snapCmToGrid(getWallPlanProjection(wall).unproject(loc.along)),
                     state.dragState.fixedStartCm + HALF_BLOCK_CM,
                     limits.maxCm
                 );
@@ -257,8 +240,11 @@ function handlePointerMove(e) {
         }
 
 function handlePointerUp() {
+            if (!state.dragState) return;
+            if (state.dragState.type !== 'pan_camera') saveProjectLocally();
             state.dragState = null;
             state.activeSnapPreview = null;
+            state.canvas.style.cursor = '';
             render();
         }
 
@@ -266,14 +252,16 @@ function bindEvents() {
 state.canvas.addEventListener('mousedown', handlePointerDown);
         window.addEventListener('mousemove', handlePointerMove);
         window.addEventListener('mouseup', handlePointerUp);
+        window.addEventListener('blur', handlePointerUp);
 
         state.canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handlePointerDown(e); }, { passive: false });
         window.addEventListener('touchmove', (e) => { if (state.dragState) { e.preventDefault(); handlePointerMove(e); } }, { passive: false });
         window.addEventListener('touchend', handlePointerUp);
+        window.addEventListener('touchcancel', handlePointerUp);
 
-        document.getElementById('canvasContainer').addEventListener('wheel', (e) => {
-            if (!e.ctrlKey) return;
+        state.canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
+            if (state.dragState || e.deltaY === 0) return;
             const rect = state.canvas.getBoundingClientRect();
             zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
         }, { passive: false });
@@ -311,6 +299,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
 
         document.getElementById('btnClearAll').addEventListener('click', () => {
             state.walls = [];
+            state.migrationNotes = [];
             state.selectedWallId = null;
             state.selectedOpeningId = null;
             updateInspector();
@@ -322,36 +311,27 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
 
         document.getElementById('sliderTotalRows').addEventListener('input', (e) => {
             state.totalWallRows = Number(e.target.value);
-            state.walls.forEach(w => clampWallOpenings(w));
+            state.walls.forEach(w => { w.rows = state.totalWallRows; clampWallOpenings(w); });
             updateInspector();
             render();
         });
 
-        document.getElementById('sliderWallLength').addEventListener('input', (e) => {
+        document.getElementById('sliderWallLength').addEventListener('change', (e) => {
             const wall = state.walls.find(w => w.id === state.selectedWallId);
             if (!wall) return;
-            setWallLengthFromCenter(wall, Number(e.target.value));
+            setWallLength(wall, Number(e.target.value));
             updateInspector();
             render();
         });
 
-        document.getElementById('sliderWallAngle').addEventListener('input', (e) => {
-            const wall = state.walls.find(w => w.id === state.selectedWallId);
-            if (!wall) return;
-            setWallAngleFromCenter(wall, Number(e.target.value));
-            updateInspector();
-            render();
-        });
-
-        document.querySelectorAll('.quick-angle-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
+        for (const [id, turn] of [['btnRotateLeft', -90], ['btnRotateRight', 90]]) {
+            document.getElementById(id).addEventListener('click', () => {
                 const wall = state.walls.find(w => w.id === state.selectedWallId);
                 if (!wall) return;
-                setWallAngleFromCenter(wall, Number(btn.dataset.angle));
-                updateInspector();
-                render();
+                setWallAngle(wall, getWallAngleDeg(wall) + turn);
+                updateInspector(); render();
             });
-        });
+        }
 
         document.getElementById('btnDeleteWall').addEventListener('click', () => {
             state.walls = state.walls.filter(w => w.id !== state.selectedWallId);
@@ -381,10 +361,10 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
                 op.type = btn.dataset.optype;
                 if (op.type === 'window') {
                     op.startRow = 4;
-                    op.rowCount = Math.min(4, Math.max(1, state.totalWallRows - 3));
+                    op.rowCount = Math.min(4, Math.max(1, getWallRows(wall) - 3));
                 } else {
                     op.startRow = 1;
-                    op.rowCount = Math.min(7, state.totalWallRows);
+                    op.rowCount = Math.min(7, getWallRows(wall));
                 }
                 updateInspector();
                 render();
@@ -426,8 +406,8 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             if (!wall) return;
             const op = wall.openings.find(o => o.id === state.selectedOpeningId);
             if (!op) return;
-            op.startRow = clamp(Number(e.target.value), 1, state.totalWallRows);
-            op.rowCount = clamp(op.rowCount || 1, 1, state.totalWallRows - op.startRow + 1);
+            op.startRow = op.type === 'door' ? 1 : clamp(Number(e.target.value), 1, getWallRows(wall));
+            op.rowCount = clamp(op.rowCount || 1, 1, getWallRows(wall) - op.startRow + 1);
             updateInspector();
             render();
         });
@@ -437,7 +417,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             if (!wall) return;
             const op = wall.openings.find(o => o.id === state.selectedOpeningId);
             if (!op) return;
-            op.rowCount = clamp(Number(e.target.value), 1, state.totalWallRows - (op.startRow || 1) + 1);
+            op.rowCount = clamp(Number(e.target.value), 1, getWallRows(wall) - (op.startRow || 1) + 1);
             updateInspector();
             render();
         });

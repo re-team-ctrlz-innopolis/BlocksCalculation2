@@ -22,3 +22,22 @@ body {
         ::-webkit-scrollbar-thumb:hover {
             background: #64748b;
         }
+
+input[type="number"] { user-select: text; }
+button:disabled { cursor: not-allowed; }
+header { height: auto !important; min-height: 3.5rem; gap: 0.5rem; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+header > div:nth-child(2) { flex-wrap: wrap; }
+#printReport { display: none; }
+@media (max-width: 700px) {
+    header { grid-template-columns: auto 1fr !important; }
+    header button { font-size: 10px; padding: 6px; }
+}
+@media print {
+    body { height: auto !important; overflow: visible; background: white !important; color: black !important; user-select: text; }
+    body > :not(#printReport) { display: none !important; }
+    #printReport { display: block; padding: 24px; font-size: 12px; }
+    #printReport h1 { font-size: 22px; margin-bottom: 20px; }
+    #printReport table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    #printReport td, #printReport th { border: 1px solid #888; padding: 8px; text-align: left; }
+    #printReport p { margin-top: 12px; }
+}
