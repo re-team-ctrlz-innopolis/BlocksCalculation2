@@ -10,31 +10,8 @@ function getControlJoints(wall) {
     const length = getWallLengthCm(wall);
     if (length <= MAX_CONTROL_SECTION_CM) return [];
     const joints = [];
-    let previous = 0;
-    const junctions = [];
-    for (const branch of state.walls) {
-        if (branch.id === wall.id || !arePerpendicular(wall, branch)) continue;
-        for (const [x, y] of [[branch.x1, branch.y1], [branch.x2, branch.y2]]) {
-            const local = worldToWallLocal(wall, x, y);
-            if ((Math.abs(local.perp) < 0.01 || Math.abs(Math.abs(local.perp) - WALL_THICKNESS / 2) < 0.01) && local.along > HALF_BLOCK_PX && local.along < getWallLength(wall) - HALF_BLOCK_PX)
-                junctions.push(snapToHalfBlockCellCenterCm(pxToCm(local.along), length));
-        }
-    }
-    while (length - previous > MAX_CONTROL_SECTION_CM) {
-        const sections = Math.ceil((length - previous) / MAX_CONTROL_SECTION_CM);
-        const target = snapCmToGrid(previous + (length - previous) / sections);
-        const candidates = [];
-        for (let x = previous + HALF_BLOCK_CM; x <= Math.min(previous + MAX_CONTROL_SECTION_CM, length - HALF_BLOCK_CM); x += HALF_BLOCK_CM) {
-            const atOpening = wall.openings.some(op => {
-                const b = getOpeningBoundsCm(op);
-                return x >= b.startCm - HALF_BLOCK_CM && x <= b.endCm + HALF_BLOCK_CM;
-            });
-            if (!atOpening && !junctions.some(j => x >= j.cellStartCm - HALF_BLOCK_CM && x <= j.cellEndCm + HALF_BLOCK_CM)) candidates.push(x);
-        }
-        candidates.sort((a, b) => Math.abs(a - target) - Math.abs(b - target) || a - b);
-        if (!candidates.length) break; // Validation reports the unresolved section.
-        previous = candidates[0];
-        joints.push(previous);
+    for (let jointCm = MAX_CONTROL_SECTION_CM; jointCm < length; jointCm += MAX_CONTROL_SECTION_CM) {
+        joints.push(jointCm);
     }
     return joints;
 }
@@ -47,11 +24,11 @@ function validateProject() {
         const label = `Wall #${wall.id}`;
         const rawLength = pxToCm(getWallLength(wall));
         if (Math.abs(rawLength / BLOCK_GRID_CM - Math.round(rawLength / BLOCK_GRID_CM)) > 0.00001 || rawLength < MIN_WALL_CM || rawLength > MAX_WALL_CM)
-            errors.push(`${label}: length must be ${MIN_WALL_CM}–${MAX_WALL_CM} cm in 20 cm modules. No cutting.`);
+            errors.push(`${label}: length must be ${MIN_WALL_MM}–${MAX_WALL_MM} mm in 200 mm modules. No cutting.`);
         if (Math.abs(getWallAngleRad(wall) / (Math.PI / 2) - Math.round(getWallAngleRad(wall) / (Math.PI / 2))) > 0.00001)
             errors.push(`${label}: only 90° rotations are supported.`);
         if (!isWallOnGrid(wall))
-            errors.push(`${label}: align the wall faces with the common 20 cm grid. Move the wall to snap it into place.`);
+            errors.push(`${label}: align the wall faces with the common 200 mm grid. Move the wall to snap it into place.`);
         if (!Number.isInteger(getWallRows(wall)) || getWallRows(wall) < 2 || getWallRows(wall) > MAX_WALL_ROWS)
             errors.push(`${label}: height must be 2–${MAX_WALL_ROWS} courses (up to ${MAX_WALL_HEIGHT_CM / 100} m, whole courses only).`);
         const length = getWallLengthCm(wall);
@@ -65,11 +42,13 @@ function validateProject() {
         for (const op of wall.openings) {
             const b = getOpeningBoundsCm(op);
             if (b.startCm < HALF_BLOCK_CM || b.endCm > length - HALF_BLOCK_CM)
-                errors.push(`${label}: opening #${op.id} needs a 20 cm pier at both wall ends.`);
+                errors.push(`${label}: opening #${op.id} needs a 200 mm pier at both wall ends.`);
             if (!Number.isInteger(op.startRow) || !Number.isInteger(op.rowCount) || op.startRow < 1 || op.rowCount < 1 || op.startRow + op.rowCount - 1 > getWallRows(wall))
                 errors.push(`${label}: opening #${op.id} is outside the wall height.`);
             if (op.type === 'door' && op.startRow !== 1)
-                errors.push(`${label}: door opening #${op.id} must start at course 1 (floor level). Select Door to place it at the floor, or use Window/Opening for a raised opening.`);
+                errors.push(`${label}: door opening #${op.id} must start at course 1 (floor level).`);
+            if (op.type === 'window' && op.startRow < 2)
+                errors.push(`${label}: window opening #${op.id} must start at course 2 or above.`);
             if (b.lenCm > 150) errors.push(`${label}: opening #${op.id} exceeds the 1.5 m lintel detail supported by this MVP.`);
             const openingTopRow = op.startRow + op.rowCount - 1;
             const coursesAbove = getWallRows(wall) - openingTopRow;
@@ -84,8 +63,17 @@ function validateProject() {
         const controls = [0, ...getControlJoints(wall), length];
         if (controls.some((x, i) => i && x - controls[i - 1] > MAX_CONTROL_SECTION_CM))
             errors.push(`${label}: cannot place control joints with sections ≤5 m clear of openings and T-joints. Move or resize the openings.`);
+        for (const jointCm of getControlJoints(wall)) {
+            if (wall.openings.some(op => {
+                const bounds = getOpeningBoundsCm(op);
+                return bounds.startCm < jointCm + 2 * HALF_BLOCK_CM &&
+                    bounds.endCm > jointCm - 2 * HALF_BLOCK_CM;
+            })) {
+                errors.push(`${label}: keep openings clear of the control-joint detail at ${jointCm * MM_PER_CM} mm.`);
+            }
+        }
         if (calculateWallBlocks(wall, joints).unfilledCm > 0)
-            errors.push(`${label}: the layout leaves unfilled masonry. Use 20 cm modules.`);
+            errors.push(`${label}: the layout leaves unfilled masonry. Use 200 mm modules.`);
     }
     for (const j of joints.filter(j => j.type === 'T')) {
         const host = getPartnerWall(j.hostWallId), branch = getPartnerWall(j.branchWallId);
@@ -134,7 +122,7 @@ function validateProject() {
         }));
         if (touching.length > 2) errors.push('A corner contains more than two walls. Use a T-junction on the host wall.');
     }
-    warnings.push('Nominal 400/200 mm coordination; physical units 400/198 × 198 × 176 mm. Course height 179 mm. Mortar tolerances and joint width require customer confirmation.');
+    warnings.push('The half-block is 198 mm actual and 200 mm nominal; the 2 mm difference is intentional mortar allowance. Two exact 200 mm halves plus an approximately 3 mm thin-bed joint would exceed one 400 mm full-block module. The calculator uses nominal 400/200 mm modules. Full block: 400×200×176 mm; half block: 200×200×176 mm; course height: 179 mm.');
     warnings.push('Counts cover above-floor wall blocks, including block lintels. Foundations, gables, reinforcement, ties, concrete and waste allowance are excluded.');
     warnings.push(...state.migrationNotes);
     return { errors: [...new Set(errors)], warnings };
@@ -167,7 +155,14 @@ function getProjectReport() {
     const validation = validateProject();
     if (validation.errors.length) { showToast('Resolve validation errors before exporting results.'); return null; }
     const joints = getAllWallJoints();
-    return state.walls.map(w => ({ id: w.id, length: getWallLengthCm(w), height: formatCm(getWallRows(w) * COURSE_HEIGHT_CM), rows: getWallRows(w), controls: getControlJoints(w), ...calculateWallBlocks(w, joints) }));
+    return state.walls.map(w => ({
+        id: w.id,
+        length: Math.round(getWallLengthCm(w) * MM_PER_CM),
+        height: Math.round(getWallRows(w) * COURSE_HEIGHT_CM * MM_PER_CM),
+        rows: getWallRows(w),
+        controls: getControlJoints(w).map(joint => Math.round(joint * MM_PER_CM)),
+        ...calculateWallBlocks(w, joints)
+    }));
 }
 
 function downloadFile(name, content, type) {
@@ -179,7 +174,7 @@ function downloadFile(name, content, type) {
 function exportCsv() {
     const rows = getProjectReport(); if (!rows) return;
     const total = rows.reduce((s, r) => [s[0] + r.fullCount, s[1] + r.halfCount], [0, 0]);
-    const lines = ['Wall,Length cm,Height cm,Courses,Full blocks,Half blocks,Total blocks,Control joints cm', ...rows.map(r => [r.id, r.length, r.height, r.rows, r.fullCount, r.halfCount, r.totalCount, r.controls.join(';')].join(',')), `TOTAL,,,,${total[0]},${total[1]},${total[0] + total[1]},`, '', 'MODEL: nominal 400/200 mm; physical 400/198 x 198 x 176 mm; course 179 mm.', 'Above-floor wall blocks only. Includes block lintels; excludes foundations/gables/reinforcement/concrete/waste. Customer confirmation required for mortar and joint details.'];
+    const lines = ['Wall,Length mm,Height mm,Courses,Full blocks,Half blocks,Total blocks,Control joints mm', ...rows.map(r => [r.id, r.length, r.height, r.rows, r.fullCount, r.halfCount, r.totalCount, r.controls.join(';')].join(',')), `TOTAL,,,,${total[0]},${total[1]},${total[0] + total[1]},`, '', 'MODEL: nominal full block 400×200×176 mm; nominal half block 200×200×176 mm (198 mm actual length; 2 mm intentional mortar allowance); ~3 mm thin-bed mortar gives a 179 mm course; control joints every 5000 mm.', 'Above-floor block quantities only. Excludes foundations, gables, reinforcement, concrete and waste.'];
     downloadFile('blocks-materials.csv', '\ufeff' + lines.join('\r\n'), 'text/csv;charset=utf-8');
 }
 
@@ -190,7 +185,7 @@ function printReport() {
     const title = document.createElement('h1'); title.textContent = 'BlocksCalculator — Material quantities'; report.appendChild(title);
     const table = document.createElement('table');
     const header = document.createElement('tr');
-    for (const label of ['Wall', 'Length (cm)', 'Height (cm)', 'Full', 'Half', 'Total', 'Control joints (cm)']) { const th = document.createElement('th'); th.textContent = label; header.appendChild(th); }
+    for (const label of ['Wall', 'Length (mm)', 'Height (mm)', 'Full', 'Half', 'Total', 'Control joints (mm)']) { const th = document.createElement('th'); th.textContent = label; header.appendChild(th); }
     table.appendChild(header);
     let full = 0, half = 0;
     for (const row of rows) {
@@ -223,12 +218,15 @@ function restoreProject(data) {
         const id = takeId(w.id);
         if (![w.x1, w.y1, w.x2, w.y2].every(x => Number.isFinite(x) && Math.abs(x) < 100000) || !Array.isArray(w.openings) || w.openings.length > 100 || !Number.isInteger(w.rows) || w.rows < 2 || w.rows > MAX_WALL_ROWS) throw new Error('Invalid wall geometry or height.');
         const raw = pxToCm(dist(w.x1,w.y1,w.x2,w.y2));
-        if (raw < MIN_WALL_CM || raw > MAX_WALL_CM || Math.abs(raw / BLOCK_GRID_CM - Math.round(raw / BLOCK_GRID_CM)) > 0.00001 || Math.abs((w.x2-w.x1)*(w.y2-w.y1)) > 0.001) throw new Error('Wall dimensions must follow the 20 cm grid and 90° angles.');
+        if (raw < MIN_WALL_CM || raw > MAX_WALL_CM || Math.abs(raw / BLOCK_GRID_CM - Math.round(raw / BLOCK_GRID_CM)) > 0.00001 || Math.abs((w.x2-w.x1)*(w.y2-w.y1)) > 0.001) throw new Error('Wall dimensions must follow the 200 mm grid and 90° angles.');
         const openings = w.openings.map(o => {
             const oid = takeId(o.id);
             const start = pxToCm(o.offset - o.length / 2), width = pxToCm(o.length);
             if (!Number.isFinite(start) || !Number.isFinite(width) || width < HALF_BLOCK_CM || start < HALF_BLOCK_CM || start + width > raw - HALF_BLOCK_CM || Math.abs(start / 20 - Math.round(start / 20)) > 0.00001 || Math.abs(width / 20 - Math.round(width / 20)) > 0.00001 || !Number.isInteger(o.startRow) || !Number.isInteger(o.rowCount) || o.startRow < 1 || o.rowCount < 1 || o.startRow + o.rowCount - 1 > MAX_WALL_ROWS || !['window', 'door', 'arch'].includes(o.type)) throw new Error('Invalid opening dimensions.');
-            return {id: oid, offset: o.offset, length: o.length, type: o.type, startRow: o.startRow, rowCount: o.rowCount};
+            const startRow = o.type === 'door' ? 1 : (o.type === 'window' ? Math.max(2, o.startRow) : o.startRow);
+            const rowCount = Math.min(o.rowCount, w.rows - startRow + 1);
+            if (rowCount < 1) throw new Error('Opening is outside the wall height.');
+            return {id: oid, offset: o.offset, length: o.length, type: o.type, startRow, rowCount};
         });
         return {id, x1: w.x1, y1: w.y1, x2: w.x2, y2: w.y2, rows: w.rows, openings};
     });

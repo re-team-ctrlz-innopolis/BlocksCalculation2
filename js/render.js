@@ -303,8 +303,27 @@ function drawWall(wall, isSelected, allJoints) {
             state.ctx.fillStyle = isSelected ? '#93c5fd' : '#94a3b8';
             state.ctx.font = '600 11px Inter, sans-serif';
             state.ctx.textAlign = 'center';
-            state.ctx.fillText(`${lenCm} cm`, 0, 0);
+            state.ctx.fillText(`${lenCm * MM_PER_CM} mm`, 0, 0);
             state.ctx.restore();
+
+            for (const mark of [{ x: 0, label: 'L', color: '#38bdf8' }, { x: lenPx, label: 'R', color: '#fbbf24' }]) {
+                state.ctx.save();
+                state.ctx.translate(mark.x, halfThick + 14 / state.zoom);
+                state.ctx.rotate(-angle);
+                state.ctx.fillStyle = '#0f172a';
+                state.ctx.strokeStyle = mark.color;
+                state.ctx.lineWidth = 1 / state.zoom;
+                state.ctx.beginPath();
+                state.ctx.arc(0, 0, 7 / state.zoom, 0, Math.PI * 2);
+                state.ctx.fill();
+                state.ctx.stroke();
+                state.ctx.fillStyle = '#f8fafc';
+                state.ctx.font = `bold ${9 / state.zoom}px Inter, sans-serif`;
+                state.ctx.textAlign = 'center';
+                state.ctx.textBaseline = 'middle';
+                state.ctx.fillText(mark.label, 0, 0);
+                state.ctx.restore();
+            }
 
             state.ctx.restore();
 
@@ -418,8 +437,8 @@ function drawElevationView(allJoints) {
             const joints = allJoints || getAllWallJoints();
             const wallLenCm = getWallLengthCm(wall);
             const stats = calculateWallBlocks(wall, joints);
-            titleEl.textContent = `Elevation: Wall #${wall.id} (${wallLenCm} cm × ${getWallRows(wall)} courses)`;
-            subEl.textContent = `Full 40 cm blocks: ${stats.fullCount} | Half 20 cm blocks: ${stats.halfCount}${stats.unfilledCm > 0 ? ` | Remainder across courses: ${stats.unfilledCm} cm` : ''}`;
+            titleEl.textContent = `Elevation: Wall #${wall.id} (${wallLenCm * MM_PER_CM} mm × ${getWallRows(wall)} courses)`;
+            subEl.textContent = `Full 400 mm blocks: ${stats.fullCount} | Half 200 mm blocks: ${stats.halfCount}${stats.unfilledCm > 0 ? ` | Remainder across courses: ${Math.round(stats.unfilledCm * MM_PER_CM)} mm` : ''}`;
 
             const padLeft = 44;
             const padRight = 24;
@@ -434,6 +453,15 @@ function drawElevationView(allJoints) {
             const startX = padLeft + (availW - drawWallW) / 2;
             const rowH = availH / getWallRows(wall);
             state.elevationGeometry = {wallId: wall.id, startX, scaleX, padTop, availH, rowH};
+
+            state.elevCtx.fillStyle = '#38bdf8';
+            state.elevCtx.font = 'bold 9px Inter, sans-serif';
+            state.elevCtx.textBaseline = 'bottom';
+            state.elevCtx.textAlign = 'left';
+            state.elevCtx.fillText('LEFT / START (x1)', startX, padTop - 2);
+            state.elevCtx.fillStyle = '#fbbf24';
+            state.elevCtx.textAlign = 'right';
+            state.elevCtx.fillText('RIGHT / END (x2)', startX + drawWallW, padTop - 2);
 
             // Отрисовка рядов снизу вверх (1-й ряд внизу)
             for (let r = 1; r <= getWallRows(wall); r++) {
@@ -511,7 +539,7 @@ function drawElevationView(allJoints) {
                         state.elevCtx.font = 'bold 9px Inter, sans-serif';
                         state.elevCtx.textAlign = 'center';
                         state.elevCtx.textBaseline = 'middle';
-                        state.elevCtx.fillText(isFull ? '40' : '20', bx + bw / 2, y + rowH / 2);
+                        state.elevCtx.fillText(isFull ? '400' : '200', bx + bw / 2, y + rowH / 2);
                     }
                 }
 
@@ -547,14 +575,14 @@ function drawElevationView(allJoints) {
             }
             state.elevCtx.restore();
 
-            // Линейка сантиметров снизу развёртки
+            // Millimetre ruler below the elevation.
             state.elevCtx.fillStyle = '#94a3b8';
             state.elevCtx.font = '10px Inter, sans-serif';
             state.elevCtx.textAlign = 'center';
             const stepCm = wallLenCm > 600 ? FULL_BLOCK_CM : HALF_BLOCK_CM;
             for (let cm = 0; cm <= wallLenCm; cm += stepCm) {
                 const x = startX + cm * scaleX;
-                state.elevCtx.fillText(`${cm}`, x, padTop + availH + 13);
+                state.elevCtx.fillText(`${cm * MM_PER_CM}`, x, padTop + availH + 13);
             }
 
             // Mark the tied butt connection at the ends of a T-branch.

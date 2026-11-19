@@ -248,11 +248,35 @@ function handlePointerUp() {
             render();
         }
 
+function handleDeleteKeyDown(event) {
+            if (event.key !== 'Delete') return;
+            const target = event.target;
+            if (target instanceof HTMLElement && (target.isContentEditable || target.matches('input, textarea, select'))) return;
+            const wall = state.walls.find(item => item.id === state.selectedWallId);
+            if (!wall) return;
+
+            event.preventDefault();
+            if (state.selectedOpeningId !== null && wall.openings.some(opening => opening.id === state.selectedOpeningId)) {
+                wall.openings = wall.openings.filter(opening => opening.id !== state.selectedOpeningId);
+                state.selectedOpeningId = wall.openings[0] ? wall.openings[0].id : null;
+                showToast('Opening deleted');
+            } else {
+                state.walls = state.walls.filter(item => item.id !== wall.id);
+                state.selectedWallId = state.walls[0] ? state.walls[0].id : null;
+                state.selectedOpeningId = null;
+                showToast('Wall deleted');
+            }
+            updateInspector();
+            render();
+            saveProjectLocally();
+        }
+
 function bindEvents() {
 state.canvas.addEventListener('mousedown', handlePointerDown);
         window.addEventListener('mousemove', handlePointerMove);
         window.addEventListener('mouseup', handlePointerUp);
         window.addEventListener('blur', handlePointerUp);
+        window.addEventListener('keydown', handleDeleteKeyDown);
 
         state.canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handlePointerDown(e); }, { passive: false });
         window.addEventListener('touchmove', (e) => { if (state.dragState) { e.preventDefault(); handlePointerMove(e); } }, { passive: false });
@@ -298,6 +322,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
         // });
 
         document.getElementById('btnClearAll').addEventListener('click', () => {
+            if (!window.confirm('Clear the entire canvas? This cannot be undone.')) return;
             state.walls = [];
             state.migrationNotes = [];
             state.selectedWallId = null;
@@ -307,7 +332,10 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             showToast('Drawing cleared');
         });
 
-        document.getElementById('btnDemoHouse').addEventListener('click', loadDemoHouse);
+        document.getElementById('btnDemoHouse').addEventListener('click', () => {
+            if (!window.confirm('Open the sample layout? The current drawing will be replaced.')) return;
+            loadDemoHouse();
+        });
 
         document.getElementById('sliderTotalRows').addEventListener('input', (e) => {
             state.totalWallRows = Number(e.target.value);
@@ -319,7 +347,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
         document.getElementById('sliderWallLength').addEventListener('change', (e) => {
             const wall = state.walls.find(w => w.id === state.selectedWallId);
             if (!wall) return;
-            setWallLength(wall, Number(e.target.value));
+            setWallLength(wall, Number(e.target.value) / MM_PER_CM);
             updateInspector();
             render();
         });
@@ -360,8 +388,8 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
                 if (!op) return;
                 op.type = btn.dataset.optype;
                 if (op.type === 'window') {
-                    op.startRow = 4;
-                    op.rowCount = Math.min(4, Math.max(1, getWallRows(wall) - 3));
+                    op.startRow = 2;
+                    op.rowCount = Math.min(4, Math.max(1, getWallRows(wall) - 1));
                 } else {
                     op.startRow = 1;
                     op.rowCount = Math.min(7, getWallRows(wall));
@@ -379,7 +407,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
 
             const limits = getOpeningLimitsCm(wall, op);
             const { lenCm } = getOpeningBoundsCm(op);
-            const startCm = clamp(snapCmToGrid(Number(e.target.value)), limits.minCm, limits.maxCm - lenCm);
+            const startCm = clamp(snapCmToGrid(Number(e.target.value) / MM_PER_CM), limits.minCm, limits.maxCm - lenCm);
 
             setOpeningBoundsCm(op, startCm, lenCm);
             updateInspector();
@@ -394,7 +422,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
 
             const limits = getOpeningLimitsCm(wall, op);
             const { startCm } = getOpeningBoundsCm(op);
-            const newLenCm = clamp(snapCmToGrid(Number(e.target.value)), HALF_BLOCK_CM, limits.maxCm - startCm);
+            const newLenCm = clamp(snapCmToGrid(Number(e.target.value) / MM_PER_CM), HALF_BLOCK_CM, limits.maxCm - startCm);
 
             setOpeningBoundsCm(op, startCm, newLenCm);
             updateInspector();
@@ -406,7 +434,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             if (!wall) return;
             const op = wall.openings.find(o => o.id === state.selectedOpeningId);
             if (!op) return;
-            op.startRow = op.type === 'door' ? 1 : clamp(Number(e.target.value), 1, getWallRows(wall));
+            op.startRow = op.type === 'door' ? 1 : clamp(Number(e.target.value), 2, getWallRows(wall));
             op.rowCount = clamp(op.rowCount || 1, 1, getWallRows(wall) - op.startRow + 1);
             updateInspector();
             render();

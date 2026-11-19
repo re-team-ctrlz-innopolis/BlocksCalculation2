@@ -38,7 +38,7 @@
                 <span id="rowViewText">Plan: 1st course (odd)</span>
             </button> -->
 
-            <button id="btnDemoHouse" class="bg-blue-600 hover:bg-blue-500 border border-blue-800 text-slate-100 text-xs sm:text-sm font-medium px-2.5 py-2 rounded-lg transition hidden lg:block" title="Create sample house; previous will be deleted">
+            <button id="btnDemoHouse" class="bg-blue-600 hover:bg-blue-500 border border-blue-800 text-slate-100 text-xs sm:text-sm font-medium px-2.5 py-2 rounded-lg transition hidden lg:block" title="Open a sample layout (replaces the current drawing)">
                 OPEN A SAMPLE
             </button>
 
@@ -83,15 +83,19 @@
                     </label>
                     <div class="flex items-center gap-2">
                         <span class="w-4 h-2.5 rounded-sm bg-blue-600 inline-block border border-blue-300"></span>
-                        <span>Full block <b>40 cm nominal</b> (main wall and corners)</span>
+                        <span>Full block <b>400×200×176 mm</b></span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block border border-amber-200"></span>
-                        <span>Half block <b>20 cm nominal</b> (opening reveals / free ends)</span>
+                        <span>Half block <b>200×200×176 mm</b></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] font-bold text-sky-300">L / R</span>
+                        <span>Left = start (x1); Right = end (x2)</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-emerald-500/30 border border-emerald-400 inline-block"></span>
-                        <span><b>L-joint</b> (corner bonded with full 40 cm blocks)</span>
+                        <span><b>L-joint</b> (corner bonded with full blocks)</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-cyan-500/30 border border-cyan-400 inline-block"></span>
@@ -103,9 +107,9 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-4 border-t-2 border-dashed" style="border-color:#f472b6"></span>
-                        <span>Control joint · sections up to 5 m</span>
+                        <span>Control joint every 5000 mm</span>
                     </div>
-                    <p class="text-slate-400">Wheel: zoom · Drag background / middle button: pan</p>
+                    <p class="text-slate-400">Wheel: zoom · Middle mouse drag: pan</p>
                     </div>
                 </div>
 
@@ -126,10 +130,10 @@
                         <span class="text-slate-400 text-[11px]" id="elevationSubtitle">— select a wall on the plan</span>
                     </div>
                     <div class="flex items-center gap-4 text-[11px] text-slate-400">
-                        <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-blue-600 inline-block rounded-sm"></i> 40 cm (full)</span>
-                        <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-amber-500 inline-block rounded-sm"></i> 20 cm (half)</span>
+                        <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-blue-600 inline-block rounded-sm"></i> 400 mm (full)</span>
+                        <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-amber-500 inline-block rounded-sm"></i> 200 mm (half)</span>
                         <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-red-500 inline-block rounded-sm"></i> Unfilled remainder</span>
-                        <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-slate-700 border border-emerald-400/70 inline-block rounded-sm"></i> Corner overlap (20 cm)</span>
+                        <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-slate-700 border border-emerald-400/70 inline-block rounded-sm"></i> Corner overlap (200 mm)</span>
                     </div>
                 </div>
                 <div class="flex-1 relative overflow-hidden">
@@ -157,21 +161,21 @@
                 <div class="bg-slate-800/70 rounded-lg p-2.5 mb-3 border border-slate-700/60">
                     <div class="flex justify-between text-xs mb-1">
                         <span class="text-slate-300 font-medium">Apply height to all walls (courses):</span>
-                        <span class="font-bold text-white" id="valTotalRows">10 courses / 179 cm</span>
+                        <span class="font-bold text-white" id="valTotalRows">10 courses / 1790 mm</span>
                     </div>
                     <input type="range" id="sliderTotalRows" min="2" max="19" step="1" value="10" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
-                    <p class="text-[10px] text-slate-400 mt-1">Height limit: 3.5 m. Whole courses: 2–19 (up to 340.1 cm). Openings retain their dimensions when height changes.</p>
+                    <p class="text-[10px] text-slate-400 mt-1">Height limit: 3,500 mm. Whole courses: 2–19 (up to 3,401 mm). Openings retain their dimensions when height changes.</p>
                 </div>
 
                 <!-- Карточки итогов -->
                 <div class="grid grid-cols-3 gap-2 mb-3">
                     <div class="bg-blue-950/50 border border-blue-700/50 rounded-xl p-2.5 text-center">
-                        <div class="text-[10px] text-blue-300 uppercase font-semibold">Full blocks (40 cm)</div>
+                        <div class="text-[10px] text-blue-300 uppercase font-semibold">Full blocks (400 mm)</div>
                         <div class="text-lg font-extrabold text-white mt-0.5" id="totFullBlocks">0</div>
                         <div class="text-[10px] text-blue-400">pcs.</div>
                     </div>
                     <div class="bg-amber-950/50 border border-amber-700/50 rounded-xl p-2.5 text-center">
-                        <div class="text-[10px] text-amber-300 uppercase font-semibold">Half blocks (20 cm)</div>
+                        <div class="text-[10px] text-amber-300 uppercase font-semibold">Half blocks (200 mm)</div>
                         <div class="text-lg font-extrabold text-white mt-0.5" id="totHalfBlocks">0</div>
                         <div class="text-[10px] text-amber-400">pcs.</div>
                     </div>
@@ -203,7 +207,7 @@
                 <p id="resultsStatus" class="text-slate-400" aria-live="polite"></p>
                 <details><summary class="cursor-pointer text-slate-300">Validation and calculation model</summary>
                     <div id="projectStatus" class="space-y-1 mt-2" role="status" aria-live="polite"></div>
-                    <p class="mt-2 text-slate-400">Nominal modules: 40 / 20 cm. Physical blocks: 400 / 198 x 198 x 176 mm. Course: 17.9 cm (3 mm mortar). Single storey, height limit 3.5 m: 2-19 whole courses, up to 340.1 cm. Control sections up to 5 m. Rectangular openings up to 1.5 m, with 3 lintel courses above.</p>
+                    <p class="mt-2 text-slate-400">The half-block is 198 mm actual and 200 mm nominal; the 2 mm difference is deliberate mortar allowance. With an approximately 3 mm thin-bed joint, two exact 200 mm halves would exceed a 400 mm full-block module and break uniform bonding. The calculator therefore uses nominal 400 / 200 mm modules. Block dimensions: full 400×200×176 mm; half 200×200×176 mm. Course height is 179 mm (176 mm block + 3 mm mortar). Wall limit: 100,000 mm; control joints every 5,000 mm.</p>
                     <p class="mt-1 text-slate-500">Above-floor block quantities only. Excludes foundations, gables, reinforcement, ties, concrete and waste. Mortar tolerances, joint width and junction details need customer confirmation.</p>
                 </details>
             </div>
@@ -237,13 +241,13 @@
                 <!-- Wall length -->
                 <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-800 space-y-2">
                     <div class="flex justify-between items-center text-xs">
-                        <span class="text-slate-300 font-medium">Wall length (20 cm modules):</span>
-                        <span class="font-bold text-blue-400" id="valWallLength">40 cm</span>
+                        <span class="text-slate-300 font-medium">Wall length (200 mm increments):</span>
+                        <span class="font-bold text-blue-400" id="valWallLength">400 mm</span>
                     </div>
-                    <input type="number" id="sliderWallLength" aria-label="Wall length in centimetres" min="20" max="2400" step="20" value="400" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm">
-                    <p class="text-[10px] text-slate-400">T partitions: measure between wall faces. L corners share one 20 cm cell.</p>
+                    <input type="number" id="sliderWallLength" aria-label="Wall length in millimetres" min="200" max="100000" step="200" value="400" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm">
+                    <p class="text-[10px] text-slate-400">T partitions: measure between wall faces. L corners share one 200 mm cell.</p>
                     <div class="flex justify-between text-[10px] text-slate-400">
-                        <span id="lblMinWallLen">Min: 20 cm</span>
+                        <span id="lblMinWallLen">Min: 200 mm</span>
                         <span>Course 1: <b id="lblRow1Summary" class="text-slate-200"></b></span>
                     </div>
                 </div>
@@ -265,7 +269,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <h4 class="text-xs font-bold uppercase tracking-wider text-slate-300">Wall openings</h4>
-                            <p class="text-[10px] text-slate-400">Non-overlapping • 20 cm minimum opening</p>
+                            <p class="text-[10px] text-slate-400">Non-overlapping • block-aligned dimensions</p>
                         </div>
                         <button id="btnAddOpening" class="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:border-slate-700 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition shadow">
                             <span>+ Opening</span>
@@ -278,27 +282,26 @@
                     <!-- Редактор выбранного проёма -->
                     <div id="openingEditor" class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 space-y-3 hidden">
                         <div class="flex items-center justify-between">
-                            <span class="text-xs font-semibold text-white" id="openingEditorTitle">Opening settings (rectangular)</span>
+                            <span class="text-xs font-semibold text-white" id="openingEditorTitle">Opening settings</span>
                             <button id="btnDeleteOpening" class="text-[11px] text-rose-400 hover:text-rose-300 underline">Delete</button>
                         </div>
 
                         <!-- Тип проёма -->
-                        <div class="grid grid-cols-3 gap-1.5">
+                        <div class="grid grid-cols-2 gap-1.5">
                             <button data-optype="window" class="opening-type-btn text-xs py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 font-medium">Window</button>
                             <button data-optype="door" class="opening-type-btn text-xs py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 font-medium">Door</button>
-                            <button data-optype="arch" class="opening-type-btn text-xs py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 font-medium">Opening</button>
                         </div>
 
                         <!-- Отступ от начала стены -->
                         <div>
                             <div class="flex justify-between text-xs mb-1">
                                 <span class="text-slate-300">Position from start:</span>
-                                <span class="font-bold text-amber-400" id="valOpeningOffset">40 cm</span>
+                                <span class="font-bold text-amber-400" id="valOpeningOffset">400 mm</span>
                             </div>
-                            <input type="range" id="sliderOpeningOffset" min="20" max="2400" step="20" value="40" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                            <input type="range" id="sliderOpeningOffset" min="200" max="100000" step="200" value="400" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                             <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
-                                <span id="lblOpMinOffset">Min: 20 cm</span>
-                                <span id="lblOpMaxOffset">Max: 240 cm</span>
+                                <span id="lblOpMinOffset">Min: 200 mm</span>
+                                <span id="lblOpMaxOffset">Max: 2400 mm</span>
                             </div>
                         </div>
 
@@ -306,9 +309,9 @@
                         <div>
                             <div class="flex justify-between text-xs mb-1">
                                 <span class="text-slate-300">Opening width:</span>
-                                <span class="font-bold text-emerald-400" id="valOpeningLength">40 cm</span>
+                                <span class="font-bold text-emerald-400" id="valOpeningLength">400 mm</span>
                             </div>
-                            <input type="range" id="sliderOpeningLength" min="20" max="2400" step="20" value="40" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                            <input type="range" id="sliderOpeningLength" min="200" max="100000" step="200" value="400" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                         </div>
 
                         <!-- Ряды по высоте (для расчёта блоков) -->
@@ -316,9 +319,9 @@
                             <div>
                                 <div class="flex justify-between text-[11px] mb-1">
                                     <span class="text-slate-400">Start course:</span>
-                                    <b class="text-slate-200" id="valOpStartRow">1</b>
+                                    <b class="text-slate-200" id="valOpStartRow">2</b>
                                 </div>
-                                <input type="range" id="sliderOpStartRow" min="1" max="10" step="1" value="1" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                                <input type="range" id="sliderOpStartRow" min="2" max="19" step="1" value="2" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                                 <p id="doorFloorNote" class="hidden mt-1 text-[10px] text-slate-400">Doors start at floor level (course 1).</p>
                             </div>
                             <div>

@@ -139,7 +139,11 @@ function clampWallOpenings(wall) {
                 lenCm = clamp(lenCm, HALF_BLOCK_CM, Math.max(HALF_BLOCK_CM, maxEndForThis - startCm));
 
                 setOpeningBoundsCm(op, startCm, lenCm);
-                // Height changes preserve opening dimensions; validation reports overflow.
+                if (op.type === 'door') {
+                    op.startRow = 1;
+                } else {
+                    op.startRow = Math.max(2, op.startRow || 2);
+                }
                 cursorCm = startCm + lenCm;
             }
         }
@@ -178,7 +182,7 @@ function getMinAllowedWallLengthCm(wall) {
 
 function setWallLength(wall, newLenCm) {
             if (!Number.isFinite(newLenCm) || newLenCm % BLOCK_GRID_CM !== 0) {
-                showToast('Use multiples of 20 cm (200 mm). Cutting blocks is not supported.');
+                showToast('Use multiples of 200 mm. Cutting blocks is not supported.');
                 return;
             }
             const minAllowed = getMinAllowedWallLengthCm(wall);
@@ -549,15 +553,23 @@ function buildWallRowLayout(wall, rowIndex, precomputedJoints = null) {
                 const bounds = [seg.startCm, ...cuts, seg.endCm];
                 for (let i = 0; i < bounds.length - 1; i++) {
                     let start = bounds[i], end = bounds[i + 1];
-                    // Every second course ends in a half on both sides of each joint.
-                    if (rowIndex % 2 === 0 && cuts.includes(start)) {
+                    // Every second course uses two half blocks on each side of the control-joint line.
+                    const hasStartJoint = rowIndex % 2 === 0 && cuts.includes(start) &&
+                        end - start >= 2 * HALF_BLOCK_CM;
+                    const hasEndJoint = rowIndex % 2 === 0 && cuts.includes(end) &&
+                        end - start >= 2 * HALF_BLOCK_CM;
+                    if (hasStartJoint) {
                         rowBlocks.push({startCm: start, lenCm: HALF_BLOCK_CM, kind: 'half'});
-                        start += HALF_BLOCK_CM;
+                        rowBlocks.push({startCm: start + HALF_BLOCK_CM, lenCm: HALF_BLOCK_CM, kind: 'half'});
+                        start += 2 * HALF_BLOCK_CM;
                     }
-                    let endHalf = rowIndex % 2 === 0 && cuts.includes(end) && end - start >= HALF_BLOCK_CM;
-                    const result = decomposeSegmentIntoBlocks(start, end - (endHalf ? HALF_BLOCK_CM : 0), seamPhase);
+                    const endHalfStart = end - 2 * HALF_BLOCK_CM;
+                    const result = decomposeSegmentIntoBlocks(start, end - (hasEndJoint ? 2 * HALF_BLOCK_CM : 0), seamPhase);
                     rowBlocks.push(...result.blocks);
-                    if (endHalf) rowBlocks.push({startCm: end - HALF_BLOCK_CM, lenCm: HALF_BLOCK_CM, kind: 'half'});
+                    if (hasEndJoint) {
+                        rowBlocks.push({startCm: endHalfStart, lenCm: HALF_BLOCK_CM, kind: 'half'});
+                        rowBlocks.push({startCm: endHalfStart + HALF_BLOCK_CM, lenCm: HALF_BLOCK_CM, kind: 'half'});
+                    }
                     unfilledSegments.push(...result.unfilledSegments);
                 }
             }

@@ -2,7 +2,7 @@ function addNewWall() {
             const cx = snapWorldCoordinate((state.canvas.width / 2 - state.panX) / state.zoom);
             const cy = snapWorldCoordinate((state.canvas.height / 2 - state.panY) / state.zoom);
             const offset = (state.walls.length % 5) * cmToPx(FULL_BLOCK_CM);
-            const lenPx = cmToPx(400); // 400 см по умолчанию
+            const lenPx = cmToPx(FULL_BLOCK_CM);
 
             const newWall = {
                 id: state.nextId++,
@@ -19,7 +19,7 @@ function addNewWall() {
             state.selectedOpeningId = null;
             updateInspector();
             render();
-            showToast('Added a 400 cm wall');
+            showToast('Added a 400 mm wall');
         }
 
 function addOpeningToSelectedWall() {
@@ -28,7 +28,7 @@ function addOpeningToSelectedWall() {
 
             const slot = findFreeSlotForOpening(wall, 100);
             if (!slot) {
-                showToast('No free space (min. 20 cm) for a non-overlapping opening!');
+                showToast('No free space (min. 200 mm) for a non-overlapping opening!');
                 return;
             }
 
@@ -45,7 +45,7 @@ function addOpeningToSelectedWall() {
             state.selectedOpeningId = newOp.id;
             updateInspector();
             render();
-            showToast(`Added a ${slot.lenCm} cm opening (position ${slot.startCm}–${slot.startCm + slot.lenCm} cm)`);
+            showToast(`Added a ${slot.lenCm * MM_PER_CM} mm opening (position ${slot.startCm * MM_PER_CM}–${(slot.startCm + slot.lenCm) * MM_PER_CM} mm)`);
         }
 
 function loadDemoHouse() {
@@ -69,7 +69,7 @@ function loadDemoHouse() {
     opening(top, 80, 120, 5, 6, 'window');
     opening(bottom, 80, 100, 1, 11, 'door');
     opening(left, 140, 120, 5, 6, 'window');
-    opening(partition, 160, 80, 1, 10, 'arch');
+    opening(partition, 160, 80, 2, 10, 'window');
     state.walls.push(top, bottom, left, right, partition);
     state.selectedWallId = top.id;
     state.selectedOpeningId = top.openings[0].id;

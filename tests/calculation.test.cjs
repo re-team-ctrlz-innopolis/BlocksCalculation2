@@ -59,28 +59,30 @@ test('openings remove only their active courses and retain all other masonry', (
     assert.equal(run('validateProject().errors.length'), 0);
 });
 
-test('long walls have sections at most 5 m and half-block ends every second course', () => {
+test('5 m control joints have two half blocks on each side in every second course', () => {
     const run = app();
     run(`const make=${wall}; state.walls=[make(1,0,10,1200,10)];`);
-    assert.equal(run('getControlJoints(state.walls[0]).join(",")'), '400,800');
-    assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.some(b=>b.startCm<400 && b.startCm+b.lenCm>400)'), false);
-    assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.find(b=>b.startCm===400).kind'), 'half');
-    assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.find(b=>b.startCm+b.lenCm===400).kind'), 'half');
+    assert.equal(run('getControlJoints(state.walls[0]).join(",")'), '500,1000');
+    assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.some(b=>b.startCm<500 && b.startCm+b.lenCm>500)'), false);
+    assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.filter(b=>[460,480,500,520].includes(b.startCm)).length'), 4);
+    assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.some(b=>b.startCm<1000 && b.startCm+b.lenCm>1000)'), false);
+    assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.filter(b=>[960,980,1000,1020].includes(b.startCm)).length'), 4);
     assert.equal(run('validateProject().errors.length'), 0);
 });
 
-test('control joints avoid openings and report impossible placement', () => {
+test('control joints stay at fixed 5 m intervals and report openings in their clearance zones', () => {
     const run = app();
     run(`const make=${wall}; state.walls=[make(1,0,10,600,10)]; state.walls[0].openings=[{id:2,offset:300,length:120,startRow:4,rowCount:3,type:'window'}];`);
-    assert.ok(run('getControlJoints(state.walls[0]).every(x=>x<220 || x>380)'));
+    assert.equal(run('getControlJoints(state.walls[0]).join(",")'), '500');
+    assert.ok(run('validateProject().errors.some(s=>s.includes("control-joint detail"))'));
     run(`state.walls[0].openings=[{id:2,offset:270,length:500,startRow:4,rowCount:3,type:'window'}];`);
-    assert.ok(run('validateProject().errors.some(s=>s.includes("cannot place control joints"))'));
+    assert.ok(run('validateProject().errors.some(s=>s.includes("control-joint detail"))'));
 });
 
 test('invalid lengths, overlapping walls, X crossings and wide lintels block final reports', () => {
     const run = app();
     run(`const make=${wall}; state.walls=[make(1,0,10,410,10)];`);
-    assert.ok(run('validateProject().errors.some(s=>s.includes("20 cm modules"))'));
+    assert.ok(run('validateProject().errors.some(s=>s.includes("200 mm modules"))'));
     run('state.walls=[make(1,0,10,400,10),make(2,0,10,400,10)];');
     assert.ok(run('validateProject().errors.some(s=>s.includes("overlap"))'));
     run('state.walls=[make(1,0,10,400,10),make(2,200,-100,200,100)];');
@@ -119,6 +121,15 @@ test('five-metre wall needs no control joint; one extra module needs one', () =>
     run('state.walls[0].x2=520;');
     assert.equal(run('getControlJoints(state.walls[0]).length'), 1);
     assert.equal(run('validateProject().errors.length'), 0);
+});
+
+test('100,000 mm wall limit and exact control-joint multiples are enforced', () => {
+    const run = app();
+    run(`const make=${wall}; state.walls=[make(1,0,10,10000,10)];`);
+    assert.equal(run('validateProject().errors.length'), 0);
+    assert.equal(run('getControlJoints(state.walls[0]).length'), 19);
+    run('state.walls[0].x2=10020;');
+    assert.ok(run('validateProject().errors.some(s=>s.includes("100000 mm"))'));
 });
 
 test('lowering and restoring height preserves openings and reports temporary overflow', () => {

@@ -18,11 +18,11 @@ function updateBlockCalculator() {
                 const row = document.createElement('div');
                 row.className = 'flex items-center justify-between bg-slate-900/80 px-2 py-1 rounded border border-slate-800';
                 row.innerHTML = `
-                    <span class="text-slate-300 font-medium">Wall #${w.id} (${getWallLengthCm(w)} × ${formatCm(getWallRows(w) * COURSE_HEIGHT_CM)} cm)</span>
+                    <span class="text-slate-300 font-medium">Wall #${w.id} (${Math.round(getWallLengthCm(w) * MM_PER_CM)} × ${Math.round(getWallRows(w) * COURSE_HEIGHT_CM * MM_PER_CM)} mm)</span>
                     <span class="text-slate-400">
-                        <b class="text-blue-400">${st.fullCount}</b>×40 +
-                        <b class="text-amber-400">${st.halfCount}</b>×20
-                        ${st.unfilledCm > 0 ? `<span class="text-red-300">• ${st.unfilledCm} cm remainder across courses</span>` : ''}
+                        <b class="text-blue-400">${st.fullCount}</b>×400 +
+                        <b class="text-amber-400">${st.halfCount}</b>×200
+                        ${st.unfilledCm > 0 ? `<span class="text-red-300">• ${Math.round(st.unfilledCm * MM_PER_CM)} mm remainder across courses</span>` : ''}
                     </span>
                 `;
                 row.tabIndex = 0;
@@ -36,13 +36,13 @@ function updateBlockCalculator() {
 
             updateProjectStatus();
             document.getElementById('calcWallsCount').textContent = `${state.walls.length} walls`;
-            document.getElementById('valTotalRows').textContent = `${state.totalWallRows} courses / ${formatCm(state.totalWallRows * COURSE_HEIGHT_CM)} cm`;
+            document.getElementById('valTotalRows').textContent = `${state.totalWallRows} courses / ${Math.round(state.totalWallRows * COURSE_HEIGHT_CM * MM_PER_CM)} mm`;
             document.getElementById('totFullBlocks').textContent = grandFull;
             document.getElementById('totHalfBlocks').textContent = grandHalf;
             document.getElementById('totAllBlocks').textContent = grandFull + grandHalf;
             document.getElementById('totJointsBadge').textContent = `L: ${lCount} | T: ${tCount}`;
             const unfilledEl = document.getElementById('totUnfilled');
-            unfilledEl.textContent = grandUnfilledCm > 0 ? `Remainder across courses: ${grandUnfilledCm} cm` : '';
+            unfilledEl.textContent = grandUnfilledCm > 0 ? `Remainder across courses: ${Math.round(grandUnfilledCm * MM_PER_CM)} mm` : '';
             unfilledEl.classList.toggle('hidden', grandUnfilledCm <= 0);
         }
 
@@ -63,15 +63,15 @@ function updateInspector() {
             wallPanel.classList.remove('hidden');
 
             document.getElementById('inputWallRows').value = getWallRows(wall);
-            document.getElementById('valWallHeight').textContent = `${formatCm(getWallRows(wall) * COURSE_HEIGHT_CM)} cm`;
-            document.getElementById('wallControlJoints').textContent = getControlJoints(wall).map(x => `${x} cm`).join(', ') || 'None required';
+            document.getElementById('valWallHeight').textContent = `${Math.round(getWallRows(wall) * COURSE_HEIGHT_CM * MM_PER_CM)} mm`;
+            document.getElementById('wallControlJoints').textContent = getControlJoints(wall).map(x => `${Math.round(x * MM_PER_CM)} mm`).join(', ') || 'None required';
             const lenCm = getWallLengthCm(wall);
             const minAllowedLenCm = getMinAllowedWallLengthCm(wall);
             const angleDeg = getWallAngleDeg(wall);
             const st = calculateWallBlocks(wall);
 
             document.getElementById('inspWallName').textContent = `Wall #${wall.id}`;
-            document.getElementById('inspWallBlocksBadge').textContent = `${st.fullCount} full / ${st.halfCount} half${st.unfilledCm > 0 ? ` • ${st.unfilledCm} cm remainder` : ''}`;
+            document.getElementById('inspWallBlocksBadge').textContent = `${st.fullCount} full / ${st.halfCount} half${st.unfilledCm > 0 ? ` • ${Math.round(st.unfilledCm * MM_PER_CM)} mm remainder` : ''}`;
 
             // Информация об L и T соединениях выбранной стены
             const allJoints = getAllWallJoints();
@@ -83,18 +83,18 @@ function updateInspector() {
 
             // Ползунок длины стены с учётом ограничения по проёмам
             const sliderLen = document.getElementById('sliderWallLength');
-            sliderLen.min = minAllowedLenCm;
-            sliderLen.max = MAX_WALL_CM;
-            sliderLen.step = BLOCK_GRID_CM;
-            sliderLen.value = lenCm;
-            document.getElementById('valWallLength').textContent = `${lenCm} cm`;
-            document.getElementById('lblMinWallLen').textContent = `Min: ${minAllowedLenCm} cm`;
+            sliderLen.min = minAllowedLenCm * MM_PER_CM;
+            sliderLen.max = MAX_WALL_MM;
+            sliderLen.step = BLOCK_GRID_CM * MM_PER_CM;
+            sliderLen.value = lenCm * MM_PER_CM;
+            document.getElementById('valWallLength').textContent = `${lenCm * MM_PER_CM} mm`;
+            document.getElementById('lblMinWallLen').textContent = `Min: ${minAllowedLenCm * MM_PER_CM} mm`;
 
             const r1 = buildWallRowLayout(wall, 1);
             const r1Full = r1.blocks.filter(b => b.kind === 'full').length;
             const r1Half = r1.blocks.filter(b => b.kind === 'half').length;
             document.getElementById('lblRow1Summary').textContent =
-                `${r1Full}×40, ${r1Half}×20${r1.unfilledCm > 0 ? `, ${r1.unfilledCm} cm unfilled` : ''}`;
+                `${r1Full}×400, ${r1Half}×200${r1.unfilledCm > 0 ? `, ${Math.round(r1.unfilledCm * MM_PER_CM)} mm unfilled` : ''}`;
 
             // Ползунок угла
             document.getElementById('valWallDirection').textContent = Math.abs(Math.sin(getWallAngleRad(wall))) < 0.01 ? 'Horizontal' : 'Vertical';
@@ -105,7 +105,7 @@ function updateInspector() {
             btnAddOp.disabled = !freeSlot || getWallRows(wall) < 4;
             btnAddOp.title = freeSlot
                 ? 'Add an opening in available wall space'
-                : 'No free space (min. 20 cm). Extend the wall or reduce the openings.';
+                : 'No free space (min. 200 mm). Extend the wall or reduce the openings.';
 
             // Список проёмов стены
             const listEl = document.getElementById('openingsList');
@@ -137,9 +137,9 @@ function updateInspector() {
                     item.innerHTML = `
                         <div class="flex items-center gap-2">
                             <span class="text-[10px] px-1.5 py-0.5 rounded border ${badgeColor}">${typeLabel} #${idx + 1}</span>
-                            <span>${startCm}–${endCm} cm</span>
+                            <span>${startCm * MM_PER_CM}–${endCm * MM_PER_CM} mm</span>
                         </div>
-                        <span class="font-semibold text-slate-200">${lenCm} cm</span>
+                        <span class="font-semibold text-slate-200">${lenCm * MM_PER_CM} mm</span>
                     `;
                     item.addEventListener('click', () => {
                         state.selectedOpeningId = op.id;
@@ -173,38 +173,41 @@ function updateInspector() {
                 // Ползунок положения проёма (зажат между соседями)
                 const sliderOpOffset = document.getElementById('sliderOpeningOffset');
                 const maxStartCm = Math.max(limits.minCm, limits.maxCm - lenCm);
-                sliderOpOffset.min = limits.minCm;
-                sliderOpOffset.max = maxStartCm;
-                sliderOpOffset.step = BLOCK_GRID_CM;
-                sliderOpOffset.value = startCm;
+                sliderOpOffset.min = limits.minCm * MM_PER_CM;
+                sliderOpOffset.max = maxStartCm * MM_PER_CM;
+                sliderOpOffset.step = BLOCK_GRID_CM * MM_PER_CM;
+                sliderOpOffset.value = startCm * MM_PER_CM;
                 sliderOpOffset.disabled = (maxStartCm <= limits.minCm);
 
-                document.getElementById('valOpeningOffset').textContent = `${startCm} cm`;
-                document.getElementById('lblOpMinOffset').textContent = `Min: ${limits.minCm} cm`;
-                document.getElementById('lblOpMaxOffset').textContent = `Max: ${maxStartCm} cm`;
+                document.getElementById('valOpeningOffset').textContent = `${startCm * MM_PER_CM} mm`;
+                document.getElementById('lblOpMinOffset').textContent = `Min: ${limits.minCm * MM_PER_CM} mm`;
+                document.getElementById('lblOpMaxOffset').textContent = `Max: ${maxStartCm * MM_PER_CM} mm`;
 
                 // Ползунок ширины проёма (не позволяет наехать на правого соседа)
                 const maxLenAtCurrentPos = Math.max(HALF_BLOCK_CM, limits.maxCm - startCm);
                 const sliderOpLen = document.getElementById('sliderOpeningLength');
-                sliderOpLen.min = HALF_BLOCK_CM;
-                sliderOpLen.max = maxLenAtCurrentPos;
-                sliderOpLen.step = BLOCK_GRID_CM;
-                sliderOpLen.value = lenCm;
+                sliderOpLen.min = HALF_BLOCK_MM;
+                sliderOpLen.max = maxLenAtCurrentPos * MM_PER_CM;
+                sliderOpLen.step = BLOCK_GRID_MM;
+                sliderOpLen.value = lenCm * MM_PER_CM;
                 sliderOpLen.disabled = (maxLenAtCurrentPos <= HALF_BLOCK_CM);
-                document.getElementById('valOpeningLength').textContent = `${lenCm} cm (max. ${maxLenAtCurrentPos} cm)`;
+                document.getElementById('valOpeningLength').textContent = `${lenCm * MM_PER_CM} mm (max. ${maxLenAtCurrentPos * MM_PER_CM} mm)`;
 
                 // Ряды проёма по высоте
                 const sliderStartRow = document.getElementById('sliderOpStartRow');
+                sliderStartRow.min = selectedOp.type === 'window' ? 2 : 1;
                 sliderStartRow.max = Math.max(getWallRows(wall), selectedOp.startRow || 1);
-                sliderStartRow.value = selectedOp.startRow || 1;
+                sliderStartRow.value = selectedOp.type === 'window'
+                    ? Math.max(2, selectedOp.startRow || 2)
+                    : 1;
                 sliderStartRow.disabled = selectedOp.type === 'door';
                 sliderStartRow.title = selectedOp.type === 'door' ? 'Doors start at floor level (course 1).' : '';
                 document.getElementById('doorFloorNote').classList.toggle('hidden', selectedOp.type !== 'door');
-                document.getElementById('valOpStartRow').textContent = `${selectedOp.startRow || 1} (${formatCm(((selectedOp.startRow || 1) - 1) * COURSE_HEIGHT_CM)} cm sill)`;
+                document.getElementById('valOpStartRow').textContent = `${selectedOp.type === 'window' ? Math.max(2, selectedOp.startRow || 2) : 1} (${Math.round(((selectedOp.startRow || 1) - 1) * COURSE_HEIGHT_CM * MM_PER_CM)} mm sill)`;
 
                 const sliderRowCount = document.getElementById('sliderOpRowCount');
                 sliderRowCount.max = Math.max(selectedOp.rowCount || 1, getWallRows(wall) - (selectedOp.startRow || 1) + 1, 1);
                 sliderRowCount.value = selectedOp.rowCount || 7;
-                document.getElementById('valOpRowCount').textContent = `${selectedOp.rowCount || 7} (${formatCm((selectedOp.rowCount || 7) * COURSE_HEIGHT_CM)} cm)`;
+                document.getElementById('valOpRowCount').textContent = `${selectedOp.rowCount || 7} (${Math.round((selectedOp.rowCount || 7) * COURSE_HEIGHT_CM * MM_PER_CM)} mm)`;
             }
         }
