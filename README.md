@@ -27,6 +27,7 @@ Open `http://localhost:8000/draft.html`. Tailwind styles and the Inter font are 
 - Control joints at fixed 5,000 mm intervals, with sections no longer than 5 m, one half block on each side of the joint in every second course, and markers in both views.
 - Validation messages for unsupported geometry. The final report is unavailable when errors exist, and preliminary quantities are marked as drafts.
 - CSV export and a printable report; PDF output through the browser's print dialog.
+- The File menu next to the application name groups Open project / Save project (JSON), Print / Save PDF, and Export CSV. Result exports are disabled when the model has validation errors. Close the menu by choosing an action, clicking outside it, or pressing Escape; keyboard navigation is also supported.
 - Autosave in the current browser, plus JSON project export and import with structure and identifier validation. A failed import does not replace the current project.
 
 ## Adopted model and accuracy limits

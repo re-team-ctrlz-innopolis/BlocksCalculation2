@@ -240,7 +240,44 @@ function restoreProject(data) {
     document.getElementById('sliderTotalRows').value = rows;
 }
 
+function bindFileMenuEvents() {
+    const menu = document.getElementById('fileMenu');
+    const trigger = menu.querySelector('summary');
+    const actions = () => [...menu.querySelectorAll('button:not(:disabled)')];
+    menu.addEventListener('click', e => {
+        const button = e.target.closest('button');
+        if (button && !button.disabled) { menu.open = false; trigger.focus(); }
+    });
+    menu.addEventListener('keydown', e => {
+        const buttons = actions();
+        if (!buttons.length) return;
+        const index = buttons.indexOf(document.activeElement);
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            menu.open = true;
+            const next = index < 0 ? (e.key === 'ArrowDown' ? 0 : buttons.length - 1)
+                : (index + (e.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length;
+            buttons[next].focus();
+        } else if (menu.open && (e.key === 'Home' || e.key === 'End')) {
+            e.preventDefault();
+            buttons[e.key === 'Home' ? 0 : buttons.length - 1].focus();
+        }
+    });
+    menu.addEventListener('focusout', e => {
+        if (e.relatedTarget && !menu.contains(e.relatedTarget)) menu.open = false;
+    });
+    document.addEventListener('pointerdown', e => {
+        if (!menu.contains(e.target)) menu.open = false;
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && menu.open) {
+            e.preventDefault(); menu.open = false; trigger.focus();
+        }
+    });
+}
+
 function bindProjectEvents() {
+    bindFileMenuEvents();
     document.getElementById('planCourse').addEventListener('change', e => {
         state.activePlanRow = Number(e.target.value);
         render();
