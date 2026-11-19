@@ -275,7 +275,10 @@ function drawWall(wall, isSelected, allJoints) {
                 state.ctx.font = 'bold 9px Inter, sans-serif';
                 state.ctx.textAlign = 'center';
                 state.ctx.textBaseline = 'middle';
-                state.ctx.fillText(`${lenCm}`, 0, 0);
+                const openingLabel = `${Math.round(lenCm * MM_PER_CM)} mm`;
+                if (state.ctx.measureText(openingLabel).width <= ow - 8) {
+                    state.ctx.fillText(openingLabel, 0, 0);
+                }
                 state.ctx.restore();
             }
 
@@ -306,23 +309,25 @@ function drawWall(wall, isSelected, allJoints) {
             state.ctx.fillText(`${lenCm * MM_PER_CM} mm`, 0, 0);
             state.ctx.restore();
 
-            for (const mark of [{ x: 0, label: 'L', color: '#38bdf8' }, { x: lenPx, label: 'R', color: '#fbbf24' }]) {
-                state.ctx.save();
-                state.ctx.translate(mark.x, halfThick + 14 / state.zoom);
-                state.ctx.rotate(-angle);
-                state.ctx.fillStyle = '#0f172a';
-                state.ctx.strokeStyle = mark.color;
-                state.ctx.lineWidth = 1 / state.zoom;
-                state.ctx.beginPath();
-                state.ctx.arc(0, 0, 7 / state.zoom, 0, Math.PI * 2);
-                state.ctx.fill();
-                state.ctx.stroke();
-                state.ctx.fillStyle = '#f8fafc';
-                state.ctx.font = `bold ${9 / state.zoom}px Inter, sans-serif`;
-                state.ctx.textAlign = 'center';
-                state.ctx.textBaseline = 'middle';
-                state.ctx.fillText(mark.label, 0, 0);
-                state.ctx.restore();
+            if (isSelected) {
+                for (const mark of [{ x: 0, label: 'L', color: '#38bdf8' }, { x: lenPx, label: 'R', color: '#fbbf24' }]) {
+                    state.ctx.save();
+                    state.ctx.translate(mark.x, halfThick + 14 / state.zoom);
+                    state.ctx.rotate(-angle);
+                    state.ctx.fillStyle = '#0f172a';
+                    state.ctx.strokeStyle = mark.color;
+                    state.ctx.lineWidth = 1 / state.zoom;
+                    state.ctx.beginPath();
+                    state.ctx.arc(0, 0, 7 / state.zoom, 0, Math.PI * 2);
+                    state.ctx.fill();
+                    state.ctx.stroke();
+                    state.ctx.fillStyle = '#f8fafc';
+                    state.ctx.font = `bold ${9 / state.zoom}px Inter, sans-serif`;
+                    state.ctx.textAlign = 'center';
+                    state.ctx.textBaseline = 'middle';
+                    state.ctx.fillText(mark.label, 0, 0);
+                    state.ctx.restore();
+                }
             }
 
             state.ctx.restore();
@@ -429,18 +434,18 @@ function drawElevationView(allJoints) {
             const subEl = document.getElementById('elevationSubtitle');
 
             if (!wall) {
-                titleEl.textContent = 'Block layout (side view by courses)';
-                subEl.textContent = '— add a wall';
+                titleEl.textContent = 'Block layout';
+                subEl.textContent = 'Add a wall to begin';
                 return;
             }
 
             const joints = allJoints || getAllWallJoints();
             const wallLenCm = getWallLengthCm(wall);
             const stats = calculateWallBlocks(wall, joints);
-            titleEl.textContent = `Elevation: Wall #${wall.id} (${wallLenCm * MM_PER_CM} mm × ${getWallRows(wall)} courses)`;
-            subEl.textContent = `Full 400 mm blocks: ${stats.fullCount} | Half 200 mm blocks: ${stats.halfCount}${stats.unfilledCm > 0 ? ` | Remainder across courses: ${Math.round(stats.unfilledCm * MM_PER_CM)} mm` : ''}`;
+            titleEl.textContent = `Wall #${wall.id} · ${wallLenCm * MM_PER_CM} mm · ${getWallRows(wall)} courses`;
+            subEl.textContent = `Full: ${stats.fullCount} · Half: ${stats.halfCount}${stats.unfilledCm > 0 ? ` · Unfilled: ${Math.round(stats.unfilledCm * MM_PER_CM)} mm` : ''}`;
 
-            const padLeft = 44;
+            const padLeft = 72;
             const padRight = 24;
             const padTop = 18;
             const padBottom = 22;
@@ -476,7 +481,7 @@ function drawElevationView(allJoints) {
                     state.elevCtx.font = '10px Inter, sans-serif';
                     state.elevCtx.textAlign = 'right';
                     state.elevCtx.textBaseline = 'middle';
-                    state.elevCtx.fillText(`C${r}`, startX - 8, y + rowH / 2);
+                    state.elevCtx.fillText(`Course ${r}`, startX - 8, y + rowH / 2);
                 }
 
                 // Draw the 20 cm corner overlap contributed by the perpendicular wall.
@@ -625,7 +630,7 @@ function drawElevationView(allJoints) {
                 state.elevCtx.fillStyle = '#67e8f9';
                 state.elevCtx.font = 'bold 9px Inter, sans-serif';
                 state.elevCtx.textAlign = 'center';
-                state.elevCtx.fillText(`T-joint (${jt.cellStartCm}–${jt.cellEndCm})`, cellX + cellW / 2, padTop - 3);
+                state.elevCtx.fillText('T-junction', cellX + cellW / 2, padTop - 3);
                 state.elevCtx.restore();
             }
         }

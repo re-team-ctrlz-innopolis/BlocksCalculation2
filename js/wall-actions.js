@@ -19,7 +19,6 @@ function addNewWall() {
             state.selectedOpeningId = null;
             updateInspector();
             render();
-            showToast('Added a 400 mm wall');
         }
 
 function addOpeningToSelectedWall() {
@@ -28,7 +27,7 @@ function addOpeningToSelectedWall() {
 
             const slot = findFreeSlotForOpening(wall, 100);
             if (!slot) {
-                showToast('No free space (min. 200 mm) for a non-overlapping opening!');
+                showToast('No space for an opening. Lengthen the wall or reduce existing openings.');
                 return;
             }
 
@@ -45,7 +44,6 @@ function addOpeningToSelectedWall() {
             state.selectedOpeningId = newOp.id;
             updateInspector();
             render();
-            showToast(`Added a ${slot.lenCm * MM_PER_CM} mm opening (position ${slot.startCm * MM_PER_CM}–${(slot.startCm + slot.lenCm) * MM_PER_CM} mm)`);
         }
 
 function loadDemoHouse() {
