@@ -15,7 +15,7 @@ Open `http://localhost:8000/draft.html`. Tailwind styles and the Inter font are 
 ## Features
 
 - Add, delete, move, resize, and rotate walls in 90° increments.
-- Press Delete to remove the selected wall or opening. Clearing the canvas and loading the sample project require confirmation.
+- Press Delete or Backspace (the Delete key on a Mac keyboard) to remove the selected wall or opening. Clicking wall masonry selects the wall; clicking an opening selects that opening. Selecting a wall does not automatically select one of its openings. The shortcuts preserve text editing in fields, ignore held-key repeats and modifier combinations, and are inactive while the File menu is open. Deletions can be undone with Ctrl/Cmd+Z. Clearing the canvas and loading the sample project require confirmation.
 - Camera controls: scroll to zoom around the cursor; drag empty space with the left mouse button, or drag anywhere with the middle button, to pan. Reset restores the camera position and zoom.
 - Use the back arrow or Ctrl/Cmd+Z to undo plan edits: creation, deletion, property changes, rotation, dragging, clearing, and importing. Use the forward arrow, Ctrl/Cmd+Shift+Z, or Ctrl/Cmd+Y to redo an undone edit. A new edit clears the redo history. Each drag gesture counts as one operation. Up to 50 operations are retained for the current session; camera movements are excluded. When typing in a field, the browser's native text undo remains available.
 - Wall orientation is shown as Horizontal / Vertical. Turn left / Turn right rotates the wall by a quarter turn without entering angles.

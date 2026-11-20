@@ -1,3 +1,31 @@
+function finishDeletion() {
+    state.dragState = null;
+    state.activeSnapPreview = null;
+    state.canvas.style.cursor = '';
+    state.cancelElevationDrag?.();
+    updateInspector();
+    render();
+    saveProjectLocally();
+}
+
+function removeWall(wallId) {
+    if (!state.walls.some(wall => wall.id === wallId)) return false;
+    state.walls = state.walls.filter(wall => wall.id !== wallId);
+    state.selectedWallId = null;
+    state.selectedOpeningId = null;
+    finishDeletion();
+    return true;
+}
+
+function removeOpening(wallId, openingId) {
+    const wall = state.walls.find(wall => wall.id === wallId);
+    if (!wall || !wall.openings.some(opening => opening.id === openingId)) return false;
+    wall.openings = wall.openings.filter(opening => opening.id !== openingId);
+    state.selectedOpeningId = null;
+    finishDeletion();
+    return true;
+}
+
 function addNewWall() {
             const cx = snapWorldCoordinate((state.canvas.width / 2 - state.panX) / state.zoom);
             const cy = snapWorldCoordinate((state.canvas.height / 2 - state.panY) / state.zoom);
