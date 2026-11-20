@@ -801,3 +801,84 @@ test('delete buttons use the same undoable removal behavior as keyboard shortcut
     run('undoLastEdit();');
     assert.equal(run('state.walls[0].openings.length'),1);
 });
+
+test('the 9-to-10-course corner transition keeps full-block joints staggered', () => {
+    const run=app();
+    run(`const make=${wall};state.walls=[make(1,10,0,10,200,9),make(2,0,10,260,10,17),make(3,250,0,250,200,9)];const tall=state.walls[1];const ninth=buildWallRowLayout(tall,9),tenth=buildWallRowLayout(tall,10);const seams=l=>l.blocks.slice(1).map(b=>b.startCm).filter(x=>x>40&&x<220);`);
+    assert.equal(run('ninth.rowStartCm'),20);
+    assert.equal(run('tenth.rowStartCm'),0);
+    assert.equal(run('tenth.rowEndCm'),260);
+    assert.equal(run('seams(ninth).some(x=>seams(tenth).includes(x))'),false);
+    assert.equal(run('tenth.blocks.at(-1).kind'),'half');
+    assert.equal(run('calculateWallBlocks(tall).unfilledCm'),0);
+});
+
+test('unequal-height corner totals reflect the continued bond in the final report', () => {
+    const run=app();
+    run(`const make=${wall};state.walls=[make(1,10,0,10,200,8),make(2,0,10,400,10,17)];const tall=state.walls[1];const result=calculateWallBlocks(tall);`);
+    // First 8 courses: 76 full + 4 half. Next 9 courses: 85 full + 10 half.
+    assert.equal(run('result.fullCount'),161);
+    assert.equal(run('result.halfCount'),14);
+    assert.equal(run('result.totalCount'),175);
+    assert.equal(run('getProjectReport().find(w=>w.id===2).fullCount'),161);
+    assert.equal(run('getProjectReport().find(w=>w.id===2).halfCount'),14);
+    assert.equal(run('JSON.stringify(validateProject().errors)'),'[]');
+});
+
+test('different corner heights preserve interior bond and count every cell once across orientations', () => {
+    const run=app();
+    run(`const make=${wall};function checkHeightTransitions(){
+        for(const length of [160,180,260,400])for(const leftRows of [3,8,9,14])for(const rightRows of [2,7,10,16])for(const reversed of [false,true])for(let turn=0;turn<4;turn++){
+            state.walls=[make(1,10,0,10,200,leftRows),make(2,0,10,length,10,17),make(3,length-10,0,length-10,200,rightRows)];
+            const tall=state.walls[1];
+            if(reversed){[tall.x1,tall.x2]=[tall.x2,tall.x1];[tall.y1,tall.y2]=[tall.y2,tall.y1];}
+            for(const wall of state.walls)for(let t=0;t<turn;t++){[wall.x1,wall.y1]=[-wall.y1,wall.x1];[wall.x2,wall.y2]=[-wall.y2,wall.x2];}
+            const joints=getAllWallJoints();
+            let previousSeams=[];
+            const key=p=>Math.round(p.x)+','+Math.round(p.y);
+            for(let row=1;row<=17;row++){
+                const layout=buildWallRowLayout(tall,row,joints);
+                const seams=layout.blocks.slice(1).map(b=>b.startCm).filter(x=>x>40&&x<length-40);
+                if(layout.unfilledCm!==0||seams.some(x=>previousSeams.includes(x)))return {length,leftRows,rightRows,reversed,turn,row,error:'repeated interior joints'};
+                previousSeams=seams;
+                const expected=new Set(),actual=new Set();
+                for(const wall of state.walls){
+                    if(row>wall.rows)continue;
+                    for(let x=10;x<getWallLengthCm(wall);x+=20)expected.add(key(wallLocalToWorld(wall,x,0)));
+                    for(const block of buildWallRowLayout(wall,row,joints).blocks)for(let x=block.startCm+10;x<block.startCm+block.lenCm;x+=20){
+                        const cell=key(wallLocalToWorld(wall,x,0));
+                        if(actual.has(cell))return {length,leftRows,rightRows,reversed,turn,row,error:'duplicate cell'};
+                        actual.add(cell);
+                    }
+                }
+                if(expected.size!==actual.size||[...expected].some(cell=>!actual.has(cell)))return {length,leftRows,rightRows,reversed,turn,row,error:'missing masonry'};
+            }
+        }
+        return null;
+    }`);
+    assert.equal(run('JSON.stringify(checkHeightTransitions())'),'null');
+});
+
+test('openings above a shorter wall retain row-specific deductions and staggered joints', () => {
+    const run=app();
+    run(`const make=${wall};state.walls=[make(1,10,0,10,200,9),make(2,0,10,260,10,17),make(3,250,0,250,200,9)];const tall=state.walls[1];tall.openings=[{id:4,offset:120,length:80,startRow:12,rowCount:3,type:'window'}];`);
+    for (const [row,expectedLength] of [[9,240],[10,260],[11,260],[12,180],[13,180],[14,180],[15,260]]) {
+        assert.equal(run(`buildWallRowLayout(tall,${row}).blocks.reduce((sum,b)=>sum+b.lenCm,0)`),expectedLength);
+    }
+    assert.equal(run('Array.from({length:17},(_,i)=>buildWallRowLayout(tall,i+1).blocks.reduce((sum,b)=>sum+b.lenCm,0)).reduce((sum,n)=>sum+n,0)'),4000);
+    assert.equal(run('calculateWallBlocks(tall).unfilledCm'),0);
+    assert.equal(run('JSON.stringify(validateProject().errors)'),'[]');
+});
+
+test('an end-only L-corner keeps its bond when the shorter neighbour ends on an even course', () => {
+    const run=app();
+    run(`const make=${wall};state.walls=[make(1,0,10,260,10,17),make(2,250,0,250,200,8)];const tall=state.walls[0];const eighth=buildWallRowLayout(tall,8),ninth=buildWallRowLayout(tall,9);`);
+    assert.equal(run('eighth.cornerState.endIsLCorner'),true);
+    assert.equal(run('eighth.rowEndCm'),240);
+    assert.equal(run('ninth.cornerState.endIsLCorner'),false);
+    assert.equal(run('ninth.rowEndCm'),260);
+    assert.equal(run('ninth.blocks[0].kind'),'half');
+    assert.equal(run('ninth.blocks.at(-1).kind'),'full');
+    assert.equal(run('ninth.blocks.slice(1).filter(b=>b.startCm>40&&b.startCm<220).some(b=>eighth.blocks.some(p=>p.startCm===b.startCm))'),false);
+    assert.equal(run('calculateWallBlocks(tall).unfilledCm'),0);
+});
