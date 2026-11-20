@@ -12,6 +12,15 @@ python -m http.server 8000
 
 Open `http://localhost:8000/draft.html`. Tailwind styles and the Inter font are loaded over the internet, as in the original project. No build tool, npm packages, or backend are required.
 
+## Saved examples
+
+Choose **File → Open project** and select one of the current-format projects:
+
+- [`examples/sample-house.json`](examples/sample-house.json): a house with a 3,600 mm internal partition.
+- [`examples/nested-partition.json`](examples/nested-partition.json): the same house with an additional 2,800 mm partition connected at both ends.
+
+Both examples use `modular-cells-v3`, 200 mm courses, and only Window/Door opening types. In `sample-house.json` and the built-in sample, the internal partition has an 800 × 2,000 mm Door starting at course 1. In `nested-partition.json`, the former `arch` opening is represented as a rectangular Window starting at course 2. The examples pass validation and contain no migration notices. `../review/nested-partition.json` is an identical copy of the second example. Files under `tests/fixtures/legacy-*` intentionally retain the old format for migration tests; the overlap and short-corner fixtures intentionally retain invalid geometry.
+
 ## Features
 
 - Add, delete, move, resize, and rotate walls in 90° increments.

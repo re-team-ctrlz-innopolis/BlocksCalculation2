@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "model": "nominal-400-200-mm",
+  "planGeometry": "modular-cells-v3",
+  "walls": [
+    {
+      "id": 1,
+      "x1": 200,
+      "y1": 150,
+      "x2": 800,
+      "y2": 150,
+      "rows": 17,
+      "openings": [
+        {
+          "id": 6,
+          "offset": 140,
+          "length": 120,
+          "type": "window",
+          "startRow": 5,
+          "rowCount": 6
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "x1": 200,
+      "y1": 530,
+      "x2": 800,
+      "y2": 530,
+      "rows": 17,
+      "openings": [
+        {
+          "id": 7,
+          "offset": 130,
+          "length": 100,
+          "type": "door",
+          "startRow": 1,
+          "rowCount": 11
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "x1": 210,
+      "y1": 140,
+      "x2": 210,
+      "y2": 540,
+      "rows": 17,
+      "openings": [
+        {
+          "id": 8,
+          "offset": 200,
+          "length": 120,
+          "type": "window",
+          "startRow": 5,
+          "rowCount": 6
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "x1": 790,
+      "y1": 140,
+      "x2": 790,
+      "y2": 540,
+      "rows": 17,
+      "openings": []
+    },
+    {
+      "id": 5,
+      "x1": 510,
+      "y1": 160,
+      "x2": 510,
+      "y2": 520,
+      "rows": 15,
+      "openings": [
+        {
+          "id": 9,
+          "offset": 200,
+          "length": 80,
+          "type": "door",
+          "startRow": 1,
+          "rowCount": 10
+        }
+      ]
+    }
+  ],
+  "nextId": 10,
+  "totalWallRows": 17,
+  "migrationNotes": []
+}

@@ -67,7 +67,7 @@ function loadDemoHouse() {
     opening(top, 80, 120, 5, 6, 'window');
     opening(bottom, 80, 100, 1, 11, 'door');
     opening(left, 140, 120, 5, 6, 'window');
-    opening(partition, 160, 80, 2, 10, 'window');
+    opening(partition, 160, 80, 1, 10, 'door');
     state.walls.push(top, bottom, left, right, partition);
     state.selectedWallId = top.id;
     state.selectedOpeningId = top.openings[0].id;
