@@ -483,10 +483,7 @@ function decomposeSegmentIntoBlocks(startCm, endCm, seamPhase) {
             let curStart = startCm;
             const curEnd = endCm;
 
-            // 1. Если начало сегмента не совпадает с фазой сетки швов (например, у откоса проёма или свободного торца),
-            // Use one 20 cm half block to align with the full-block seam phase.
-            // При этом в угловом L-соединении curStart ВСЕГДА совпадает с seamPhase (0 в одном ряду и 50 в другом),
-            // This keeps full-block seams aligned at L-joints.
+            // Use a half block when a reveal or free end starts between this course's full-block joints.
             if (curEnd - curStart >= HALF_BLOCK_CM && (curStart % FULL_BLOCK_CM) !== seamPhase) {
                 blocks.push({
                     startCm: curStart,
@@ -522,6 +519,16 @@ function decomposeSegmentIntoBlocks(startCm, endCm, seamPhase) {
             };
         }
 
+function getWallBondPhase(wall, rowIndex, allJoints) {
+    // Anchor the bond to course 1, independently of which neighbours reach the current course.
+    // Only corner insets stop above a shorter wall; the 200 mm course offset must continue.
+    const firstCorner = getWallEndCornerState(wall, 1, allJoints);
+    let firstPhase = 0;
+    if (firstCorner.startIsLCorner) firstPhase = firstCorner.startInsetCm % FULL_BLOCK_CM;
+    else if (firstCorner.endIsLCorner) firstPhase = (getWallLengthCm(wall) - firstCorner.endInsetCm) % FULL_BLOCK_CM;
+    return (firstPhase + (rowIndex - 1) * HALF_BLOCK_CM) % FULL_BLOCK_CM;
+}
+
 function buildWallRowLayout(wall, rowIndex, precomputedJoints = null) {
             const wallLenCm = getWallLengthCm(wall);
             const allJoints = precomputedJoints || getAllWallJoints();
@@ -532,19 +539,7 @@ function buildWallRowLayout(wall, rowIndex, precomputedJoints = null) {
             const rowStartCm = cornerState.startInsetCm;
             const rowEndCm = Math.max(rowStartCm, wallLenCm - cornerState.endInsetCm);
 
-            // Alternate the 0 or 20 cm seam phase:
-            // - Для углового L-соединения (startIsLCorner / endIsLCorner) фаза подбирается так,
-            //   to preserve full 40 cm blocks at the corner.
-            // - For T-joints or free ends, alternate the seam phase between 0 and 20 cm,
-            //   using exact half blocks without cutting into the host wall.
-            let seamPhase;
-            if (cornerState.startIsLCorner) {
-                seamPhase = rowStartCm % FULL_BLOCK_CM;
-            } else if (cornerState.endIsLCorner) {
-                seamPhase = rowEndCm % FULL_BLOCK_CM;
-            } else {
-                seamPhase = (rowIndex % 2 === 0) ? HALF_BLOCK_CM : 0;
-            }
+            const seamPhase = getWallBondPhase(wall, rowIndex, allJoints);
 
             // Находим проёмы, которые попадают в данный ряд по высоте
             const activeOps = wall.openings
