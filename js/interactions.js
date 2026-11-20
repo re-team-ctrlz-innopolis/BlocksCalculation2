@@ -29,6 +29,7 @@ function handlePointerDown(e) {
                 return;
             }
             if (!e.touches && e.button !== 0) return;
+            state.canvas.focus?.({preventScroll: true});
             const pos = getPointerPos(e);
             state.activeSnapPreview = null;
 
@@ -42,16 +43,22 @@ function handlePointerDown(e) {
                     const handleAngle = Math.atan2(rotPos.y - pivot.y, rotPos.x - pivot.x);
                     state.dragState = { type: 'rotate_wall', wall: selWall, pivot,
                         angleOffset: handleAngle - getWallAngleRad(selWall) };
+                    state.selectedOpeningId = null;
+                    updateInspector(); render();
                     return;
                 }
 
                 // Концы выбранной стены
                 if (dist(pos.x, pos.y, selWall.x1, selWall.y1) <= (ENDPOINT_RADIUS + 4) / state.zoom) {
                     state.dragState = { type: 'endpoint_1', wall: selWall };
+                    state.selectedOpeningId = null;
+                    updateInspector(); render();
                     return;
                 }
                 if (dist(pos.x, pos.y, selWall.x2, selWall.y2) <= (ENDPOINT_RADIUS + 4) / state.zoom) {
                     state.dragState = { type: 'endpoint_2', wall: selWall };
+                    state.selectedOpeningId = null;
+                    updateInspector(); render();
                     return;
                 }
 
@@ -132,7 +139,7 @@ function handlePointerDown(e) {
                             grabDeltaPx: cmToPx(getWallPlanProjection(w).unproject(loc.along)) - clickedOp.offset
                         };
                     } else {
-                        state.selectedOpeningId = w.openings[0] ? w.openings[0].id : null;
+                        state.selectedOpeningId = null;
                         state.dragState = {
                             type: 'move_wall',
                             wall: w,
@@ -249,24 +256,19 @@ function handlePointerUp() {
         }
 
 function handleDeleteKeyDown(event) {
-            if (event.key !== 'Delete') return;
+            if (!['Delete', 'Backspace'].includes(event.key) || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
             const target = event.target;
-            if (target instanceof HTMLElement && (target.isContentEditable || target.matches('input, textarea, select'))) return;
+            if (target?.isContentEditable || target?.closest?.('input, textarea, select')) return;
+            if (document.getElementById('fileMenu')?.open) return;
             const wall = state.walls.find(item => item.id === state.selectedWallId);
             if (!wall) return;
 
             event.preventDefault();
             if (state.selectedOpeningId !== null && wall.openings.some(opening => opening.id === state.selectedOpeningId)) {
-                wall.openings = wall.openings.filter(opening => opening.id !== state.selectedOpeningId);
-                state.selectedOpeningId = wall.openings[0] ? wall.openings[0].id : null;
+                removeOpening(wall.id, state.selectedOpeningId);
             } else {
-                state.walls = state.walls.filter(item => item.id !== wall.id);
-                state.selectedWallId = state.walls[0] ? state.walls[0].id : null;
-                state.selectedOpeningId = null;
+                removeWall(wall.id);
             }
-            updateInspector();
-            render();
-            saveProjectLocally();
         }
 
 function bindEvents() {
@@ -359,20 +361,11 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
         }
 
         document.getElementById('btnDeleteWall').addEventListener('click', () => {
-            state.walls = state.walls.filter(w => w.id !== state.selectedWallId);
-            state.selectedWallId = state.walls[0] ? state.walls[0].id : null;
-            state.selectedOpeningId = null;
-            updateInspector();
-            render();
+            removeWall(state.selectedWallId);
         });
 
         document.getElementById('btnDeleteOpening').addEventListener('click', () => {
-            const wall = state.walls.find(w => w.id === state.selectedWallId);
-            if (!wall) return;
-            wall.openings = wall.openings.filter(o => o.id !== state.selectedOpeningId);
-            state.selectedOpeningId = wall.openings[0] ? wall.openings[0].id : null;
-            updateInspector();
-            render();
+            removeOpening(state.selectedWallId, state.selectedOpeningId);
         });
 
         document.querySelectorAll('.opening-type-btn').forEach(btn => {

@@ -68,6 +68,8 @@ function updateInspector() {
             const lenCm = getWallLengthCm(wall);
             const minAllowedLenCm = getMinAllowedWallLengthCm(wall);
             document.getElementById('inspWallName').textContent = `Wall #${wall.id}`;
+            document.getElementById('btnDeleteWall').title = state.selectedOpeningId === null
+                ? 'Delete wall (Delete / Backspace)' : 'Delete wall and its openings';
 
             // Информация об L и T соединениях выбранной стены
             const allJoints = getAllWallJoints();
@@ -108,7 +110,7 @@ function updateInspector() {
                 state.selectedOpeningId = null;
             } else {
                 if (!wall.openings.some(o => o.id === state.selectedOpeningId)) {
-                    state.selectedOpeningId = wall.openings[0].id;
+                    state.selectedOpeningId = null;
                 }
 
                 const sortedOps = [...wall.openings].sort((a, b) => a.offset - b.offset);

@@ -303,6 +303,7 @@ function bindProjectEvents() {
             return x >= b.startCm && x <= b.endCm && row >= op.startRow && row < op.startRow + op.rowCount;
         });
         if (!opening) return;
+        state.elevCanvas.focus?.({preventScroll: true});
         state.selectedWallId = wall.id; state.selectedOpeningId = opening.id;
         elevationDrag = {wall, opening, startX: e.clientX, startY: e.clientY, startCm: getOpeningBoundsCm(opening).startCm, startRow: opening.startRow, g};
         state.elevCanvas.setPointerCapture(e.pointerId);

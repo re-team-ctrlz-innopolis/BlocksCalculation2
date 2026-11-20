@@ -743,3 +743,83 @@ test('plan selection and dragging prefer the selected stacked opening', () => {
     run('handlePointerUp();state.selectedOpeningId=2;handlePointerDown({clientX:100,clientY:10,button:0});');
     assert.equal(run('state.selectedOpeningId'),2);
 });
+
+test('Delete removes the selected wall and its openings without selecting another wall', () => {
+    const run=app(true);
+    run(`const make=${wall};state.walls=[make(1,0,10,400,10,17),make(4,0,210,400,210,17)];state.walls[0].openings=[{id:2,offset:100,length:80,type:'window',startRow:2,rowCount:3},{id:3,offset:260,length:80,type:'window',startRow:8,rowCount:3}];state.selectedWallId=1;state.selectedOpeningId=null;state.nextId=5;resetEditHistory();let prevented=false;handleDeleteKeyDown({key:'Delete',target:{},preventDefault(){prevented=true}});`);
+    assert.equal(run('prevented'),true);
+    assert.equal(run('state.walls.length'),1);
+    assert.equal(run('state.walls[0].id'),4);
+    assert.equal(run('state.selectedWallId'),null);
+    assert.equal(run('state.selectedOpeningId'),null);
+    run('undoLastEdit();');
+    assert.equal(run('state.walls.length'),2);
+    assert.equal(run('state.walls[0].openings.length'),2);
+});
+
+test('Backspace deletes only the selected opening, ignores held-key repeats and supports undo/redo', () => {
+    const run=app(true);
+    run(`const make=${wall};state.walls=[make(1,0,10,400,10,17)];state.walls[0].openings=[{id:2,offset:100,length:80,type:'window',startRow:2,rowCount:3},{id:3,offset:260,length:80,type:'window',startRow:8,rowCount:3}];state.selectedWallId=1;state.selectedOpeningId=2;state.nextId=4;resetEditHistory();state.dragState={type:'move_opening'};handleDeleteKeyDown({key:'Backspace',target:{},preventDefault(){}});`);
+    assert.equal(run('state.walls.length'),1);
+    assert.equal(run('state.walls[0].openings.length'),1);
+    assert.equal(run('state.walls[0].openings[0].id'),3);
+    assert.equal(run('state.selectedOpeningId'),null);
+    assert.equal(run('state.dragState'),null);
+    run("handleDeleteKeyDown({key:'Backspace',repeat:true,target:{},preventDefault(){}});");
+    assert.equal(run('state.walls.length'),1);
+    run('undoLastEdit();');
+    assert.equal(run('state.walls[0].openings.length'),2);
+    run('redoLastEdit();');
+    assert.equal(run('state.walls[0].openings.length'),1);
+});
+
+test('keyboard deletion preserves native field editing, modifier shortcuts and open File menus', () => {
+    const run=app(true);
+    run(`const make=${wall};state.walls=[make(1,0,10,400,10)];state.selectedWallId=1;state.selectedOpeningId=null;const before=JSON.stringify(projectSnapshot());let prevented=false;`);
+    for (const key of ['Delete','Backspace']) {
+        for (const target of ['{isContentEditable:true}','{closest:()=>({})}']) {
+            run(`handleDeleteKeyDown({key:'${key}',target:${target},preventDefault(){prevented=true}});`);
+            assert.equal(run('JSON.stringify(projectSnapshot())===before'),true);
+            assert.equal(run('prevented'),false);
+        }
+        for (const modifier of ['ctrlKey','metaKey','altKey']) {
+            run(`handleDeleteKeyDown({key:'${key}',${modifier}:true,target:{},preventDefault(){prevented=true}});`);
+            assert.equal(run('JSON.stringify(projectSnapshot())===before'),true);
+        }
+        run(`document.getElementById('fileMenu').open=true;handleDeleteKeyDown({key:'${key}',target:{},preventDefault(){prevented=true}});document.getElementById('fileMenu').open=false;`);
+        assert.equal(run('JSON.stringify(projectSnapshot())===before'),true);
+    }
+    assert.equal(run('prevented'),false);
+});
+
+test('clicking wall masonry selects the wall rather than its first opening', () => {
+    const run=app(true);
+    run(`const make=${wall};state.walls=[make(1,0,10,400,10,17)];state.walls[0].openings=[{id:2,offset:100,length:80,type:'window',startRow:2,rowCount:3}];state.selectedWallId=1;state.selectedOpeningId=2;handlePointerDown({clientX:340,clientY:10,button:0});`);
+    assert.equal(run('state.selectedWallId'),1);
+    assert.equal(run('state.selectedOpeningId'),null);
+    assert.equal(run('state.dragState.type'),'move_wall');
+    run("handleDeleteKeyDown({key:'Delete',target:{},preventDefault(){}});");
+    assert.equal(run('state.walls.length'),0);
+});
+
+test('wall endpoint and rotation handles clear opening selection', () => {
+    const run=app(true);
+    run(`const make=${wall};state.walls=[make(1,0,10,400,10,17)];state.walls[0].openings=[{id:2,offset:100,length:80,type:'window',startRow:2,rowCount:3}];state.selectedWallId=1;`);
+    for (const [point,type] of [["{x:0,y:10}",'endpoint_1'],["{x:400,y:10}",'endpoint_2'],['getRotateHandlePos(state.walls[0])','rotate_wall']]) {
+        run(`state.selectedOpeningId=2;(()=>{const p=${point};handlePointerDown({clientX:p.x,clientY:p.y,button:0})})();`);
+        assert.equal(run('state.selectedOpeningId'),null);
+        assert.equal(run('state.dragState.type'),type);
+    }
+});
+
+test('delete buttons use the same undoable removal behavior as keyboard shortcuts', () => {
+    const run=app(true);
+    run(`const make=${wall};state.walls=[make(1,0,10,400,10,17)];state.walls[0].openings=[{id:2,offset:100,length:80,type:'window',startRow:2,rowCount:3}];state.selectedWallId=1;state.selectedOpeningId=2;resetEditHistory();document.getElementById('btnDeleteOpening').listeners.click[0]();`);
+    assert.equal(run('state.walls[0].openings.length'),0);
+    run('undoLastEdit();');
+    assert.equal(run('state.walls[0].openings.length'),1);
+    run("document.getElementById('btnDeleteWall').listeners.click[0]();");
+    assert.equal(run('state.walls.length'),0);
+    run('undoLastEdit();');
+    assert.equal(run('state.walls[0].openings.length'),1);
+});
