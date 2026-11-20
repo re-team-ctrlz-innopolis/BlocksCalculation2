@@ -10,7 +10,13 @@ Open `draft.html` in a browser. For consistent persistence between sessions, use
 python -m http.server 8000
 ```
 
-Open `http://localhost:8000/draft.html`. Tailwind styles and the Inter font are loaded over the internet, as in the original project. No build tool, npm packages, or backend are required.
+Open `http://localhost:8000/draft.html`. Tailwind CSS and the Inter font are stored in the repository and require no network access at runtime.
+
+`assets/tailwind.css` contains the generated Tailwind CSS 3.4.17. To regenerate it after adding Tailwind classes, download the official [standalone CLI 3.4.17](https://github.com/tailwindlabs/tailwindcss/releases/tag/v3.4.17) for your OS and run:
+
+```powershell
+.\tailwindcss-windows-x64.exe -i .\tailwind.input.css -o .\assets\tailwind.css --config .\tailwind.config.js --minify
+```
 
 ## Saved examples
 
