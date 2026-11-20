@@ -531,6 +531,28 @@ test('length changes and four quarter turns preserve the common grid without dri
     assert.equal(run('JSON.stringify(validateProject().errors)'),'[]');
 });
 
+test('saved examples load without migration, allow reports, and survive a JSON round trip', () => {
+    for (const name of ['sample-house', 'nested-partition']) {
+        const run = app();
+        const file = fs.readFileSync(path.join(__dirname, '../examples', name + '.json'), 'utf8');
+        const saved = JSON.parse(file);
+        assert.equal(saved.planGeometry, 'modular-cells-v3');
+        assert.deepEqual(saved.migrationNotes, []);
+        assert.ok(saved.walls.every(w => w.rows <= 17 && w.openings.every(o => ['window', 'door'].includes(o.type))));
+        run(`restoreProject(${JSON.stringify(saved)});`);
+        assert.equal(run('JSON.stringify(validateProject().errors)'), '[]');
+        assert.deepEqual(JSON.parse(run('JSON.stringify(projectSnapshot())')), saved);
+        assert.equal(run('getWallLengthCm(getPartnerWall(5))'), 360);
+        assert.equal(run('getAllWallJoints().filter(j => j.type === "L").length'), 4);
+        assert.equal(run('getAllWallJoints().filter(j => j.type === "T").length'), name === 'nested-partition' ? 4 : 2);
+        if (name === 'nested-partition') assert.equal(run('getWallLengthCm(getPartnerWall(10))'), 280);
+        run('const report = JSON.stringify(getProjectReport()); const snapshot = JSON.stringify(projectSnapshot()); restoreProject(JSON.parse(snapshot));');
+        assert.notEqual(run('getProjectReport()'), null);
+        assert.equal(run('JSON.stringify(getProjectReport())'), run('report'));
+        assert.equal(run('JSON.stringify(state.migrationNotes)'), '[]');
+    }
+});
+
 test('legacy screenshot plan migrates to a 280 cm nested partition without changing openings', () => {
     const run=app();
     const fixture=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures','legacy-nested-partition.json'),'utf8'));
