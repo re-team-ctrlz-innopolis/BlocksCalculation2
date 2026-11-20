@@ -410,13 +410,15 @@ test('older 19-course projects remain editable without trimming walls or opening
     assert.equal(run('getProjectReport()[0].height'),3400);
 });
 
-test('CSV exports use 200 mm courses and the corrected three-dimensional block sizes', () => {
+test('CSV exports use 200 mm courses and a consistent eight-column table', () => {
     const run = app();
     run(`const make=${wall}; state.walls=[make(1,0,10,400,10,10)]; let csv=''; downloadFile=(name,content)=>{csv=content;}; exportCsv();`);
     assert.equal(run('getProjectReport()[0].height'),2000);
-    assert.ok(run('csv.includes("1,4000,2000,10,")'));
-    assert.ok(run('csv.includes("400×200×200 mm") && csv.includes("200×200×200 mm")'));
-    assert.ok(run('csv.includes("mortar joints excluded")'));
+    assert.ok(run('csv.startsWith("\\ufeffWall;Length (mm);Height (mm);Courses;Full blocks;Half blocks;Total blocks;Control joints (mm)\\r\\n")'));
+    assert.ok(run('csv.includes("1;4000;2000;10;95;10;105;\\r\\n")'));
+    assert.ok(run('csv.endsWith("TOTAL;;;;95;10;105;\\r\\n")'));
+    assert.equal(run('csv.trimEnd().split("\\r\\n").length'),3);
+    assert.equal(run('csv.trimEnd().split("\\r\\n").every(row=>row.split(";").length===8)'),true);
 });
 
 test('lintels require exactly three or more complete courses above the opening', () => {
@@ -903,4 +905,31 @@ test('an end-only L-corner keeps its bond when the shorter neighbour ends on an 
     assert.equal(run('ninth.blocks.at(-1).kind'),'full');
     assert.equal(run('ninth.blocks.slice(1).filter(b=>b.startCm>40&&b.startCm<220).some(b=>eighth.blocks.some(p=>p.startCm===b.startCm))'),false);
     assert.equal(run('calculateWallBlocks(tall).unfilledCm'),0);
+});
+
+test('CSV control-joint lists stay in one cell and totals match the wall rows', () => {
+    const run=app();
+    run(`const make=${wall};state.walls=[make(1,0,10,1200,10),make(2,0,210,400,210)];let captured=null;downloadFile=(name,content,type)=>{captured={name,content,type}};exportCsv();const lines=captured.content.slice(1).trimEnd().split('\\r\\n').map(line=>line.split(';'));`);
+    assert.equal(run('captured.name'),'blocks-materials.csv');
+    assert.equal(run('captured.type'),'text/csv;charset=utf-8');
+    assert.equal(run('lines.length'),4);
+    assert.equal(run('lines.every(line=>line.length===8)'),true);
+    assert.equal(run('lines[1][7]'),'5000 | 10000');
+    assert.equal(run('lines[2][7]'),'');
+    for (const column of [4,5,6]) {
+        assert.equal(run(`Number(lines[3][${column}])`),run(`Number(lines[1][${column}])+Number(lines[2][${column}])`));
+    }
+});
+
+test('CSV serialization escapes delimiters, double quotes and multiline Unicode cells', () => {
+    const run=app();
+    const values=[['semi;colon','a "quote"','two\nlines','400×200×200 мм',null,200]];
+    const expected='\ufeff"semi;colon";"a ""quote""";"two\nlines";400×200×200 мм;;200\r\n';
+    assert.equal(run(`serializeCsvRows(${JSON.stringify(values)})`),expected);
+});
+
+test('invalid geometry cannot trigger a CSV download', () => {
+    const run=app();
+    run(`const make=${wall};state.walls=[make(1,0,10,400,10),make(2,0,10,400,10)];let downloaded=false;downloadFile=()=>{downloaded=true};exportCsv();`);
+    assert.equal(run('downloaded'),false);
 });

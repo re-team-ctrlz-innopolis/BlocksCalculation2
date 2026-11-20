@@ -173,11 +173,25 @@ function downloadFile(name, content, type) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function serializeCsvRows(rows) {
+    const escape = value => {
+        const text = String(value ?? '');
+        return /[;"\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    };
+    // Use one delimiter throughout; UTF-8 BOM preserves non-ASCII text in spreadsheet imports.
+    return '\ufeff' + rows.map(row => row.map(escape).join(';')).join('\r\n') + '\r\n';
+}
+
 function exportCsv() {
     const rows = getProjectReport(); if (!rows) return;
     const total = rows.reduce((s, r) => [s[0] + r.fullCount, s[1] + r.halfCount], [0, 0]);
-    const lines = ['Wall,Length mm,Height mm,Courses,Full blocks,Half blocks,Total blocks,Control joints mm', ...rows.map(r => [r.id, r.length, r.height, r.rows, r.fullCount, r.halfCount, r.totalCount, r.controls.join(';')].join(',')), `TOTAL,,,,${total[0]},${total[1]},${total[0] + total[1]},`, '', 'MODEL: full block 400×200×200 mm; half block 200×200×200 mm; course height 200 mm; mortar joints excluded; control joints every 5000 mm.', 'Above-floor block quantities only. Excludes foundations, gables, reinforcement, concrete and waste.'];
-    downloadFile('blocks-materials.csv', '\ufeff' + lines.join('\r\n'), 'text/csv;charset=utf-8');
+    const table = [
+        ['Wall', 'Length (mm)', 'Height (mm)', 'Courses', 'Full blocks', 'Half blocks', 'Total blocks', 'Control joints (mm)'],
+        ...rows.map(r => [r.id, r.length, r.height, r.rows, r.fullCount, r.halfCount, r.totalCount, r.controls.join(' | ')]),
+        ['TOTAL', '', '', '', total[0], total[1], total[0] + total[1], '']
+    ];
+    // CSV contains only tabular data. Scope and model explanations remain in the print/PDF report.
+    downloadFile('blocks-materials.csv', serializeCsvRows(table), 'text/csv;charset=utf-8');
 }
 
 function printReport() {
