@@ -18,7 +18,7 @@ function updateBlockCalculator() {
                 const row = document.createElement('div');
                 row.className = 'flex items-center justify-between bg-slate-900/80 px-2 py-1 rounded border border-slate-800';
                 row.innerHTML = `
-                    <span class="text-slate-300 font-medium">Wall #${w.id} (${Math.round(getWallLengthCm(w) * MM_PER_CM)} × ${Math.round(getWallRows(w) * COURSE_HEIGHT_CM * MM_PER_CM)} mm)</span>
+                    <span class="text-slate-300 font-medium">Wall #${getWallNumber(w.id)} (${Math.round(getWallLengthCm(w) * MM_PER_CM)} × ${Math.round(getWallRows(w) * COURSE_HEIGHT_CM * MM_PER_CM)} mm)</span>
                     <span class="text-slate-400">
                         <b class="text-blue-400">${st.fullCount}</b> full ·
                         <b class="text-amber-400">${st.halfCount}</b> half
@@ -67,7 +67,7 @@ function updateInspector() {
             document.getElementById('wallControlJoints').textContent = getControlJoints(wall).map(x => `${Math.round(x * MM_PER_CM)} mm`).join(', ') || 'None';
             const lenCm = getWallLengthCm(wall);
             const minAllowedLenCm = getMinAllowedWallLengthCm(wall);
-            document.getElementById('inspWallName').textContent = `Wall #${wall.id}`;
+            document.getElementById('inspWallName').textContent = `Wall #${getWallNumber(wall.id)}`;
             document.getElementById('btnDeleteWall').title = state.selectedOpeningId === null
                 ? 'Delete wall (Delete / Backspace)' : 'Delete wall and its openings';
 
@@ -113,8 +113,8 @@ function updateInspector() {
                     state.selectedOpeningId = null;
                 }
 
-                const sortedOps = [...wall.openings].sort((a, b) => a.offset - b.offset);
-                sortedOps.forEach((op, idx) => {
+                const sortedOps = getOrderedOpenings(wall);
+                sortedOps.forEach(op => {
                     const { startCm, endCm, lenCm } = getOpeningBoundsCm(op);
                     const isSel = op.id === state.selectedOpeningId;
                     const typeLabel = op.type === 'window' ? 'Window' : op.type === 'door' ? 'Door' : 'Opening';
@@ -130,7 +130,7 @@ function updateInspector() {
                     }`;
                     item.innerHTML = `
                         <div>
-                            <span class="text-[10px] px-1.5 py-0.5 rounded border ${badgeColor}">${typeLabel} #${idx + 1}</span>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded border ${badgeColor}">${typeLabel} #${getOpeningNumber(wall.id, op.id)}</span>
                             <div class="mt-1 text-[11px] text-slate-400">${startCm * MM_PER_CM}–${endCm * MM_PER_CM} mm · Rows ${op.startRow}–${op.startRow + op.rowCount - 1}</div>
                         </div>
                         <span class="font-semibold text-slate-200">${lenCm * MM_PER_CM} mm</span>
@@ -158,6 +158,8 @@ function updateInspector() {
                 editorEl.classList.add('hidden');
             } else {
                 editorEl.classList.remove('hidden');
+                const typeLabel = selectedOp.type === 'window' ? 'Window' : selectedOp.type === 'door' ? 'Door' : 'Opening';
+                document.getElementById('openingEditorTitle').textContent = `${typeLabel} #${getOpeningNumber(wall.id, selectedOp.id)}`;
 
                 document.querySelectorAll('.opening-type-btn').forEach(btn => {
                     if (btn.dataset.optype === selectedOp.type) {

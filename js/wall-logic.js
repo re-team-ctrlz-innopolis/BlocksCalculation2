@@ -18,6 +18,28 @@ function snapCmToGrid(cm) {
             return Math.round(cm / BLOCK_GRID_CM) * BLOCK_GRID_CM;
         }
 
+// Display numbers follow the current lists; IDs remain stable for geometry and history.
+function getWallNumber(wallId, walls = state.walls) {
+    const index = walls.findIndex(wall => wall.id === wallId);
+    return index < 0 ? null : index + 1;
+}
+
+function getOrderedOpenings(wall) {
+    return [...wall.openings].sort((a, b) => a.offset - b.offset || a.id - b.id);
+}
+
+function getOpeningNumber(wallId, openingId, walls = state.walls) {
+    let preceding = 0;
+    for (const wall of walls) {
+        if (wall.id === wallId) {
+            const index = getOrderedOpenings(wall).findIndex(opening => opening.id === openingId);
+            return index < 0 ? null : preceding + index + 1;
+        }
+        preceding += wall.openings.length;
+    }
+    return null;
+}
+
 function getWallLength(w) {
             return dist(w.x1, w.y1, w.x2, w.y2);
         }

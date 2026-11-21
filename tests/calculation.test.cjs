@@ -220,6 +220,62 @@ test('project round trip preserves quantities; malformed imports are atomic', ()
     assert.throws(() => run('const corrupt=JSON.parse(snapshot); corrupt.walls[0].x2+=1; restoreProject(corrupt);'), /20 cm grid/);
 });
 
+test('display numbers close gaps after deletion and survive undo, redo and JSON restoration', () => {
+    const run = app();
+    run(`const make=${wall};state.walls=[make(40,0,10,400,10,17),make(7,0,210,400,210,17),make(100,0,410,400,410,17)];
+        state.walls[0].openings=[{id:90,offset:280,length:80,type:'window',startRow:3,rowCount:3},{id:60,offset:100,length:80,type:'window',startRow:3,rowCount:3}];
+        state.walls[1].openings=[{id:110,offset:160,length:80,type:'window',startRow:3,rowCount:3}];state.nextId=111;
+        const original=JSON.stringify(projectSnapshot());resetEditHistory();`);
+    assert.equal(run('JSON.stringify(state.walls.map(w=>getWallNumber(w.id)))'), '[1,2,3]');
+    assert.equal(run('JSON.stringify(state.walls.flatMap(w=>getOrderedOpenings(w).map(o=>getOpeningNumber(w.id,o.id))))'), '[1,2,3]');
+    assert.equal(run('JSON.stringify(projectSnapshot())'), run('original'));
+    run('removeOpening(40,60);');
+    assert.equal(run('getOpeningNumber(40,90)'), 1);
+    assert.equal(run('getOpeningNumber(7,110)'), 2);
+    run('undoLastEdit();');
+    assert.equal(run('JSON.stringify(projectSnapshot())'), run('original'));
+    assert.equal(run('getOpeningNumber(7,110)'), 3);
+    run('redoLastEdit();');
+    assert.equal(run('getOpeningNumber(7,110)'), 2);
+    run('undoLastEdit();removeWall(40);');
+    assert.equal(run('getWallNumber(7)'), 1);
+    assert.equal(run('getWallNumber(100)'), 2);
+    assert.equal(run('getOpeningNumber(7,110)'), 1);
+    assert.equal(run('JSON.stringify(state.walls.map(w=>w.id))'), '[7,100]');
+    run('const saved=JSON.stringify(projectSnapshot());restoreProject(JSON.parse(saved));');
+    assert.equal(run('JSON.stringify(getProjectReport().map(w=>[w.id,w.number]))'), '[[7,1],[100,2]]');
+    // A cleared project starts at display number 1 even when its ID counter is high.
+    run('state.walls=[];addNewWall();state.walls[0].x2=state.walls[0].x1+400;addOpeningToSelectedWall();');
+    assert.equal(run('getWallNumber(state.walls[0].id)'), 1);
+    assert.equal(run('getOpeningNumber(state.walls[0].id,state.walls[0].openings[0].id)'), 1);
+    assert.ok(run('state.walls[0].id > 100'));
+});
+
+test('validation messages and CSV use current display numbers instead of internal IDs', () => {
+    const run = app();
+    run(`const make=${wall};state.walls=[make(40,0,10,400,10,17),make(70,0,210,400,210,17)];
+        state.walls[0].openings=[{id:90,offset:160,length:80,type:'window',startRow:3,rowCount:3}];
+        state.walls[1].openings=[{id:110,offset:160,length:80,type:'window',startRow:15,rowCount:1}];`);
+    assert.ok(run('validateProject().errors.includes("Wall #2: leave at least three courses above opening #2 (2 available).")'));
+    run('state.walls[1].openings[0].startRow=3;var csv="";downloadFile=(name,text)=>{csv=text;};exportCsv();');
+    const lines = run('csv').replace(/^\ufeff/, '').trim().split('\r\n');
+    assert.equal(lines[1].split(';')[0], '1');
+    assert.equal(lines[2].split(';')[0], '2');
+    run('state.walls[1].y1=10;state.walls[1].y2=10;');
+    assert.ok(run('validateProject().errors.includes("Walls #1 and #2 overlap. Remove duplicate masonry.")'));
+});
+
+test('migration notices resolve wall IDs to current numbers and omit deleted walls', () => {
+    const run = app();
+    run(`const make=${wall};state.walls=[make(40,0,10,400,10),make(70,0,210,400,210)];
+        state.migrationNotes=['Converted project.','Wall #40: length changed.','Wall #70: length changed.'];`);
+    assert.equal(run('JSON.stringify(getMigrationMessages())'), '["Converted project.","Wall #1: length changed.","Wall #2: length changed."]');
+    run('removeWall(40);');
+    assert.equal(run('JSON.stringify(getMigrationMessages())'), '["Converted project.","Wall #1: length changed."]');
+    assert.ok(run('validateProject().warnings.includes("Wall #1: length changed.")'));
+    assert.equal(run('state.migrationNotes[2]'), 'Wall #70: length changed.');
+});
+
 test('non-cell T attachments and nearby overlapping parallel walls are invalid', () => {
     const run = app();
     run(`const make=${wall}; state.walls=[make(1,0,10,400,10),make(2,160,0,160,200)];`);
@@ -837,7 +893,7 @@ test('stacked openings retain the existing three-course lintel clearance', () =>
     const run=app();
     run(`const make=${wall}; state.walls=[make(1,0,10,400,10,17)]; state.walls[0].openings=[{id:2,offset:100,length:80,startRow:2,rowCount:3,type:'window'},{id:3,offset:100,length:80,startRow:7,rowCount:3,type:'window'}];`);
     assert.equal(run('openingsOverlap(...state.walls[0].openings)'),false);
-    assert.ok(run('validateProject().errors.some(s=>s.includes("three courses above opening #2 before another opening"))'));
+    assert.ok(run('validateProject().errors.some(s=>s.includes("three courses above opening #1 before another opening"))'));
     assert.equal(run('getProjectReport()'),null);
     run('state.walls[0].openings[1].startRow=8;');
     assert.equal(run('JSON.stringify(validateProject().errors)'),'[]');

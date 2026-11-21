@@ -449,7 +449,7 @@ function drawElevationView(allJoints) {
             const joints = allJoints || getAllWallJoints();
             const wallLenCm = getWallLengthCm(wall);
             const stats = calculateWallBlocks(wall, joints);
-            titleEl.textContent = `Wall #${wall.id} · ${wallLenCm * MM_PER_CM} mm · ${getWallRows(wall)} courses`;
+            titleEl.textContent = `Wall #${getWallNumber(wall.id)} · ${wallLenCm * MM_PER_CM} mm · ${getWallRows(wall)} courses`;
             subEl.textContent = `Full: ${stats.fullCount} · Half: ${stats.halfCount}${stats.unfilledCm > 0 ? ` · Unfilled: ${Math.round(stats.unfilledCm * MM_PER_CM)} mm` : ''}`;
 
             const padLeft = 72;
