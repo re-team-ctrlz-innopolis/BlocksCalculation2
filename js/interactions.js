@@ -174,7 +174,7 @@ function handlePointerMove(e) {
                     return local.along >= -6 / state.zoom && local.along <= getWallLength(wall) + 6 / state.zoom &&
                         Math.abs(local.perp) <= WALL_THICKNESS / 2 + 4 / state.zoom;
                 });
-                state.canvas.style.cursor = overWall ? 'move' : 'grab';
+                state.canvas.style.cursor = overWall ? 'url("assets/cursors/white-cross.svg") 12 12, crosshair' : 'grab';
                 return;
             }
             if (state.dragState.type === 'pan_camera') {

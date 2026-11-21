@@ -23,7 +23,7 @@ const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 1.2;
 
-// Team-confirmed block sizes: 400×200×200 mm and 200×200×200 mm; mortar is excluded.
+// Customer-confirmed sizes (length × width × height): 400×200×200 mm and 200×200×200 mm; mortar is excluded.
 const COURSE_HEIGHT_CM = BLOCK_HEIGHT_MM / MM_PER_CM;
 const MAX_WALL_HEIGHT_CM = 350; // Wall plate limit in the report, p.81.
 const MAX_WALL_ROWS = Math.floor(MAX_WALL_HEIGHT_CM / COURSE_HEIGHT_CM);
