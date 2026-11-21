@@ -2,6 +2,18 @@
 function formatCm(value) { return Number(value.toFixed(1)); }
 function getWallRows(wall) { return wall.rows ?? state.totalWallRows; }
 function getPartnerWall(id) { return state.walls.find(w => w.id === id); }
+function getMigrationMessages() {
+    // Older saves keep wall IDs in their notices. Resolve them against the current list.
+    return state.migrationNotes.flatMap(note => {
+        let missingWall = false;
+        const message = note.replace(/\bWall #(\d+)/g, (_, id) => {
+            const number = getWallNumber(Number(id));
+            if (number === null) missingWall = true;
+            return `Wall #${number}`;
+        });
+        return missingWall ? [] : [message];
+    });
+}
 function arePerpendicular(a, b) {
     return Math.abs(Math.cos(getWallAngleRad(a) - getWallAngleRad(b))) < 0.00001;
 }
@@ -60,7 +72,7 @@ function validateProject() {
     const joints = getAllWallJoints();
     if (!state.walls.length) errors.push('Add at least one wall.');
     for (const wall of state.walls) {
-        const label = `Wall #${wall.id}`;
+        const label = `Wall #${getWallNumber(wall.id)}`;
         const rawLength = pxToCm(getWallLength(wall));
         if (Math.abs(rawLength / BLOCK_GRID_CM - Math.round(rawLength / BLOCK_GRID_CM)) > 0.00001 || rawLength < MIN_WALL_CM || rawLength > MAX_WALL_CM)
             errors.push(`${label}: length must be ${MIN_WALL_MM}–${MAX_WALL_MM} mm in 200 mm modules. No cutting.`);
@@ -79,28 +91,29 @@ function validateProject() {
             }
         }
         for (const op of wall.openings) {
+            const openingNumber = getOpeningNumber(wall.id, op.id);
             const b = getOpeningBoundsCm(op);
             if (b.startCm < HALF_BLOCK_CM || b.endCm > length - HALF_BLOCK_CM)
-                errors.push(`${label}: opening #${op.id} needs a 200 mm pier at both wall ends.`);
+                errors.push(`${label}: opening #${openingNumber} needs a 200 mm pier at both wall ends.`);
             if (!Number.isInteger(op.startRow) || !Number.isInteger(op.rowCount) || op.startRow < 1 || op.rowCount < 1 || op.startRow + op.rowCount - 1 > getWallRows(wall))
-                errors.push(`${label}: opening #${op.id} is outside the wall height.`);
+                errors.push(`${label}: opening #${openingNumber} is outside the wall height.`);
             if (op.type === 'door' && op.startRow !== 1)
-                errors.push(`${label}: door opening #${op.id} must start at course 1 (floor level).`);
+                errors.push(`${label}: door opening #${openingNumber} must start at course 1 (floor level).`);
             if (op.type === 'window' && op.startRow < 2)
-                errors.push(`${label}: window opening #${op.id} must start at course 2 or above.`);
-            if (b.lenCm > 150) errors.push(`${label}: opening #${op.id} exceeds the supported lintel span of 1500 mm.`);
+                errors.push(`${label}: window opening #${openingNumber} must start at course 2 or above.`);
+            if (b.lenCm > 150) errors.push(`${label}: opening #${openingNumber} exceeds the supported lintel span of 1500 mm.`);
             const openingTopRow = op.startRow + op.rowCount - 1;
             const coursesAbove = getWallRows(wall) - openingTopRow;
             if (coursesAbove < 3)
-                errors.push(`${label}: leave at least three courses above opening #${op.id} (${Math.max(0, coursesAbove)} available).`);
+                errors.push(`${label}: leave at least three courses above opening #${openingNumber} (${Math.max(0, coursesAbove)} available).`);
             for (const other of wall.openings) {
                 if (other.id <= op.id) continue;
-                if (openingsOverlap(op, other)) errors.push(`${label}: openings #${op.id} and #${other.id} overlap.`);
+                if (openingsOverlap(op, other)) errors.push(`${label}: openings #${openingNumber} and #${getOpeningNumber(wall.id, other.id)} overlap.`);
             }
             const lintelStart = getOpeningRowRange(op).endRow;
             if (wall.openings.some(other => other.id !== op.id && openingWidthsOverlap(op, other) &&
                 getOpeningRowRange(other).startRow < lintelStart + 3 && getOpeningRowRange(other).endRow > lintelStart))
-                errors.push(`${label}: leave at least three courses above opening #${op.id} before another opening.`);
+                errors.push(`${label}: leave at least three courses above opening #${openingNumber} before another opening.`);
         }
         const controls = [0, ...getControlJoints(wall), length];
         if (controls.length > 2 && (controls[1] < MIN_CONTROL_END_DISTANCE_CM ||
@@ -122,14 +135,14 @@ function validateProject() {
     }
     for (const j of joints.filter(j => j.type === 'T')) {
         const host = getPartnerWall(j.hostWallId), branch = getPartnerWall(j.branchWallId);
-        if (j.legacyAxis) errors.push(`Wall #${branch.id}: reattach the T-junction to the host wall face.`);
+        if (j.legacyAxis) errors.push(`Wall #${getWallNumber(branch.id)}: reattach the T-junction to the host wall face.`);
         const actual = pxToCm(worldToWallLocal(host, j.x, j.y).along);
         if (Math.abs(actual - j.offsetCm) > 0.001)
-            errors.push(`Wall #${branch.id}: align the T-junction with a highlighted host-wall cell.`);
+            errors.push(`Wall #${getWallNumber(branch.id)}: align the T-junction with a highlighted host-wall cell.`);
         if (host.openings.some(op => {
             const b = getOpeningBoundsCm(op);
             return b.startCm < j.cellEndCm && b.endCm > j.cellStartCm && op.startRow <= getWallRows(branch);
-        })) errors.push(`Wall #${branch.id}: T-junction intersects an opening in wall #${host.id}.`);
+        })) errors.push(`Wall #${getWallNumber(branch.id)}: T-junction intersects an opening in wall #${getWallNumber(host.id)}.`);
     }
     // Reject duplicate/overlapping collinear walls and unsupported X intersections.
     for (let i = 0; i < state.walls.length; i++) for (let k = i + 1; k < state.walls.length; k++) {
@@ -140,13 +153,13 @@ function validateProject() {
             ((j.wallA === a.id && j.wallB === b.id) || (j.wallA === b.id && j.wallB === a.id)));
         if (Math.abs(p.perp) < epsilon && Math.abs(q.perp) < epsilon) {
             if (Math.min(Math.max(p.along, q.along), len) - Math.max(Math.min(p.along, q.along), 0) > epsilon)
-                errors.push(`Walls #${a.id} and #${b.id} overlap. Remove duplicate masonry.`);
+                errors.push(`Walls #${getWallNumber(a.id)} and #${getWallNumber(b.id)} overlap. Remove duplicate masonry.`);
             else if (Math.abs(Math.min(p.along, q.along) - len) < epsilon || Math.abs(Math.max(p.along, q.along)) < epsilon)
-                errors.push(`Walls #${a.id} and #${b.id}: use one continuous wall instead of a collinear joint.`);
+                errors.push(`Walls #${getWallNumber(a.id)} and #${getWallNumber(b.id)}: use one continuous wall instead of a collinear joint.`);
         } else if (Math.abs(p.perp - q.perp) < epsilon && Math.abs(p.perp) < WALL_THICKNESS && Math.min(Math.max(p.along, q.along), len) - Math.max(Math.min(p.along, q.along), 0) > epsilon) {
-            errors.push(`Walls #${a.id} and #${b.id} are closer than the nominal wall thickness. Separate them.`);
+            errors.push(`Walls #${getWallNumber(a.id)} and #${getWallNumber(b.id)} are closer than the nominal wall thickness. Separate them.`);
         } else if (!sharedCorner && arePerpendicular(a, b) && p.perp * q.perp < -epsilon && p.along > epsilon && p.along < len - epsilon) {
-            errors.push(`Walls #${a.id} and #${b.id}: X intersections are unsupported; use L or T junctions.`);
+            errors.push(`Walls #${getWallNumber(a.id)} and #${getWallNumber(b.id)}: X intersections are unsupported; use L or T junctions.`);
         } else if (arePerpendicular(a, b)) {
             // Project the perpendicular wall's full thickness onto wall A.
             // Axis-only checks miss overlaps beside or just beyond an endpoint.
@@ -156,7 +169,7 @@ function validateProject() {
             // Supported L-corners share a nominal module, counted by one wall.
             // Face-to-face T-junctions only touch and have no area overlap.
             if (overlapAlong > epsilon && overlapAcross > epsilon && !sharedCorner)
-                errors.push(`Walls #${a.id} and #${b.id} overlap outside a supported L-corner. Move them apart or reconnect them as an L or T junction.`);
+                errors.push(`Walls #${getWallNumber(a.id)} and #${getWallNumber(b.id)} overlap outside a supported L-corner. Move them apart or reconnect them as an L or T junction.`);
         }
     }
     // Three walls at the same corner are not an ordinary two-wall L connection.
@@ -169,7 +182,7 @@ function validateProject() {
     }
     warnings.push('Full block: 400×200×200 mm; half block: 200×200×200 mm. One course is 200 mm. Mortar joints are not included in the dimensions or quantities.');
     warnings.push('Counts cover above-floor wall blocks, including block lintels. Foundations, gables, reinforcement, ties, concrete and waste allowance are excluded.');
-    warnings.push(...state.migrationNotes);
+    warnings.push(...getMigrationMessages());
     return { errors: [...new Set(errors)], warnings };
 }
 
@@ -183,11 +196,12 @@ function updateProjectStatus() {
         line.textContent = message;
         status.appendChild(line);
     }
-    for (const message of state.migrationNotes) {
+    const migrationMessages = getMigrationMessages();
+    for (const message of migrationMessages) {
         const line = document.createElement('p');
         line.className = 'text-amber-300'; line.textContent = message; status.appendChild(line);
     }
-    status.hidden = result.errors.length === 0 && state.migrationNotes.length === 0;
+    status.hidden = result.errors.length === 0 && migrationMessages.length === 0;
     document.getElementById('btnPrint').disabled = result.errors.length > 0;
     document.getElementById('btnExportCsv').disabled = result.errors.length > 0;
     document.getElementById('resultsStatus').textContent = result.errors.length ? 'Draft quantities — fix the issues below to export' : 'Ready to export';
@@ -201,6 +215,7 @@ function getProjectReport() {
     const joints = getAllWallJoints();
     return state.walls.map(w => ({
         id: w.id,
+        number: getWallNumber(w.id),
         length: Math.round(getWallLengthCm(w) * MM_PER_CM),
         height: Math.round(getWallRows(w) * COURSE_HEIGHT_CM * MM_PER_CM),
         rows: getWallRows(w),
@@ -229,7 +244,7 @@ function exportCsv() {
     const total = rows.reduce((s, r) => [s[0] + r.fullCount, s[1] + r.halfCount], [0, 0]);
     const table = [
         ['Wall', 'Length (mm)', 'Height (mm)', 'Courses', 'Full blocks', 'Half blocks', 'Total blocks', 'Control joints (mm)'],
-        ...rows.map(r => [r.id, r.length, r.height, r.rows, r.fullCount, r.halfCount, r.totalCount, r.controls.join(' | ')]),
+        ...rows.map(r => [r.number, r.length, r.height, r.rows, r.fullCount, r.halfCount, r.totalCount, r.controls.join(' | ')]),
         ['TOTAL', '', '', '', total[0], total[1], total[0] + total[1], '']
     ];
     // CSV contains only tabular data. Scope and model explanations remain in the print/PDF report.
@@ -248,7 +263,7 @@ function printReport() {
     let full = 0, half = 0;
     for (const row of rows) {
         const tr = document.createElement('tr');
-        for (const value of [row.id, row.length, row.height, row.fullCount, row.halfCount, row.totalCount, row.controls.join(', ') || '—']) { const td = document.createElement('td'); td.textContent = value; tr.appendChild(td); }
+        for (const value of [row.number, row.length, row.height, row.fullCount, row.halfCount, row.totalCount, row.controls.join(', ') || '—']) { const td = document.createElement('td'); td.textContent = value; tr.appendChild(td); }
         table.appendChild(tr); full += row.fullCount; half += row.halfCount;
     }
     report.appendChild(table);
@@ -272,7 +287,7 @@ function restoreProject(data) {
     const takeId = id => { if (!Number.isSafeInteger(id) || id < 1 || ids.has(id)) throw new Error('Invalid or duplicate object ID.'); ids.add(id); return id; };
     const rows = data.totalWallRows;
     if (!Number.isInteger(rows) || rows < 2 || rows > MAX_SAVED_WALL_ROWS) throw new Error('Invalid default height.');
-    const walls = data.walls.map(w => {
+    const walls = data.walls.map((w, wallIndex) => {
         const id = takeId(w.id);
         if (![w.x1, w.y1, w.x2, w.y2].every(x => Number.isFinite(x) && Math.abs(x) < 100000) || !Array.isArray(w.openings) || w.openings.length > 100 || !Number.isInteger(w.rows) || w.rows < 2 || w.rows > MAX_SAVED_WALL_ROWS) throw new Error('Invalid wall geometry or height.');
         const raw = pxToCm(dist(w.x1,w.y1,w.x2,w.y2));
@@ -287,7 +302,7 @@ function restoreProject(data) {
             return {id: oid, offset: o.offset, length: o.length, type: o.type, startRow, rowCount};
         });
         for (let i = 0; i < openings.length; i++) for (let j = i + 1; j < openings.length; j++) {
-            if (openingsOverlap(openings[i], openings[j])) throw new Error(`Wall #${id}: openings overlap. Import was cancelled.`);
+            if (openingsOverlap(openings[i], openings[j])) throw new Error(`Wall #${wallIndex + 1}: openings overlap. Import was cancelled.`);
         }
         return {id, x1: w.x1, y1: w.y1, x2: w.x2, y2: w.y2, rows: w.rows, openings};
     });

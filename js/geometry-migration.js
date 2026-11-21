@@ -81,7 +81,7 @@ function migrateLegacyGeometry(walls) {
             const links=tees.filter(t=>t.branchId===w.id);
             if (!links.length) continue;
             if (new Set(links.map(t=>t.end)).size!==links.length)
-                throw new Error(`Wall #${w.id}: ambiguous legacy T-junction. The current project has been kept.`);
+                throw new Error(`Wall #${getWallNumber(w.id, walls)}: ambiguous legacy T-junction. The current project has been kept.`);
             const u=direction(w), start=point(w,'start'), end=point(w,'end'), options=[];
             const points=link=>getWallFaceSnapPoints(byId.get(link.hostId),w).filter(p=>p.side===link.side);
             const addOption=(a,b)=>{
@@ -103,7 +103,7 @@ function migrateLegacyGeometry(walls) {
             }
             options.sort((a,b)=>a.cost-b.cost||a.a.x-b.a.x||a.a.y-b.a.y||a.b.x-b.b.x||a.b.y-b.b.y);
             const best=options[0];
-            if (!best) throw new Error(`Wall #${w.id}: its old T-junction cannot fit the 200 mm grid without moving an opening. The current project has been kept.`);
+            if (!best) throw new Error(`Wall #${getWallNumber(w.id, walls)}: its old T-junction cannot fit the 200 mm grid without moving an opening. The current project has been kept.`);
             if (best.cost>0.01) changed=true;
             w.x1=best.a.x;w.y1=best.a.y;w.x2=best.b.x;w.y2=best.b.y;
         }
@@ -116,6 +116,7 @@ function migrateLegacyGeometry(walls) {
         if (dist(a.x,a.y,b.x,b.y)>0.01) throw new Error('Converting a T-junction would disconnect an L-corner. The current project has been kept.');
     }
     const notes=['Converted an older project to the common 200 mm grid. Review wall positions and dimensions.'];
+    // Persist stable IDs; getMigrationMessages resolves them to current display numbers.
     for (const w of walls) {
         const before=getWallLengthCm(original.find(o=>o.id===w.id)),after=getWallLengthCm(w);
         if (before!==after) notes.push(`Wall #${w.id}: length changed from ${before * MM_PER_CM} to ${after * MM_PER_CM} mm to fit between wall faces.`);
