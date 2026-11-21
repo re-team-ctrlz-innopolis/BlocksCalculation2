@@ -341,17 +341,17 @@
                         <!-- Ряды по высоте (для расчёта блоков) -->
                         <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-700/70">
                             <div>
-                                <div class="flex justify-between text-[11px] mb-1">
+                                <div class="flex flex-col gap-0.5 text-[11px] mb-1">
                                     <span class="text-slate-400">Bottom course:</span>
-                                    <b class="text-slate-200" id="valOpStartRow">2</b>
+                                    <b class="text-slate-200 whitespace-nowrap tabular-nums" id="valOpStartRow">2</b>
                                 </div>
                                 <input type="range" id="sliderOpStartRow" min="2" max="17" step="1" value="2" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                                 <p id="doorFloorNote" class="hidden mt-1 text-[11px] text-slate-400">At floor level.</p>
                             </div>
                             <div>
-                                <div class="flex justify-between text-[11px] mb-1">
+                                <div class="flex flex-col gap-0.5 text-[11px] mb-1">
                                     <span class="text-slate-400">Height (courses):</span>
-                                    <b class="text-slate-200" id="valOpRowCount">7</b>
+                                    <b class="text-slate-200 whitespace-nowrap tabular-nums" id="valOpRowCount">7</b>
                                 </div>
                                 <input type="range" id="sliderOpRowCount" min="1" max="10" step="1" value="7" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                             </div>
