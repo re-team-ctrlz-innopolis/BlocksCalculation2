@@ -237,6 +237,54 @@ test('five-metre wall needs no control joint; one extra module needs one', () =>
     assert.equal(run('validateProject().errors.length'), 0);
 });
 
+test('control joints near a wall end move back to leave at least one full-block length', () => {
+    const run = app();
+    for (const [length, expected] of [[500, []], [520, [480]], [540, [500]], [560, [500]], [1000, [500]], [1020, [500, 980]]]) {
+        run(`state.walls=[(${wall})(1,0,10,${length},10,17)];`);
+        const joints = JSON.parse(run('JSON.stringify(getControlJoints(state.walls[0]))'));
+        assert.deepEqual(joints, expected, `${length} cm wall`);
+        if (joints.length) {
+            assert.ok(joints[0] >= 40);
+            assert.ok(length - joints.at(-1) >= 40);
+        }
+        const bounds = [0, ...joints, length];
+        assert.ok(bounds.every((x, i) => i === 0 || x - bounds[i - 1] <= 500));
+        assert.equal(run('JSON.stringify(validateProject().errors)'), '[]');
+    }
+});
+
+test('520 cm wall retains an alternating full block and two halves after the shifted joint', () => {
+    const run = app();
+    run(`state.walls=[(${wall})(1,0,10,520,10,17)];`);
+    assert.equal(run('getControlJoints(state.walls[0]).join(",")'), '480');
+    for (let row = 1; row <= 17; row++) {
+        const layout = JSON.parse(run(`JSON.stringify(buildWallRowLayout(state.walls[0],${row}))`));
+        const tail = layout.blocks.filter(b => b.startCm >= 480);
+        assert.deepEqual(tail.map(b => b.lenCm), row % 2 ? [40] : [20, 20]);
+        let cursor = 0;
+        for (const block of layout.blocks) {
+            assert.equal(block.startCm, cursor);
+            assert.ok(block.startCm >= 480 || block.startCm + block.lenCm <= 480);
+            cursor += block.lenCm;
+        }
+        assert.equal(cursor, 520);
+        assert.equal(layout.unfilledCm, 0);
+    }
+    assert.equal(run('getProjectReport()[0].controls.join(",")'), '4800');
+});
+
+test('control-joint end clearance and opening clearance are solved together', () => {
+    const run = app();
+    run(`state.walls=[(${wall})(1,0,10,520,10,17)];state.walls[0].openings=[{id:2,offset:450,length:100,type:'window',startRow:4,rowCount:3}];`);
+    assert.equal(run('getControlJoints(state.walls[0]).join(",")'), '360');
+    assert.equal(run('JSON.stringify(validateProject().errors)'), '[]');
+
+    // Only the old 500 cm position clears these openings, leaving a forbidden 20 cm tail.
+    run('state.walls[0].openings=[[20,140],[200,140],[380,80]].map(([start,length],i)=>({id:i+2,offset:start+length/2,length,type:"window",startRow:4,rowCount:3}));');
+    assert.ok(run('validateProject().errors.some(s=>s.includes("400 mm from wall ends"))'));
+    assert.equal(run('getProjectReport()'), null);
+});
+
 test('100,000 mm wall limit and exact control-joint multiples are enforced', () => {
     const run = app();
     run(`const make=${wall}; state.walls=[make(1,0,10,10000,10)];`);
