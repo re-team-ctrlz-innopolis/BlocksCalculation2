@@ -318,7 +318,7 @@ function drawWall(wall, isSelected, allJoints) {
             state.ctx.restore();
 
             if (isSelected) {
-                for (const mark of [{ x: 0, label: 'L', color: '#38bdf8' }, { x: lenPx, label: 'R', color: '#fbbf24' }]) {
+                for (const mark of [{ x: 0, label: 'S', color: '#38bdf8' }, { x: lenPx, label: 'E', color: '#fbbf24' }]) {
                     state.ctx.save();
                     state.ctx.translate(mark.x, halfThick + 14 / state.zoom);
                     state.ctx.rotate(-angle);
