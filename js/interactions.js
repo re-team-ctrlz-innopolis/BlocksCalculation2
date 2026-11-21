@@ -260,6 +260,7 @@ function handleDeleteKeyDown(event) {
             const target = event.target;
             if (target?.isContentEditable || target?.closest?.('input, textarea, select')) return;
             if (document.getElementById('fileMenu')?.open) return;
+            if (document.getElementById('tutorialDialog')?.open) return;
             const wall = state.walls.find(item => item.id === state.selectedWallId);
             if (!wall) return;
 
@@ -300,6 +301,30 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
 
         document.getElementById('btnAddWall').addEventListener('click', addNewWall);
         document.getElementById('btnAddOpening').addEventListener('click', addOpeningToSelectedWall);
+
+        const legendTabs = [...document.querySelectorAll('[data-legend-tab]')];
+        const activateLegendTab = (tab, moveFocus = false) => {
+            for (const item of legendTabs) {
+                const isSelected = item === tab;
+                item.setAttribute('aria-selected', String(isSelected));
+                item.tabIndex = isSelected ? 0 : -1;
+                document.getElementById(item.dataset.legendTab).hidden = !isSelected;
+            }
+            if (moveFocus) tab.focus();
+        };
+        legendTabs.forEach((tab, index) => {
+            tab.addEventListener('click', () => activateLegendTab(tab));
+            tab.addEventListener('keydown', event => {
+                let nextIndex;
+                if (event.key === 'ArrowRight') nextIndex = (index + 1) % legendTabs.length;
+                else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + legendTabs.length) % legendTabs.length;
+                else if (event.key === 'Home') nextIndex = 0;
+                else if (event.key === 'End') nextIndex = legendTabs.length - 1;
+                else return;
+                event.preventDefault();
+                activateLegendTab(legendTabs[nextIndex], true);
+            });
+        });
 
         document.getElementById('btnToggleTips').addEventListener('click', (e) => {
             const button = e.currentTarget;

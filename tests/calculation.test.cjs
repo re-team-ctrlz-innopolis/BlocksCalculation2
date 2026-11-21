@@ -94,13 +94,17 @@ test('control joint near an L-corner uses full-half | half instead of three halv
     assert.equal(run('validateProject().errors.length'),0);
 });
 
-test('control joints stay at fixed 5 m intervals and report openings in their clearance zones', () => {
+test('control joints shift on the 200 mm grid to clear moved openings without exceeding 5 m sections', () => {
     const run = app();
-    run(`const make=${wall}; state.walls=[make(1,0,10,600,10)]; state.walls[0].openings=[{id:2,offset:300,length:120,startRow:4,rowCount:3,type:'window'}];`);
+    run(`const make=${wall}; state.walls=[make(1,0,10,600,10)]; state.walls[0].openings=[{id:2,offset:300,length:100,startRow:4,rowCount:3,type:'window'}];`);
     assert.equal(run('getControlJoints(state.walls[0]).join(",")'), '500');
-    assert.ok(run('validateProject().errors.some(s=>s.includes("control-joint detail"))'));
-    run(`state.walls[0].openings=[{id:2,offset:270,length:500,startRow:4,rowCount:3,type:'window'}];`);
-    assert.ok(run('validateProject().errors.some(s=>s.includes("control-joint detail"))'));
+    run('state.walls[0].openings[0].offset=490; state.walls[0].openings[0].length=140;');
+    assert.equal(run('getControlJoints(state.walls[0]).join(",")'), '380');
+    assert.equal(run('JSON.stringify(validateProject().errors)'), '[]');
+    assert.equal(run(`(() => {
+        const wall=state.walls[0], controls=[0,...getControlJoints(wall),getWallLengthCm(wall)];
+        return controls.every((position,index)=>index===0 || position-controls[index-1]<=MAX_CONTROL_SECTION_CM);
+    })()`), true);
 });
 
 test('invalid lengths, overlapping walls, X crossings and wide lintels block final reports', () => {

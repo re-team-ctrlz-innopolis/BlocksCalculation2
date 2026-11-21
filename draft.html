@@ -22,19 +22,23 @@
                     BlocksCalculator
                 </h1>
             </div>
-            <details id="fileMenu" class="file-menu">
-                <summary aria-controls="fileMenuActions">
-                    File
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-                </summary>
-                <div id="fileMenuActions" class="file-menu-actions">
-                    <button id="btnLoadProject" type="button">Open project… <span>JSON</span></button>
-                    <button id="btnSaveProject" type="button">Save project… <span>JSON</span></button>
-                    <hr>
-                    <button id="btnPrint" type="button">Print / Save PDF…</button>
-                    <button id="btnExportCsv" type="button">Export CSV…</button>
-                </div>
-            </details>
+            <div class="header-file-tools">
+                <span class="header-divider" aria-hidden="true"></span>
+                <details id="fileMenu" class="file-menu">
+                    <summary aria-controls="fileMenuActions">
+                        File
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                    </summary>
+                    <div id="fileMenuActions" class="file-menu-actions">
+                        <button id="btnLoadProject" type="button">Open project… <span>JSON</span></button>
+                        <button id="btnSaveProject" type="button">Save project… <span>JSON</span></button>
+                        <hr>
+                        <button id="btnPrint" type="button">Print / Save PDF…</button>
+                        <button id="btnExportCsv" type="button">Export CSV…</button>
+                    </div>
+                </details>
+                <button id="btnGuide" type="button" class="guide-button">Guide</button>
+            </div>
             <input id="projectFile" type="file" accept=".json,application/json" hidden>
         </div>
 
@@ -56,7 +60,7 @@
                 <button id="btnUndo" type="button" disabled aria-label="Undo last edit" title="Undo (Ctrl/Cmd+Z)" class="bg-slate-800 hover:bg-slate-700 w-9 h-9 rounded-lg inline-flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400">
                     <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5-5 5 5 5"/><path d="M4 10h10a6 6 0 0 1 6 6v3"/></svg>
                 </button>
-                <button id="btnRedo" type="button" disabled aria-label="Redo last edit" title="Redo (Ctrl/Cmd+Shift+Z)" class="bg-slate-800 hover:bg-slate-700 w-9 h-9 rounded-lg inline-flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400">
+                <button id="btnRedo" type="button" disabled aria-label="Redo last edit" title="Redo (Ctrl/Cmd+Y)" class="bg-slate-800 hover:bg-slate-700 w-9 h-9 rounded-lg inline-flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400">
                     <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5 5 5-5 5"/><path d="M20 10H10a6 6 0 0 0-6 6v3"/></svg>
                 </button>
             </div>
@@ -86,10 +90,15 @@
                 <!-- Легенда в углу холста -->
                 <div class="absolute top-3 left-3 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl p-2.5 text-[12px] text-slate-300 space-y-1.5 pointer-events-none shadow-lg">
                     <button id="btnToggleTips" type="button" aria-expanded="true" aria-controls="planTips" class="w-full font-semibold text-slate-100 flex items-center justify-between gap-3 text-left cursor-pointer pointer-events-auto">
-                        <span>Guide &amp; legend</span>
+                        <span>Symbols and Hot Keys</span>
                         <span id="tipsToggleIcon" aria-hidden="true">—</span>
                     </button>
                     <div id="planTips" class="space-y-1.5">
+                    <div class="legend-tabs" role="tablist" aria-label="Legend pages">
+                        <button id="legendTabSymbols" type="button" class="legend-tab is-active" role="tab" aria-selected="true" aria-controls="legendPanelSymbols" tabindex="0" data-legend-tab="legendPanelSymbols">Symbols</button>
+                        <button id="legendTabShortcuts" type="button" class="legend-tab" role="tab" aria-selected="false" aria-controls="legendPanelShortcuts" tabindex="-1" data-legend-tab="legendPanelShortcuts">Hot Keys</button>
+                    </div>
+                    <section id="legendPanelSymbols" class="legend-section" role="tabpanel" aria-labelledby="legendTabSymbols" data-legend-panel>
                     <label class="flex items-center justify-between gap-2 pointer-events-auto">Show course
                         <select id="planCourse" class="rounded bg-slate-800 border border-slate-700 p-1 text-slate-200" aria-label="Show course" title="Adjacent courses use different block layouts.">
                             <option value="1">Course 1</option>
@@ -120,7 +129,13 @@
                         <span class="w-4 border-t-2 border-dashed" style="border-color:#f472b6"></span>
                         <span>Control joint — every 5 m</span>
                     </div>
+                    </section>
+                    <section id="legendPanelShortcuts" class="legend-section" role="tabpanel" aria-labelledby="legendTabShortcuts" data-legend-panel hidden>
                     <p class="text-slate-400">Scroll to zoom · Drag empty space to pan</p>
+                    <div class="legend-shortcut"><span><kbd>Delete</kbd> / <kbd>Backspace</kbd></span><span>Delete selection</span></div>
+                    <div class="legend-shortcut"><span><kbd>Ctrl/Cmd</kbd> + <kbd>Z</kbd></span><span>Undo</span></div>
+                    <div class="legend-shortcut"><span><kbd>Ctrl/Cmd</kbd> + <kbd>Y</kbd></span><span>Redo</span></div>
+                    </section>
                     <div class="border-t border-slate-700/60 pt-2 mt-2">
                         <button id="btnDemoHouse" type="button" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium px-3 py-2 rounded-lg transition pointer-events-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400" title="Load an example layout (replaces the current drawing)">
                             Show example
@@ -345,6 +360,46 @@
     </div>
 
 
+    <dialog id="tutorialDialog" class="tutorial-dialog" aria-labelledby="tutorialTitle" aria-describedby="tutorialDescription">
+        <div class="tutorial-header">
+            <div>
+                <p class="tutorial-eyebrow">BlocksCalculator guide</p>
+                <h2 id="tutorialTitle">Welcome</h2>
+            </div>
+            <button id="btnTutorialClose" type="button" class="tutorial-close" aria-label="Close guide" title="Close guide">×</button>
+        </div>
+        <p id="tutorialDescription" class="tutorial-progress" aria-live="polite"></p>
+        <div class="tutorial-content">
+            <section class="tutorial-step" data-tutorial-step>
+                <h3>1. Explore the plan</h3>
+                <p>The canvas shows the floor plan. Scroll to zoom around the pointer, and drag empty space to pan. Use the course selector and the legend to inspect block layouts and wall markers.</p>
+            </section>
+            <section class="tutorial-step" data-tutorial-step hidden>
+                <h3>2. Add and edit walls</h3>
+                <p>Select <b>Add wall</b> to place a wall. Select a wall to edit its length, height, or direction in the properties panel. Turn left and Turn right rotate by 90 degrees.</p>
+            </section>
+            <section class="tutorial-step" data-tutorial-step hidden>
+                <h3>3. Add openings</h3>
+                <p>Select a wall and choose <b>+ Opening</b>. Adjust its width, position, and courses in the properties panel, or drag it in the plan or elevation. Doors start at course 1; windows start at course 2 or higher.</p>
+            </section>
+            <section class="tutorial-step" data-tutorial-step hidden>
+                <h3>4. Check the layout</h3>
+                <p>Block counts update as you edit. The elevation shows each course and its bond. Control-joint markers appear at 5,000 mm intervals. Review validation messages before exporting; invalid geometry can prevent a final report.</p>
+            </section>
+            <section class="tutorial-step" data-tutorial-step hidden>
+                <h3>5. Save and export</h3>
+                <p>Open <b>File</b> to save or open a project, print or save a PDF, or export the bill of materials as CSV. Use Undo and Redo to step through recent edits. You can reopen this guide any time with the <b>Guide</b> button.</p>
+            </section>
+        </div>
+        <div class="tutorial-actions">
+            <button id="btnTutorialSkip" type="button" class="tutorial-secondary">Close guide</button>
+            <div class="tutorial-navigation">
+                <button id="btnTutorialPrevious" type="button" class="tutorial-secondary">Previous</button>
+                <button id="btnTutorialNext" type="button" class="tutorial-primary" autofocus>Next</button>
+            </div>
+        </div>
+    </dialog>
+
     <script src="./js/constants.js"></script>
     <script src="./js/state.js"></script>
     <script src="./js/wall-logic.js"></script>
@@ -356,6 +411,7 @@
     <script src="./js/project.js"></script>
     <script src="./js/history.js"></script>
     <script src="./js/main.js"></script>
+    <script src="./js/tutorial.js"></script>
     <section id="printReport" aria-label="Material quantities report"></section>
 </body>
 </html>
