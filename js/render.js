@@ -37,7 +37,8 @@ function drawGrid() {
             state.ctx.fillRect(left, top, right - left, bottom - top);
 
             state.ctx.lineWidth = 1 / state.zoom;
-            const gridStep = cmToPx(POSITION_GRID_CM) * state.zoom >= 6 ? cmToPx(POSITION_GRID_CM) : HALF_BLOCK_PX;
+            const baseStep = cmToPx(POSITION_GRID_CM);
+            const gridStep = baseStep * 2 ** Math.max(0, Math.ceil(Math.log2(8 / (baseStep * state.zoom))));
             for (let x = Math.floor(left / gridStep) * gridStep; x <= right; x += gridStep) {
                 state.ctx.strokeStyle = '#111827';
                 state.ctx.beginPath();
@@ -668,12 +669,62 @@ function render() {
             drawElevationView(allJoints);
         }
 
+function getFitProjectView() {
+    if (!state.walls.length || state.canvas.width <= 0 || state.canvas.height <= 0) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const wall of state.walls) {
+        for (const along of [0, getWallLength(wall)]) for (const perp of [-WALL_THICKNESS / 2, WALL_THICKNESS / 2]) {
+            const point = wallLocalToWorld(wall, along, perp);
+            minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x);
+            minY = Math.min(minY, point.y); maxY = Math.max(maxY, point.y);
+        }
+    }
+    // Keep labels and editing handles clear of the edges as well as the wall faces.
+    const margin = cmToPx(FULL_BLOCK_CM);
+    const width = maxX - minX + 2 * margin, height = maxY - minY + 2 * margin;
+    const padding = Math.min(24, state.canvas.width / 10, state.canvas.height / 10);
+    const canvasRect = state.canvas.getBoundingClientRect();
+    const navigation = document.getElementById('planNavigation')?.getBoundingClientRect();
+    const base = {left: padding, top: padding, right: state.canvas.width - padding, bottom: state.canvas.height - padding};
+    if (navigation?.width > 0 && navigation.height > 0) {
+        base.bottom = Math.max(base.top + 1, Math.min(base.bottom, navigation.top - canvasRect.top - padding));
+    }
+    const legend = document.getElementById('planLegend')?.getBoundingClientRect();
+    let areas = [base];
+    if (legend?.width > 0 && legend.height > 0) {
+        areas = [
+            {...base, left: Math.max(base.left, legend.right - canvasRect.left + padding)},
+            {...base, top: Math.max(base.top, legend.bottom - canvasRect.top + padding)}
+        ].filter(area => area.right > area.left && area.bottom > area.top);
+        if (!areas.length) areas = [base];
+    }
+    const area = areas.reduce((best, next) => {
+        const scale = view => Math.min((view.right - view.left) / width, (view.bottom - view.top) / height);
+        return scale(next) > scale(best) ? next : best;
+    });
+    const zoom = Math.min(MAX_ZOOM, (area.right - area.left) / width, (area.bottom - area.top) / height);
+    return {zoom,
+        panX: (area.left + area.right) / 2 - (minX + maxX) / 2 * zoom,
+        panY: (area.top + area.bottom) / 2 - (minY + maxY) / 2 * zoom};
+}
+
+function fitProjectToView() {
+    const view = getFitProjectView();
+    if (!view) { resetZoom(); return; }
+    state.zoom = view.zoom; state.panX = view.panX; state.panY = view.panY;
+    updateZoomLabel();
+    render();
+}
+
 function updateZoomLabel() {
-            document.getElementById('zoomLevel').textContent = `${Math.round(state.zoom * 100)}%`;
+            const percent = state.zoom * 100;
+            document.getElementById('zoomLevel').textContent = `${percent < 1 ? Number(percent.toPrecision(2)) : Math.round(percent)}%`;
         }
 
 function zoomAt(screenX, screenY, factor) {
-            const nextZoom = clamp(state.zoom * factor, MIN_ZOOM, MAX_ZOOM);
+            // Large plans can need less than 25%; zooming out must not jump back in.
+            const minZoom = Math.min(MIN_ZOOM, getFitProjectView()?.zoom ?? MIN_ZOOM, state.zoom);
+            const nextZoom = clamp(state.zoom * factor, minZoom, MAX_ZOOM);
             if (nextZoom === state.zoom) return;
 
             const worldX = (screenX - state.panX) / state.zoom;

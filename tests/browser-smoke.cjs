@@ -67,6 +67,75 @@ async function main() {
             await new Promise(r => setTimeout(r, 200));
         }
         assert.deepEqual(await evaluate('validateProject().errors'), []);
+        await evaluate('if(document.getElementById("tutorialDialog").open)document.getElementById("btnTutorialClose").click();');
+        const navigationProject = await evaluate('JSON.stringify(projectSnapshot())');
+        const allWallsVisible = () => evaluate(`(() => {
+            const canvas=state.canvas.getBoundingClientRect();
+            const bounds={left:Infinity,top:Infinity,right:-Infinity,bottom:-Infinity};
+            for(const w of state.walls){
+                const horizontal=Math.abs(w.y2-w.y1)<0.001, half=WALL_THICKNESS/2;
+                bounds.left=Math.min(bounds.left,Math.min(w.x1,w.x2)-(horizontal?0:half));
+                bounds.right=Math.max(bounds.right,Math.max(w.x1,w.x2)+(horizontal?0:half));
+                bounds.top=Math.min(bounds.top,Math.min(w.y1,w.y2)-(horizontal?half:0));
+                bounds.bottom=Math.max(bounds.bottom,Math.max(w.y1,w.y2)+(horizontal?half:0));
+            }
+            for(const name of ['left','right'])bounds[name]=bounds[name]*state.zoom+state.panX;
+            for(const name of ['top','bottom'])bounds[name]=bounds[name]*state.zoom+state.panY;
+            if(bounds.left<0||bounds.top<0||bounds.right>canvas.width||bounds.bottom>canvas.height)return false;
+            return ['planLegend','planNavigation'].every(id=>{
+                const r=document.getElementById(id).getBoundingClientRect();
+                return bounds.right<=r.left-canvas.left||bounds.left>=r.right-canvas.left||
+                    bounds.bottom<=r.top-canvas.top||bounds.top>=r.bottom-canvas.top;
+            });
+        })()`);
+        assert.ok(await evaluate('document.getElementById("planNavigationHint").getBoundingClientRect().height>0'));
+        const emptyPoint = await evaluate('(()=>{const r=state.canvas.getBoundingClientRect();return {x:r.right-40,y:r.top+40};})()');
+        await call('Input.dispatchMouseEvent', {type:'mouseMoved',x:emptyPoint.x,y:emptyPoint.y});
+        assert.equal(await evaluate('state.canvas.style.cursor'), 'grab');
+        await call('Input.dispatchMouseEvent', {type:'mousePressed',x:emptyPoint.x,y:emptyPoint.y,button:'left',clickCount:1});
+        await call('Input.dispatchMouseEvent', {type:'mouseMoved',x:emptyPoint.x-30,y:emptyPoint.y+20,buttons:1});
+        await call('Input.dispatchMouseEvent', {type:'mouseReleased',x:emptyPoint.x-30,y:emptyPoint.y+20,button:'left',clickCount:1});
+        assert.deepEqual(await evaluate('({x:state.panX,y:state.panY})'), {x:-30,y:20});
+        await evaluate('state.selectedWallId=state.walls[0].id;updateInspector();state.panX=-5000;state.panY=3000;state.zoom=4;document.getElementById("btnFitProject").click();');
+        assert.ok(await allWallsVisible(), 'All walls fit without overlapping the desktop controls');
+        assert.equal(await evaluate('JSON.stringify(projectSnapshot())'), navigationProject);
+        assert.equal(await evaluate('state.selectedWallId'), 1);
+        assert.equal(await evaluate('editHistory.length'), 0);
+        if(process.argv.includes('--navigation-only')){
+            const shot=await call('Page.captureScreenshot',{format:'png'});
+            fs.writeFileSync(path.join(os.tmpdir(),'blocks-navigation-desktop.png'),Buffer.from(shot.data,'base64'));
+        }
+        await evaluate(`state.walls=[{id:1,x1:-20000,y1:-9990,x2:-10000,y2:-9990,rows:10,openings:[]},
+            {id:2,x1:20010,y1:10000,x2:20010,y2:15000,rows:10,openings:[]}];state.selectedWallId=null;resetEditHistory();
+            updateInspector();document.getElementById('btnFitProject').click();`);
+        assert.ok(await allWallsVisible(), 'Distant walls fit below the previous minimum zoom');
+        assert.ok(await evaluate('state.zoom>0 && state.zoom<0.25'));
+        const fittedZoom=await evaluate('state.zoom');
+        await evaluate('document.getElementById("btnZoomOut").click();');
+        assert.ok(await evaluate('state.zoom')<=fittedZoom);
+        await evaluate('document.getElementById("btnZoomIn").click();');
+        assert.ok(await evaluate('state.zoom')>fittedZoom);
+        await evaluate('restoreProject('+navigationProject+');updateInspector();render();resetEditHistory();');
+        await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
+        await new Promise(resolve=>setTimeout(resolve,200));
+        await evaluate('document.getElementById("btnFitProject").click();');
+        assert.ok(await allWallsVisible(), 'All walls fit beside the controls on a narrow screen');
+        assert.ok(await evaluate(`(()=>{const r=document.getElementById('planNavigation').getBoundingClientRect(),c=state.canvas.getBoundingClientRect();
+            return r.left>=c.left && r.right<=c.right && r.top>=c.top && r.bottom<=c.bottom;})()`));
+        if(process.argv.includes('--navigation-only')){
+            const shot=await call('Page.captureScreenshot',{format:'png'});
+            fs.writeFileSync(path.join(os.tmpdir(),'blocks-navigation-mobile.png'),Buffer.from(shot.data,'base64'));
+        }
+        await evaluate('state.walls=[];document.getElementById("btnFitProject").click();');
+        assert.deepEqual(await evaluate('[state.zoom,state.panX,state.panY]'),[1,0,0]);
+        await call('Emulation.clearDeviceMetricsOverride');
+        await new Promise(resolve=>setTimeout(resolve,200));
+        await evaluate('restoreProject('+navigationProject+');resetZoom();updateInspector();render();resetEditHistory();');
+        if(process.argv.includes('--navigation-only')){
+            assert.deepEqual(errors,[]);
+            console.log('PASS: visible navigation hint, mouse panning, fit project, small zooms, narrow screen, empty drawing and unchanged edit history.');
+            return;
+        }
         assert.equal(await evaluate('state.walls.length'), 5);
         assert.equal(await evaluate('document.getElementById("btnPrint").disabled'), false);
         await evaluate('document.getElementById("planCourse").value="2"; document.getElementById("planCourse").dispatchEvent(new Event("change"));');

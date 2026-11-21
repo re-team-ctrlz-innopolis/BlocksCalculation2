@@ -167,7 +167,16 @@ function handlePointerDown(e) {
         }
 
 function handlePointerMove(e) {
-            if (!state.dragState) return;
+            if (!state.dragState) {
+                const pos = getPointerPos(e);
+                const overWall = state.walls.some(wall => {
+                    const local = worldToWallLocal(wall, pos.x, pos.y);
+                    return local.along >= -6 / state.zoom && local.along <= getWallLength(wall) + 6 / state.zoom &&
+                        Math.abs(local.perp) <= WALL_THICKNESS / 2 + 4 / state.zoom;
+                });
+                state.canvas.style.cursor = overWall ? 'move' : 'grab';
+                return;
+            }
             if (state.dragState.type === 'pan_camera') {
                 const pointer = e.touches ? e.touches[0] : e;
                 state.panX = state.dragState.panX + pointer.clientX - state.dragState.startClientX;
@@ -298,6 +307,7 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             zoomAt(state.canvas.width / 2, state.canvas.height / 2, 1 / ZOOM_STEP);
         });
         document.getElementById('btnZoomReset').addEventListener('click', resetZoom);
+        document.getElementById('btnFitProject').addEventListener('click', fitProjectToView);
 
         document.getElementById('btnAddWall').addEventListener('click', addNewWall);
         document.getElementById('btnAddOpening').addEventListener('click', addOpeningToSelectedWall);
