@@ -581,22 +581,11 @@ function buildWallRowLayout(wall, rowIndex, precomputedJoints = null) {
                 const cuts = getControlJoints(wall).filter(x => x > seg.startCm && x < seg.endCm);
                 const bounds = [seg.startCm, ...cuts, seg.endCm];
                 for (let i = 0; i < bounds.length - 1; i++) {
-                    let start = bounds[i], end = bounds[i + 1];
-                    // MVP decision: every second course uses one half block on each side of the joint.
-                    const hasStartJoint = rowIndex % 2 === 0 && cuts.includes(start) &&
-                        end - start >= HALF_BLOCK_CM;
-                    const hasEndJoint = rowIndex % 2 === 0 && cuts.includes(end) &&
-                        end - start >= HALF_BLOCK_CM;
-                    if (hasStartJoint) {
-                        rowBlocks.push({startCm: start, lenCm: HALF_BLOCK_CM, kind: 'half'});
-                        start += HALF_BLOCK_CM;
-                    }
-                    const endHalfStart = end - HALF_BLOCK_CM;
-                    const result = decomposeSegmentIntoBlocks(start, end - (hasEndJoint ? HALF_BLOCK_CM : 0), seamPhase);
+                    const start = bounds[i], end = bounds[i + 1];
+                    // Split at the joint without resetting the wall's bond or forcing halves.
+                    // The actual course phase and joint position determine the end blocks.
+                    const result = decomposeSegmentIntoBlocks(start, end, seamPhase);
                     rowBlocks.push(...result.blocks);
-                    if (hasEndJoint) {
-                        rowBlocks.push({startCm: endHalfStart, lenCm: HALF_BLOCK_CM, kind: 'half'});
-                    }
                     unfilledSegments.push(...result.unfilledSegments);
                 }
             }
