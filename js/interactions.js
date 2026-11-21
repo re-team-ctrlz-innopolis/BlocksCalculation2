@@ -312,6 +312,14 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
         document.getElementById('btnAddWall').addEventListener('click', addNewWall);
         document.getElementById('btnAddOpening').addEventListener('click', addOpeningToSelectedWall);
 
+        // Let wheel gestures scroll the inspector instead of stepping a focused number input.
+        for (const id of ['inputWallRows', 'sliderWallLength']) {
+            const input = document.getElementById(id);
+            input.addEventListener('wheel', () => {
+                if (document.activeElement === input) input.blur();
+            }, { passive: true });
+        }
+
         const legendTabs = [...document.querySelectorAll('[data-legend-tab]')];
         const activateLegendTab = (tab, moveFocus = false) => {
             for (const item of legendTabs) {

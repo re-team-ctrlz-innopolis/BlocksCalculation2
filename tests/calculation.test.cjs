@@ -245,7 +245,7 @@ test('control joints shift on the 200 mm grid to clear moved openings without ex
     })()`), true);
 });
 
-test('invalid lengths, overlapping walls, X crossings and wide lintels block final reports', () => {
+test('invalid lengths, overlapping walls and X crossings block final reports', () => {
     const run = app();
     run(`const make=${wall}; state.walls=[make(1,0,10,410,10)];`);
     assert.ok(run('validateProject().errors.some(s=>s.includes("200 mm modules"))'));
@@ -253,7 +253,27 @@ test('invalid lengths, overlapping walls, X crossings and wide lintels block fin
     assert.ok(run('validateProject().errors.some(s=>s.includes("overlap"))'));
     run('state.walls=[make(1,0,10,400,10),make(2,200,-100,200,100)];');
     assert.ok(run('validateProject().errors.some(s=>s.includes("X intersections"))'));
-    run(`state.walls=[make(1,0,10,400,10)]; state.walls[0].openings=[{id:2,offset:200,length:160,startRow:1,rowCount:4,type:'door'}];`);
+    assert.equal(run('getProjectReport()'), null);
+});
+
+test('wide openings retain correct masonry counts and survive export and JSON restoration', () => {
+    const run = app();
+    run(`const make=${wall}; state.walls=[make(1,0,10,400,10)];
+        state.walls[0].openings=[{id:2,offset:90,length:140,startRow:1,rowCount:4,type:'door'}];
+        var exportedCsv;downloadFile=(name,content)=>{exportedCsv=content;};`);
+    for (const widthCm of [140,160,200,360]) {
+        run(`setOpeningBoundsCm(state.walls[0].openings[0],20,${widthCm});`);
+        assert.equal(run('JSON.stringify(validateProject().errors)'), '[]');
+        assert.equal(run('validateProject().notices.some(s=>s.includes("wider than 1500 mm"))'), widthCm > 150);
+        assert.equal(run('validateProject().warnings.some(s=>s.includes("Lintel/beam design and quantities are not calculated"))'), widthCm > 150);
+        assert.equal(run('getProjectReport()[0].fullCount*2+getProjectReport()[0].halfCount'), (400*10-widthCm*4)/20);
+        assert.ok(run('exportCsv();exportedCsv.includes("TOTAL")'));
+        run('restoreProject(JSON.parse(JSON.stringify(projectSnapshot())));');
+        assert.equal(run('state.walls[0].openings[0].length'), widthCm);
+        assert.notEqual(run('getProjectReport()'), null);
+    }
+    run('state.walls[0].openings[0].length=400;');
+    assert.ok(run('validateProject().errors.some(s=>s.includes("pier at both wall ends"))'));
     assert.equal(run('getProjectReport()'), null);
 });
 
