@@ -722,10 +722,14 @@ function updateZoomLabel() {
             document.getElementById('zoomLevel').textContent = `${percent < 1 ? Number(percent.toPrecision(2)) : Math.round(percent)}%`;
         }
 
-function zoomAt(screenX, screenY, factor) {
+function zoomAt(screenX, screenY, direction) {
+            if (!direction) return;
             // Large plans can need less than 25%; zooming out must not jump back in.
             const minZoom = Math.min(MIN_ZOOM, getFitProjectView()?.zoom ?? MIN_ZOOM, state.zoom);
-            const nextZoom = clamp(state.zoom * factor, minZoom, MAX_ZOOM);
+            // After an automatic fit, move to the next round level in the requested direction.
+            const level = state.zoom / ZOOM_STEP;
+            const nextLevel = direction > 0 ? Math.floor(level + 1e-8) + 1 : Math.ceil(level - 1e-8) - 1;
+            const nextZoom = clamp(Number((nextLevel * ZOOM_STEP).toFixed(10)), minZoom, MAX_ZOOM);
             if (nextZoom === state.zoom) return;
 
             const worldX = (screenX - state.panX) / state.zoom;

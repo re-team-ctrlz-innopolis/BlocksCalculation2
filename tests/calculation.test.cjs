@@ -47,7 +47,7 @@ test('show entire project fits distant walls without editing geometry or undo hi
     assert.equal(run('editHistory.length'), 0);
     run('const fitted=state.zoom;document.getElementById("btnZoomOut").listeners.click[0]();');
     assert.ok(run('state.zoom <= fitted'));
-    run('const anchor={x:(500-state.panX)/state.zoom,y:(350-state.panY)/state.zoom};zoomAt(500,350,ZOOM_STEP);');
+    run('const anchor={x:(500-state.panX)/state.zoom,y:(350-state.panY)/state.zoom};zoomAt(500,350,1);');
     assert.ok(run('state.zoom > fitted'));
     assert.ok(run('Math.abs((500-state.panX)/state.zoom-anchor.x)<0.00001 && Math.abs((350-state.panY)/state.zoom-anchor.y)<0.00001'));
 });
@@ -80,6 +80,31 @@ test('show entire project handles an empty drawing and very small scales', () =>
     assert.ok(run('state.zoom > 0 && state.zoom < 0.01'));
     assert.ok(run('parseFloat(document.getElementById("zoomLevel").textContent)>0'));
     assert.ok(run('Number.isFinite(state.panX) && Number.isFinite(state.panY)'));
+});
+
+test('manual zoom uses round ten-percentage-point levels and keeps the pointer anchor', () => {
+    const run = app(true);
+    run('state.zoom=1;state.panX=120;state.panY=-80;const saved=JSON.stringify(projectSnapshot());resetEditHistory();');
+    for (const [direction, expected] of [[1,1.1],[1,1.2],[-1,1.1],[-1,1],[-1,0.9]]) {
+        const anchor = JSON.parse(run('JSON.stringify({x:(430-state.panX)/state.zoom,y:(280-state.panY)/state.zoom})'));
+        run(`zoomAt(430,280,${direction});`);
+        assert.equal(run('state.zoom'),expected);
+        assert.equal(run('document.getElementById("zoomLevel").textContent'),`${Math.round(expected*100)}%`);
+        assert.ok(Math.abs(run('(430-state.panX)/state.zoom')-anchor.x)<1e-8);
+        assert.ok(Math.abs(run('(280-state.panY)/state.zoom')-anchor.y)<1e-8);
+    }
+    run('state.zoom=0.83;zoomAt(430,280,1);');
+    assert.equal(run('state.zoom'),0.9);
+    run('state.zoom=0.83;zoomAt(430,280,-1);');
+    assert.equal(run('state.zoom'),0.8);
+    run('state.zoom=0.3;zoomAt(430,280,-1);');
+    assert.equal(run('state.zoom'),0.25);
+    run('zoomAt(430,280,-1);');
+    assert.equal(run('state.zoom'),0.25);
+    run('state.zoom=3.9;zoomAt(430,280,1);zoomAt(430,280,1);');
+    assert.equal(run('state.zoom'),4);
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('saved'));
+    assert.equal(run('editHistory.length'),0);
 });
 
 test('400 cm wall: odd and even courses bond differently without cutting', () => {

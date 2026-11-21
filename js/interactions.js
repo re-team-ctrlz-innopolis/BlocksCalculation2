@@ -297,14 +297,14 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             e.preventDefault();
             if (state.dragState || e.deltaY === 0) return;
             const rect = state.canvas.getBoundingClientRect();
-            zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
+            zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY < 0 ? 1 : -1);
         }, { passive: false });
 
         document.getElementById('btnZoomIn').addEventListener('click', () => {
-            zoomAt(state.canvas.width / 2, state.canvas.height / 2, ZOOM_STEP);
+            zoomAt(state.canvas.width / 2, state.canvas.height / 2, 1);
         });
         document.getElementById('btnZoomOut').addEventListener('click', () => {
-            zoomAt(state.canvas.width / 2, state.canvas.height / 2, 1 / ZOOM_STEP);
+            zoomAt(state.canvas.width / 2, state.canvas.height / 2, -1);
         });
         document.getElementById('btnZoomReset').addEventListener('click', resetZoom);
         document.getElementById('btnFitProject').addEventListener('click', fitProjectToView);
