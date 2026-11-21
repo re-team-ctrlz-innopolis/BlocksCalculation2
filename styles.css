@@ -102,10 +102,13 @@ header > div:nth-child(2) { flex-wrap: wrap; }
 .file-menu { position: relative; flex-shrink: 0; font-size: 14px; }
 .file-menu > summary {
     display: flex; align-items: center; gap: 8px; padding: 8px 10px;
-    border-radius: 8px; color: #cbd5e1; cursor: pointer; list-style: none;
+    border: 1px solid #3b82f6; border-radius: 8px;
+    background: #1d4ed8; color: #fff; font-weight: 600;
+    box-shadow: 0 2px 8px #1d4ed833; cursor: pointer; list-style: none;
 }
 .file-menu > summary::-webkit-details-marker { display: none; }
-.file-menu > summary:hover, .file-menu[open] > summary { background: #1e293b; color: #f8fafc; }
+.file-menu > summary:hover { background: #2563eb; }
+.file-menu[open] > summary { background: #1e40af; border-color: #60a5fa; }
 .file-menu > summary:focus-visible, .file-menu-actions button:focus-visible {
     outline: 2px solid #60a5fa; outline-offset: 2px;
 }
