@@ -204,7 +204,9 @@ function updateProjectStatus() {
     status.hidden = result.errors.length === 0 && migrationMessages.length === 0;
     document.getElementById('btnPrint').disabled = result.errors.length > 0;
     document.getElementById('btnExportCsv').disabled = result.errors.length > 0;
-    document.getElementById('resultsStatus').textContent = result.errors.length ? 'Draft quantities — fix the issues below to export' : 'Ready to export';
+    const resultsStatus = document.getElementById('resultsStatus');
+    resultsStatus.className = `export-status ${result.errors.length ? 'export-status-unavailable' : 'export-status-ready'}`;
+    resultsStatus.textContent = result.errors.length ? 'Draft quantities — fix the issues below to export' : 'Ready to export';
     const wall = getPartnerWall(state.selectedWallId);
     document.getElementById('btnAddOpening').disabled = !wall || !findFreeSlotForOpening(wall, HALF_BLOCK_CM);
 }
