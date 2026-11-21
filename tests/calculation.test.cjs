@@ -30,6 +30,58 @@ function app(withInteractions = false) {
 }
 const wall = `(id, x1, y1, x2, y2, rows = 10) => ({id, x1, y1, x2, y2, rows, openings: []})`;
 
+test('show entire project fits distant walls without editing geometry or undo history', () => {
+    const run = app(true);
+    run(`const make=${wall};state.walls=[make(1,-20000,-9990,-10000,-9990),make(2,20010,10000,20010,15000)];
+        state.nextId=3;state.selectedWallId=2;state.panX=5000;state.panY=-3000;state.zoom=4;
+        const saved=JSON.stringify(projectSnapshot());resetEditHistory();
+        document.getElementById('btnFitProject').listeners.click[0]();`);
+    const view = JSON.parse(run('JSON.stringify({zoom:state.zoom,x:state.panX,y:state.panY})'));
+    assert.ok(view.zoom > 0 && view.zoom < 0.25);
+    for (const [x, y] of [[-20000,-10000],[-10000,-9980],[20000,10000],[20020,15000]]) {
+        assert.ok(x * view.zoom + view.x >= 0 && x * view.zoom + view.x <= 1000);
+        assert.ok(y * view.zoom + view.y >= 0 && y * view.zoom + view.y <= 700);
+    }
+    assert.equal(run('JSON.stringify(projectSnapshot())'), run('saved'));
+    assert.equal(run('state.selectedWallId'), 2);
+    assert.equal(run('editHistory.length'), 0);
+    run('const fitted=state.zoom;document.getElementById("btnZoomOut").listeners.click[0]();');
+    assert.ok(run('state.zoom <= fitted'));
+    run('const anchor={x:(500-state.panX)/state.zoom,y:(350-state.panY)/state.zoom};zoomAt(500,350,ZOOM_STEP);');
+    assert.ok(run('state.zoom > fitted'));
+    assert.ok(run('Math.abs((500-state.panX)/state.zoom-anchor.x)<0.00001 && Math.abs((350-state.panY)/state.zoom-anchor.y)<0.00001'));
+});
+
+test('show entire project keeps walls clear of the legend and navigation controls', () => {
+    const run = app(true);
+    run(`const make=${wall};
+        document.getElementById('planLegend').getBoundingClientRect=()=>({left:12,top:12,right:232,bottom:312,width:220,height:300});
+        document.getElementById('planNavigation').getBoundingClientRect=()=>({left:648,top:620,right:988,bottom:688,width:340,height:68});`);
+    for (const points of [[-5000,10,5000,10],[10,-5000,10,5000]]) {
+        run(`state.walls=[make(1,${points.join(',')})];fitProjectToView();`);
+        const view = JSON.parse(run('JSON.stringify({zoom:state.zoom,x:state.panX,y:state.panY})'));
+        const horizontal = points[1] === points[3];
+        const left = Math.min(points[0], points[2]) - (horizontal ? 0 : 10);
+        const top = Math.min(points[1], points[3]) - (horizontal ? 10 : 0);
+        const right = Math.max(points[0], points[2]) + (horizontal ? 0 : 10);
+        const bottom = Math.max(points[1], points[3]) + (horizontal ? 10 : 0);
+        assert.ok(bottom * view.zoom + view.y < 620);
+        assert.ok(left * view.zoom + view.x > 232 || top * view.zoom + view.y > 312);
+        assert.ok(right * view.zoom + view.x < 1000);
+    }
+});
+
+test('show entire project handles an empty drawing and very small scales', () => {
+    const run = app(true);
+    run('state.walls=[];state.zoom=2;state.panX=100;state.panY=200;fitProjectToView();');
+    assert.equal(run('JSON.stringify([state.zoom,state.panX,state.panY])'), '[1,0,0]');
+    run(`const make=${wall};state.canvas.width=320;state.canvas.height=180;
+        state.walls=[make(1,-90000,10,-80000,10),make(2,80000,10,90000,10)];fitProjectToView();`);
+    assert.ok(run('state.zoom > 0 && state.zoom < 0.01'));
+    assert.ok(run('parseFloat(document.getElementById("zoomLevel").textContent)>0'));
+    assert.ok(run('Number.isFinite(state.panX) && Number.isFinite(state.panY)'));
+});
+
 test('400 cm wall: odd and even courses bond differently without cutting', () => {
     const run = app();
     run(`const make = ${wall}; state.walls = [make(1,0,10,400,10)];`);

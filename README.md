@@ -26,7 +26,7 @@ Both examples use `modular-cells-v3`, 200 mm courses, and only Window/Door openi
 - Add, delete, move, resize, and rotate walls in 90° increments.
 - Wall display numbers run from 1 to the current wall count, in wall-list order. Openings have their own project-wide sequence, ordered by wall and then position along that wall. Lists, the inspector, validation messages, and reports use these numbers and close gaps after deletions. Internal IDs remain unchanged for connections, JSON files, and undo/redo.
 - Press Delete or Backspace (the Delete key on a Mac keyboard) to remove the selected wall or opening. Clicking wall masonry selects the wall; clicking an opening selects that opening. Selecting a wall does not automatically select one of its openings. The shortcuts preserve text editing in fields, ignore held-key repeats and modifier combinations, and are inactive while the File menu is open. Deletions can be undone with Ctrl/Cmd+Z. Clearing the canvas and loading the sample project require confirmation.
-- Camera controls: scroll to zoom around the cursor; drag empty space with the left mouse button, or drag anywhere with the middle button, to pan. Reset restores the camera position and zoom.
+- Camera controls: scroll to zoom around the cursor; drag empty space with the left mouse button, or drag anywhere with the middle button, to pan. A permanent hint appears beside the zoom controls, and empty space uses a hand cursor. **Show entire project** fits all wall footprints into view with room for labels, avoiding the legend and navigation controls. Large plans can fit below 25% zoom. Reset restores the original camera position and 100% zoom. Camera actions do not modify walls or enter undo/redo history.
 - Use the back arrow or Ctrl/Cmd+Z to undo plan edits: creation, deletion, property changes, rotation, dragging, clearing, and importing. Use the forward arrow, Ctrl/Cmd+Shift+Z, or Ctrl/Cmd+Y to redo an undone edit. A new edit clears the redo history. Each drag gesture counts as one operation. Up to 50 operations are retained for the current session; camera movements are excluded. When typing in a field, the browser's native text undo remains available.
 - Wall orientation is shown as Horizontal / Vertical. Turn left / Turn right rotates the wall by a quarter turn without entering angles.
 - Snapping for L- and T-junctions; a wall list for selection and access to properties.
@@ -85,5 +85,7 @@ The integration check requires Chrome or Edge installed on Windows. The script s
 ```powershell
 node tests/browser-smoke.cjs
 ```
+
+To check only navigation (panning, fitting the project, large drawings, and narrow screens), run `node tests/browser-smoke.cjs --navigation-only`.
 
 The screenshot is saved in the operating system's temporary directory. The script checks loading, wall properties, invalid dimensions, dragging an opening in the elevation, CSV export, the printable table, restoration after reload, blocked export, and adding/clearing walls.

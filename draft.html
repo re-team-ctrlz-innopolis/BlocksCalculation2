@@ -78,17 +78,21 @@
             
             <!-- 2D Холст -->
             <div class="flex-1 relative overflow-hidden" id="canvasContainer">
-                <canvas id="planCanvas" tabindex="0" aria-label="Floor plan. Select a wall or opening; press Delete or Backspace to remove it." class="block w-full h-full cursor-crosshair"></canvas>
+                <canvas id="planCanvas" tabindex="0" aria-label="Floor plan. Drag empty space to move the view; scroll to zoom. Select a wall or opening; press Delete or Backspace to remove it." aria-describedby="planNavigationHint" class="block w-full h-full cursor-grab"></canvas>
 
-                <div class="absolute bottom-3 right-3 z-20 flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/95 p-1.5 shadow-lg pointer-events-auto">
+                <div id="planNavigation" class="plan-navigation" role="group" aria-label="Plan navigation">
+                    <p id="planNavigationHint" class="plan-navigation-hint">Drag empty space to move the view · Scroll to zoom</p>
+                    <div class="plan-navigation-actions">
                     <button id="btnZoomOut" type="button" class="w-8 h-8 rounded bg-slate-800 hover:bg-slate-700 text-lg" aria-label="Zoom out" title="Zoom out">−</button>
                     <span id="zoomLevel" class="w-12 text-center text-xs text-slate-200">100%</span>
                     <button id="btnZoomIn" type="button" class="w-8 h-8 rounded bg-slate-800 hover:bg-slate-700 text-lg" aria-label="Zoom in" title="Zoom in">+</button>
                     <button id="btnZoomReset" type="button" class="px-2 h-8 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-200" title="Reset zoom">Reset</button>
+                    <button id="btnFitProject" type="button" class="fit-project-button" title="Show all walls in the available view">Show entire project</button>
+                    </div>
                 </div>
 
                 <!-- Легенда в углу холста -->
-                <div class="absolute top-3 left-3 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl p-2.5 text-[12px] text-slate-300 space-y-1.5 pointer-events-none shadow-lg">
+                <div id="planLegend" class="absolute top-3 left-3 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl p-2.5 text-[12px] text-slate-300 space-y-1.5 pointer-events-none shadow-lg">
                     <button id="btnToggleTips" type="button" aria-expanded="true" aria-controls="planTips" class="w-full font-semibold text-slate-100 flex items-center justify-between gap-3 text-left cursor-pointer pointer-events-auto">
                         <span>Symbols and Hot Keys</span>
                         <span id="tipsToggleIcon" aria-hidden="true">—</span>
@@ -372,7 +376,7 @@
         <div class="tutorial-content">
             <section class="tutorial-step" data-tutorial-step>
                 <h3>1. Move around the plan</h3>
-                <p>Use the mouse wheel to zoom in or out. Hold the left mouse button and drag an empty area of the plan to move the view. Use <b>Show course</b> in the legend to switch between the first two horizontal rows of blocks.</p>
+                <p>Use the mouse wheel to zoom in or out. Hold the left mouse button and drag an empty area of the plan to move the view. Click <b>Show entire project</b> beside the zoom controls to bring all walls into view. Use <b>Show course</b> in the legend to switch between the first two horizontal rows of blocks.</p>
             </section>
             <section class="tutorial-step" data-tutorial-step hidden>
                 <h3>2. Add, edit and connect walls</h3>
