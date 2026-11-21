@@ -21,7 +21,7 @@ function removeOpening(wallId, openingId) {
     const wall = state.walls.find(wall => wall.id === wallId);
     if (!wall || !wall.openings.some(opening => opening.id === openingId)) return false;
     wall.openings = wall.openings.filter(opening => opening.id !== openingId);
-    state.selectedOpeningId = null;
+    if (state.selectedOpeningId === openingId) state.selectedOpeningId = null;
     finishDeletion();
     return true;
 }

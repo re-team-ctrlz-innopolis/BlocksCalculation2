@@ -25,6 +25,18 @@ body {
 
 input[type="number"] { user-select: text; }
 button:disabled { cursor: not-allowed; }
+.opening-delete-button {
+    flex-shrink: 0; min-height: 32px; padding: 6px 10px;
+    border: 1px solid #be123c; border-radius: 6px;
+    background: #4c0519; color: #fda4af; font-size: 12px; font-weight: 600;
+    cursor: pointer; box-shadow: 0 1px 2px #0003;
+}
+.opening-delete-button:hover { background: #881337; border-color: #fb7185; color: #ffe4e6; }
+.opening-delete-button:active { background: #9f1239; }
+.opening-delete-button:focus-visible { outline: 2px solid #fb7185; outline-offset: 2px; }
+.export-status { font-size: 14px; font-weight: 600; line-height: 1.5; }
+.export-status-ready { color: #34d399; }
+.export-status-unavailable { color: #f87171; }
 .plan-navigation {
     position: absolute; right: 12px; bottom: 12px; z-index: 20;
     max-width: calc(100% - 24px); padding: 8px;
@@ -99,10 +111,13 @@ header > div:nth-child(2) { flex-wrap: wrap; }
 .file-menu { position: relative; flex-shrink: 0; font-size: 14px; }
 .file-menu > summary {
     display: flex; align-items: center; gap: 8px; padding: 8px 10px;
-    border-radius: 8px; color: #cbd5e1; cursor: pointer; list-style: none;
+    border: 1px solid #3b82f6; border-radius: 8px;
+    background: #1d4ed8; color: #fff; font-weight: 600;
+    box-shadow: 0 2px 8px #1d4ed833; cursor: pointer; list-style: none;
 }
 .file-menu > summary::-webkit-details-marker { display: none; }
-.file-menu > summary:hover, .file-menu[open] > summary { background: #1e293b; color: #f8fafc; }
+.file-menu > summary:hover { background: #2563eb; }
+.file-menu[open] > summary { background: #1e40af; border-color: #60a5fa; }
 .file-menu > summary:focus-visible, .file-menu-actions button:focus-visible {
     outline: 2px solid #60a5fa; outline-offset: 2px;
 }

@@ -297,20 +297,28 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             e.preventDefault();
             if (state.dragState || e.deltaY === 0) return;
             const rect = state.canvas.getBoundingClientRect();
-            zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
+            zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY < 0 ? 1 : -1);
         }, { passive: false });
 
         document.getElementById('btnZoomIn').addEventListener('click', () => {
-            zoomAt(state.canvas.width / 2, state.canvas.height / 2, ZOOM_STEP);
+            zoomAt(state.canvas.width / 2, state.canvas.height / 2, 1);
         });
         document.getElementById('btnZoomOut').addEventListener('click', () => {
-            zoomAt(state.canvas.width / 2, state.canvas.height / 2, 1 / ZOOM_STEP);
+            zoomAt(state.canvas.width / 2, state.canvas.height / 2, -1);
         });
         document.getElementById('btnZoomReset').addEventListener('click', resetZoom);
         document.getElementById('btnFitProject').addEventListener('click', fitProjectToView);
 
         document.getElementById('btnAddWall').addEventListener('click', addNewWall);
         document.getElementById('btnAddOpening').addEventListener('click', addOpeningToSelectedWall);
+
+        // Let wheel gestures scroll the inspector instead of stepping a focused number input.
+        for (const id of ['inputWallRows', 'sliderWallLength']) {
+            const input = document.getElementById(id);
+            input.addEventListener('wheel', () => {
+                if (document.activeElement === input) input.blur();
+            }, { passive: true });
+        }
 
         const legendTabs = [...document.querySelectorAll('[data-legend-tab]')];
         const activateLegendTab = (tab, moveFocus = false) => {
@@ -399,8 +407,9 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             removeWall(state.selectedWallId);
         });
 
-        document.getElementById('btnDeleteOpening').addEventListener('click', () => {
-            removeOpening(state.selectedWallId, state.selectedOpeningId);
+        document.getElementById('openingsList').addEventListener('click', event => {
+            const button = event.target.closest('[data-delete-opening]');
+            if (button) removeOpening(Number(button.dataset.wallId), Number(button.dataset.deleteOpening));
         });
 
         document.querySelectorAll('.opening-type-btn').forEach(btn => {

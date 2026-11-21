@@ -68,7 +68,7 @@ function getControlJoints(wall) {
 }
 
 function validateProject() {
-    const errors = [], warnings = [];
+    const errors = [], warnings = [], notices = [];
     const joints = getAllWallJoints();
     if (!state.walls.length) errors.push('Add at least one wall.');
     for (const wall of state.walls) {
@@ -101,7 +101,7 @@ function validateProject() {
                 errors.push(`${label}: door opening #${openingNumber} must start at course 1 (floor level).`);
             if (op.type === 'window' && op.startRow < 2)
                 errors.push(`${label}: window opening #${openingNumber} must start at course 2 or above.`);
-            if (b.lenCm > 150) errors.push(`${label}: opening #${openingNumber} exceeds the supported lintel span of 1500 mm.`);
+            if (b.lenCm > 150) notices.push(`${label}: opening #${openingNumber} is wider than 1500 mm and requires a separate lintel or beam. Lintel/beam design and quantities are not calculated.`);
             const openingTopRow = op.startRow + op.rowCount - 1;
             const coursesAbove = getWallRows(wall) - openingTopRow;
             if (coursesAbove < 3)
@@ -182,8 +182,9 @@ function validateProject() {
     }
     warnings.push('Full block: 400×200×200 mm; half block: 200×200×200 mm. One course is 200 mm. Mortar joints are not included in the dimensions or quantities.');
     warnings.push('Counts cover above-floor wall blocks, including block lintels. Foundations, gables, reinforcement, ties, concrete and waste allowance are excluded.');
-    warnings.push(...getMigrationMessages());
-    return { errors: [...new Set(errors)], warnings };
+    notices.push(...getMigrationMessages());
+    warnings.push(...notices);
+    return { errors: [...new Set(errors)], warnings, notices };
 }
 
 function updateProjectStatus() {
@@ -196,15 +197,16 @@ function updateProjectStatus() {
         line.textContent = message;
         status.appendChild(line);
     }
-    const migrationMessages = getMigrationMessages();
-    for (const message of migrationMessages) {
+    for (const message of result.notices) {
         const line = document.createElement('p');
         line.className = 'text-amber-300'; line.textContent = message; status.appendChild(line);
     }
-    status.hidden = result.errors.length === 0 && migrationMessages.length === 0;
+    status.hidden = result.errors.length === 0 && result.notices.length === 0;
     document.getElementById('btnPrint').disabled = result.errors.length > 0;
     document.getElementById('btnExportCsv').disabled = result.errors.length > 0;
-    document.getElementById('resultsStatus').textContent = result.errors.length ? 'Draft quantities — fix the issues below to export' : 'Ready to export';
+    const resultsStatus = document.getElementById('resultsStatus');
+    resultsStatus.className = `export-status ${result.errors.length ? 'export-status-unavailable' : 'export-status-ready'}`;
+    resultsStatus.textContent = result.errors.length ? 'Draft quantities — fix the issues below to export' : 'Ready to export';
     const wall = getPartnerWall(state.selectedWallId);
     document.getElementById('btnAddOpening').disabled = !wall || !findFreeSlotForOpening(wall, HALF_BLOCK_CM);
 }

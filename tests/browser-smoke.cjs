@@ -69,6 +69,47 @@ async function main() {
         assert.deepEqual(await evaluate('validateProject().errors'), []);
         await evaluate('if(document.getElementById("tutorialDialog").open)document.getElementById("btnTutorialClose").click();');
         const navigationProject = await evaluate('JSON.stringify(projectSnapshot())');
+        if (!process.argv.includes('--navigation-only')) {
+            for (const screen of [{width:1366,height:768},{width:800,height:600}]) {
+                await call('Emulation.setDeviceMetricsOverride', {...screen,deviceScaleFactor:1,mobile:false});
+                await new Promise(resolve => setTimeout(resolve, 150));
+                await evaluate(`state.walls=[{id:1,x1:0,y1:10,x2:1000,y2:10,rows:17,openings:[]}];
+                    state.nextId=2;state.selectedWallId=1;state.selectedOpeningId=null;updateInspector();render();
+                    document.getElementById('btnAddOpening').click();`);
+                assert.equal(await evaluate('state.walls[0].openings.length'), 1);
+                const beforeScrolling = await evaluate('JSON.stringify(projectSnapshot())');
+                for (const id of ['inputWallRows','sliderWallLength']) {
+                    const point = await evaluate(`(() => {
+                        const input=document.getElementById(${JSON.stringify(id)});
+                        input.scrollIntoView({block:'center'});input.focus();
+                        const r=input.getBoundingClientRect();
+                        return {x:r.left+r.width/2,y:r.top+r.height/2};
+                    })()`);
+                    const scrollBefore = await evaluate('document.querySelector("aside").scrollTop');
+                    await call('Input.dispatchMouseEvent', {type:'mouseWheel',...point,deltaX:0,deltaY:120});
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    assert.ok(await evaluate('document.querySelector("aside").scrollTop') > scrollBefore,
+                        `Wheel over focused ${id} scrolls the panel at ${screen.width}px`);
+                    assert.equal(await evaluate('JSON.stringify(projectSnapshot())'), beforeScrolling,
+                        'Scrolling must not change wall dimensions or openings');
+                }
+                await evaluate('document.querySelector("aside").scrollTop=99999;');
+                assert.ok(await evaluate(`(() => {
+                    const panel=document.querySelector('aside').getBoundingClientRect();
+                    const slider=document.getElementById('sliderOpRowCount').getBoundingClientRect();
+                    return slider.top>=panel.top && slider.bottom<=panel.bottom;
+                })()`), 'Opening height remains reachable at the bottom of the panel');
+            }
+            await call('Emulation.clearDeviceMetricsOverride');
+            await new Promise(resolve => setTimeout(resolve, 150));
+            await evaluate(`restoreProject(${navigationProject});updateInspector();render();resetEditHistory();
+                document.querySelector('aside').scrollTop=0;`);
+            if (process.argv.includes('--scroll-only')) {
+                assert.deepEqual(errors, []);
+                console.log('PASS: inspector scrolls after adding an opening, including over focused number fields, without changing the project.');
+                return;
+            }
+        }
         const allWallsVisible = () => evaluate(`(() => {
             const canvas=state.canvas.getBoundingClientRect();
             const bounds={left:Infinity,top:Infinity,right:-Infinity,bottom:-Infinity};

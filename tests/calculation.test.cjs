@@ -47,7 +47,7 @@ test('show entire project fits distant walls without editing geometry or undo hi
     assert.equal(run('editHistory.length'), 0);
     run('const fitted=state.zoom;document.getElementById("btnZoomOut").listeners.click[0]();');
     assert.ok(run('state.zoom <= fitted'));
-    run('const anchor={x:(500-state.panX)/state.zoom,y:(350-state.panY)/state.zoom};zoomAt(500,350,ZOOM_STEP);');
+    run('const anchor={x:(500-state.panX)/state.zoom,y:(350-state.panY)/state.zoom};zoomAt(500,350,1);');
     assert.ok(run('state.zoom > fitted'));
     assert.ok(run('Math.abs((500-state.panX)/state.zoom-anchor.x)<0.00001 && Math.abs((350-state.panY)/state.zoom-anchor.y)<0.00001'));
 });
@@ -80,6 +80,31 @@ test('show entire project handles an empty drawing and very small scales', () =>
     assert.ok(run('state.zoom > 0 && state.zoom < 0.01'));
     assert.ok(run('parseFloat(document.getElementById("zoomLevel").textContent)>0'));
     assert.ok(run('Number.isFinite(state.panX) && Number.isFinite(state.panY)'));
+});
+
+test('manual zoom uses round ten-percentage-point levels and keeps the pointer anchor', () => {
+    const run = app(true);
+    run('state.zoom=1;state.panX=120;state.panY=-80;const saved=JSON.stringify(projectSnapshot());resetEditHistory();');
+    for (const [direction, expected] of [[1,1.1],[1,1.2],[-1,1.1],[-1,1],[-1,0.9]]) {
+        const anchor = JSON.parse(run('JSON.stringify({x:(430-state.panX)/state.zoom,y:(280-state.panY)/state.zoom})'));
+        run(`zoomAt(430,280,${direction});`);
+        assert.equal(run('state.zoom'),expected);
+        assert.equal(run('document.getElementById("zoomLevel").textContent'),`${Math.round(expected*100)}%`);
+        assert.ok(Math.abs(run('(430-state.panX)/state.zoom')-anchor.x)<1e-8);
+        assert.ok(Math.abs(run('(280-state.panY)/state.zoom')-anchor.y)<1e-8);
+    }
+    run('state.zoom=0.83;zoomAt(430,280,1);');
+    assert.equal(run('state.zoom'),0.9);
+    run('state.zoom=0.83;zoomAt(430,280,-1);');
+    assert.equal(run('state.zoom'),0.8);
+    run('state.zoom=0.3;zoomAt(430,280,-1);');
+    assert.equal(run('state.zoom'),0.25);
+    run('zoomAt(430,280,-1);');
+    assert.equal(run('state.zoom'),0.25);
+    run('state.zoom=3.9;zoomAt(430,280,1);zoomAt(430,280,1);');
+    assert.equal(run('state.zoom'),4);
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('saved'));
+    assert.equal(run('editHistory.length'),0);
 });
 
 test('400 cm wall: odd and even courses bond differently without cutting', () => {
@@ -245,7 +270,7 @@ test('control joints shift on the 200 mm grid to clear moved openings without ex
     })()`), true);
 });
 
-test('invalid lengths, overlapping walls, X crossings and wide lintels block final reports', () => {
+test('invalid lengths, overlapping walls and X crossings block final reports', () => {
     const run = app();
     run(`const make=${wall}; state.walls=[make(1,0,10,410,10)];`);
     assert.ok(run('validateProject().errors.some(s=>s.includes("200 mm modules"))'));
@@ -253,7 +278,27 @@ test('invalid lengths, overlapping walls, X crossings and wide lintels block fin
     assert.ok(run('validateProject().errors.some(s=>s.includes("overlap"))'));
     run('state.walls=[make(1,0,10,400,10),make(2,200,-100,200,100)];');
     assert.ok(run('validateProject().errors.some(s=>s.includes("X intersections"))'));
-    run(`state.walls=[make(1,0,10,400,10)]; state.walls[0].openings=[{id:2,offset:200,length:160,startRow:1,rowCount:4,type:'door'}];`);
+    assert.equal(run('getProjectReport()'), null);
+});
+
+test('wide openings retain correct masonry counts and survive export and JSON restoration', () => {
+    const run = app();
+    run(`const make=${wall}; state.walls=[make(1,0,10,400,10)];
+        state.walls[0].openings=[{id:2,offset:90,length:140,startRow:1,rowCount:4,type:'door'}];
+        var exportedCsv;downloadFile=(name,content)=>{exportedCsv=content;};`);
+    for (const widthCm of [140,160,200,360]) {
+        run(`setOpeningBoundsCm(state.walls[0].openings[0],20,${widthCm});`);
+        assert.equal(run('JSON.stringify(validateProject().errors)'), '[]');
+        assert.equal(run('validateProject().notices.some(s=>s.includes("wider than 1500 mm"))'), widthCm > 150);
+        assert.equal(run('validateProject().warnings.some(s=>s.includes("Lintel/beam design and quantities are not calculated"))'), widthCm > 150);
+        assert.equal(run('getProjectReport()[0].fullCount*2+getProjectReport()[0].halfCount'), (400*10-widthCm*4)/20);
+        assert.ok(run('exportCsv();exportedCsv.includes("TOTAL")'));
+        run('restoreProject(JSON.parse(JSON.stringify(projectSnapshot())));');
+        assert.equal(run('state.walls[0].openings[0].length'), widthCm);
+        assert.notEqual(run('getProjectReport()'), null);
+    }
+    run('state.walls[0].openings[0].length=400;');
+    assert.ok(run('validateProject().errors.some(s=>s.includes("pier at both wall ends"))'));
     assert.equal(run('getProjectReport()'), null);
 });
 
@@ -1062,7 +1107,7 @@ test('wall endpoint and rotation handles clear opening selection', () => {
 
 test('delete buttons use the same undoable removal behavior as keyboard shortcuts', () => {
     const run=app(true);
-    run(`const make=${wall};state.walls=[make(1,0,10,400,10,17)];state.walls[0].openings=[{id:2,offset:100,length:80,type:'window',startRow:2,rowCount:3}];state.selectedWallId=1;state.selectedOpeningId=2;resetEditHistory();document.getElementById('btnDeleteOpening').listeners.click[0]();`);
+    run(`const make=${wall};state.walls=[make(1,0,10,400,10,17)];state.walls[0].openings=[{id:2,offset:100,length:80,type:'window',startRow:2,rowCount:3}];state.selectedWallId=1;state.selectedOpeningId=2;resetEditHistory();document.getElementById('openingsList').listeners.click[0]({target:{closest:()=>({dataset:{wallId:'1',deleteOpening:'2'}})}});`);
     assert.equal(run('state.walls[0].openings.length'),0);
     run('undoLastEdit();');
     assert.equal(run('state.walls[0].openings.length'),1);
@@ -1070,6 +1115,20 @@ test('delete buttons use the same undoable removal behavior as keyboard shortcut
     assert.equal(run('state.walls.length'),0);
     run('undoLastEdit();');
     assert.equal(run('state.walls[0].openings.length'),1);
+});
+
+test('deleting an unselected opening from its card preserves the selected opening and supports undo', () => {
+    const run=app(true);
+    run(`const make=${wall};state.walls=[make(1,0,10,400,10,17)];
+        state.walls[0].openings=[{id:2,offset:100,length:80,type:'window',startRow:2,rowCount:3},
+            {id:3,offset:240,length:80,type:'door',startRow:1,rowCount:6}];
+        state.selectedWallId=1;state.selectedOpeningId=2;resetEditHistory();
+        document.getElementById('openingsList').listeners.click[0]({target:{closest:()=>({dataset:{wallId:'1',deleteOpening:'3'}})}});`);
+    assert.equal(run('state.walls[0].openings.map(o=>o.id).join(",")'),'2');
+    assert.equal(run('state.selectedOpeningId'),2);
+    run('undoLastEdit();');
+    assert.equal(run('state.walls[0].openings.length'),2);
+    assert.equal(run('state.selectedOpeningId'),2);
 });
 
 test('the 9-to-10-course corner transition keeps full-block joints staggered', () => {

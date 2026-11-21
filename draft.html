@@ -25,7 +25,7 @@
             <div class="header-file-tools">
                 <span class="header-divider" aria-hidden="true"></span>
                 <details id="fileMenu" class="file-menu">
-                    <summary aria-controls="fileMenuActions">
+                    <summary aria-controls="fileMenuActions" title="Open, save and export projects">
                         File
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                     </summary>
@@ -135,7 +135,6 @@
                     </div>
                     </section>
                     <section id="legendPanelShortcuts" class="legend-section" role="tabpanel" aria-labelledby="legendTabShortcuts" data-legend-panel hidden>
-                    <p class="text-slate-400">Scroll to zoom · Drag empty space to pan</p>
                     <div class="legend-shortcut"><span><kbd>Delete</kbd> / <kbd>Backspace</kbd></span><span>Delete selection</span></div>
                     <div class="legend-shortcut"><span><kbd>Ctrl/Cmd</kbd> + <kbd>Z</kbd></span><span>Undo</span></div>
                     <div class="legend-shortcut"><span><kbd>Ctrl/Cmd</kbd> + <kbd>Y</kbd></span><span>Redo</span></div>
@@ -231,7 +230,7 @@
 
             <!-- БЛОК 2: ИНСПЕКТОР ВЫБРАННОЙ СТЕНЫ -->
             <div class="p-4 border-b border-slate-800 text-xs space-y-2">
-                <p id="resultsStatus" class="text-slate-400" aria-live="polite"></p>
+                <p id="resultsStatus" class="export-status" aria-live="polite"></p>
                 <div id="projectStatus" class="space-y-1" role="status" aria-live="polite" hidden></div>
                 <details><summary class="cursor-pointer text-slate-300">Calculation details</summary>
                     <p class="mt-2 text-slate-400">One course is 200 mm. Mortar and control-joint widths are not included.</p>
@@ -308,7 +307,6 @@
                     <div id="openingEditor" class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 space-y-3 hidden">
                         <div class="flex items-center justify-between">
                             <span class="text-xs font-semibold text-white" id="openingEditorTitle">Opening settings</span>
-                            <button id="btnDeleteOpening" title="Delete opening (Delete / Backspace)" class="text-[11px] text-rose-400 hover:text-rose-300 underline">Delete</button>
                         </div>
 
                         <!-- Тип проёма -->
@@ -342,17 +340,17 @@
                         <!-- Ряды по высоте (для расчёта блоков) -->
                         <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-700/70">
                             <div>
-                                <div class="flex justify-between text-[11px] mb-1">
-                                    <span class="text-slate-400">Bottom course:</span>
-                                    <b class="text-slate-200" id="valOpStartRow">2</b>
+                                <div class="flex flex-col gap-0.5 text-[11px] mb-1">
+                                    <label for="sliderOpStartRow" class="text-slate-400">Height above floor:</label>
+                                    <b class="text-slate-200 whitespace-nowrap tabular-nums" id="valOpStartRow">200 mm</b>
+                                    <p id="doorFloorNote" class="hidden text-slate-200 font-semibold" title="Bottom course: 1">At floor level</p>
                                 </div>
                                 <input type="range" id="sliderOpStartRow" min="2" max="17" step="1" value="2" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
-                                <p id="doorFloorNote" class="hidden mt-1 text-[11px] text-slate-400">At floor level.</p>
                             </div>
                             <div>
-                                <div class="flex justify-between text-[11px] mb-1">
-                                    <span class="text-slate-400">Height (courses):</span>
-                                    <b class="text-slate-200" id="valOpRowCount">7</b>
+                                <div class="flex flex-col gap-0.5 text-[11px] mb-1">
+                                    <label for="sliderOpRowCount" class="text-slate-400">Height:</label>
+                                    <b class="text-slate-200 whitespace-nowrap tabular-nums" id="valOpRowCount">1400 mm</b>
                                 </div>
                                 <input type="range" id="sliderOpRowCount" min="1" max="10" step="1" value="7" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                             </div>

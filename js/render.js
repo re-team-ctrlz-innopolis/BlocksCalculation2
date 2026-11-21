@@ -437,13 +437,14 @@ function drawElevationView(allJoints) {
             state.elevCtx.fillStyle = '#0b1120';
             state.elevCtx.fillRect(0, 0, w, h);
 
-            const wall = state.walls.find(item => item.id === state.selectedWallId) || state.walls[0];
+            const wall = state.walls.find(item => item.id === state.selectedWallId);
             const titleEl = document.getElementById('elevationTitle');
             const subEl = document.getElementById('elevationSubtitle');
 
             if (!wall) {
+                state.elevationGeometry = null;
                 titleEl.textContent = 'Block layout';
-                subEl.textContent = 'Add a wall to begin';
+                subEl.textContent = state.walls.length ? 'Select a wall to view its block layout' : 'Add a wall to begin';
                 return;
             }
 
@@ -721,10 +722,14 @@ function updateZoomLabel() {
             document.getElementById('zoomLevel').textContent = `${percent < 1 ? Number(percent.toPrecision(2)) : Math.round(percent)}%`;
         }
 
-function zoomAt(screenX, screenY, factor) {
+function zoomAt(screenX, screenY, direction) {
+            if (!direction) return;
             // Large plans can need less than 25%; zooming out must not jump back in.
             const minZoom = Math.min(MIN_ZOOM, getFitProjectView()?.zoom ?? MIN_ZOOM, state.zoom);
-            const nextZoom = clamp(state.zoom * factor, minZoom, MAX_ZOOM);
+            // After an automatic fit, move to the next round level in the requested direction.
+            const level = state.zoom / ZOOM_STEP;
+            const nextLevel = direction > 0 ? Math.floor(level + 1e-8) + 1 : Math.ceil(level - 1e-8) - 1;
+            const nextZoom = clamp(Number((nextLevel * ZOOM_STEP).toFixed(10)), minZoom, MAX_ZOOM);
             if (nextZoom === state.zoom) return;
 
             const worldX = (screenX - state.panX) / state.zoom;
