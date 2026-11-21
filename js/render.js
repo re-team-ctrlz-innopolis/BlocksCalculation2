@@ -437,13 +437,14 @@ function drawElevationView(allJoints) {
             state.elevCtx.fillStyle = '#0b1120';
             state.elevCtx.fillRect(0, 0, w, h);
 
-            const wall = state.walls.find(item => item.id === state.selectedWallId) || state.walls[0];
+            const wall = state.walls.find(item => item.id === state.selectedWallId);
             const titleEl = document.getElementById('elevationTitle');
             const subEl = document.getElementById('elevationSubtitle');
 
             if (!wall) {
+                state.elevationGeometry = null;
                 titleEl.textContent = 'Block layout';
-                subEl.textContent = 'Add a wall to begin';
+                subEl.textContent = state.walls.length ? 'Select a wall to view its block layout' : 'Add a wall to begin';
                 return;
             }
 
