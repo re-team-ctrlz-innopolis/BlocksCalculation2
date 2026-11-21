@@ -73,15 +73,101 @@ test('openings remove only their active courses and retain all other masonry', (
     assert.equal(run('validateProject().errors.length'), 0);
 });
 
-test('5 m control joints reserve one half block on each side in every second course', () => {
+test('control-joint end blocks follow the bond and joint position within the same course', () => {
     const run = app();
     run(`const make=${wall}; state.walls=[make(1,0,10,1200,10)];`);
     assert.equal(run('getControlJoints(state.walls[0]).join(",")'), '500,1000');
     assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.some(b=>b.startCm<500 && b.startCm+b.lenCm>500)'), false);
-    assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.filter(b=>[480,500].includes(b.startCm) && b.kind==="half").length'), 2);
+    assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.filter(b=>[460,500].includes(b.startCm) && b.kind==="full").length'), 2);
     assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.some(b=>b.startCm<1000 && b.startCm+b.lenCm>1000)'), false);
     assert.equal(run('buildWallRowLayout(state.walls[0],2).blocks.filter(b=>[980,1000].includes(b.startCm) && b.kind==="half").length'), 2);
+    assert.equal(run('buildWallRowLayout(state.walls[0],1).blocks.filter(b=>[480,500].includes(b.startCm) && b.kind==="half").length'), 2);
+    assert.equal(run('buildWallRowLayout(state.walls[0],1).blocks.filter(b=>[960,1000].includes(b.startCm) && b.kind==="full").length'), 2);
     assert.equal(run('validateProject().errors.length'), 0);
+});
+
+test('control joints preserve the wall bond without additional half blocks or repeated interior seams', () => {
+    const run = app();
+    run(`const make=${wall}; state.walls=[make(1,0,10,1200,10,17)];`);
+    let previousSeams = [];
+    for (let row = 1; row <= 17; row++) {
+        const layout = JSON.parse(run(`JSON.stringify(buildWallRowLayout(state.walls[0],${row}))`));
+        for (const joint of [500, 1000]) {
+            const left = layout.blocks.find(b => b.startCm + b.lenCm === joint);
+            const right = layout.blocks.find(b => b.startCm === joint);
+            const phase = run(`getWallBondPhase(state.walls[0],${row},getAllWallJoints())`);
+            const expected = joint % 40 === phase ? 'full' : 'half';
+            assert.equal(left.kind, expected);
+            assert.equal(right.kind, expected);
+            if (expected === 'half') {
+                assert.equal(layout.blocks.find(b => b.startCm + b.lenCm === left.startCm).kind, 'full');
+                assert.equal(layout.blocks.find(b => b.startCm === right.startCm + right.lenCm).kind, 'full');
+            }
+            assert.ok(layout.blocks.every(b => b.startCm >= joint || b.startCm + b.lenCm <= joint));
+        }
+        let cursor = 0;
+        for (const block of layout.blocks) {
+            assert.equal(block.startCm, cursor);
+            cursor += block.lenCm;
+        }
+        assert.equal(cursor, 1200);
+        assert.equal(layout.unfilledCm, 0);
+        const seams = layout.blocks.slice(1).map(b => b.startCm).filter(x => x !== 500 && x !== 1000);
+        assert.ok(seams.every(x => !previousSeams.includes(x)));
+        previousSeams = seams;
+    }
+});
+
+test('600 cm control-joint layout reduces half counts in quantities and CSV', () => {
+    const run = app();
+    run(`const make=${wall};state.walls=[make(1,0,10,600,10,10)];
+        var csv='';downloadFile=(name,text)=>{csv=text;};exportCsv();`);
+    assert.equal(run('calculateWallBlocks(state.walls[0]).fullCount'), 140);
+    assert.equal(run('calculateWallBlocks(state.walls[0]).halfCount'), 20);
+    assert.equal(run('getProjectReport()[0].totalCount'), 160);
+    assert.ok(run('csv.includes("1;6000;2000;10;140;20;160;5000")'));
+});
+
+test('an L-corner can reverse which courses use full blocks at the same control-joint position', () => {
+    const run = app();
+    run(`const make=${wall};state.walls=[make(2,0,10,600,10,17)];`);
+    const ends = row => JSON.parse(run(`JSON.stringify(buildWallRowLayout(getPartnerWall(2),${row}).blocks.filter(b=>b.startCm===500||b.startCm+b.lenCm===500).map(b=>b.kind))`));
+    assert.deepEqual(ends(1), ['half', 'half']);
+    assert.deepEqual(ends(2), ['full', 'full']);
+    run('state.walls.unshift(make(1,10,0,10,200,9));');
+    assert.deepEqual(ends(1), ['full', 'full']);
+    assert.deepEqual(ends(2), ['half', 'half']);
+    // The bond also continues after the shorter corner wall ends.
+    assert.deepEqual(ends(10), ['half', 'half']);
+    assert.deepEqual(ends(11), ['full', 'full']);
+    assert.equal(run('JSON.stringify(validateProject().errors)'), '[]');
+});
+
+test('shifted control joints follow the bond beside openings and L-corners', () => {
+    const run = app();
+    run(`const make=${wall};state.walls=[make(1,0,10,600,10,17),make(2,10,0,10,200,9),make(3,590,0,590,200,12)];
+        state.walls[0].openings=[{id:4,offset:490,length:140,startRow:4,rowCount:3,type:'window'}];`);
+    assert.equal(run('getControlJoints(state.walls[0]).join(",")'), '380');
+    for (let row = 1; row <= 17; row++) {
+        const layout = JSON.parse(run(`JSON.stringify(buildWallRowLayout(state.walls[0],${row}))`));
+        for (const block of layout.blocks) assert.ok(block.startCm >= 380 || block.startCm + block.lenCm <= 380);
+        const expected = row % 2 ? 'half' : 'full';
+        assert.equal(layout.blocks.find(b => b.startCm + b.lenCm === 380).kind, expected);
+        assert.equal(layout.blocks.find(b => b.startCm === 380).kind, expected);
+        if (layout.cornerState.startIsLCorner && layout.cornerState.startInsetCm === 0) assert.equal(layout.blocks[0].kind, 'full');
+        if (layout.cornerState.endIsLCorner && layout.cornerState.endInsetCm === 0) assert.equal(layout.blocks.at(-1).kind, 'full');
+        const occupied = new Set();
+        for (const block of layout.blocks) for (let x = block.startCm; x < block.startCm + block.lenCm; x += 20) {
+            assert.equal(occupied.has(x), false);
+            occupied.add(x);
+        }
+        for (let x = layout.rowStartCm; x < layout.rowEndCm; x += 20) {
+            const opening = layout.openingsInRow.some(o => x >= o.startCm && x < o.endCm);
+            assert.equal(occupied.has(x), !opening);
+        }
+        assert.equal(layout.unfilledCm, 0);
+    }
+    assert.equal(run('JSON.stringify(validateProject().errors)'), '[]');
 });
 
 test('control joint near an L-corner uses full-half | half instead of three halves | half', () => {
