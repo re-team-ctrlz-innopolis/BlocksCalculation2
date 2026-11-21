@@ -31,6 +31,9 @@ const MAX_WALL_ROWS = Math.floor(MAX_WALL_HEIGHT_CM / COURSE_HEIGHT_CM);
 const MAX_SAVED_WALL_ROWS = Math.max(19, MAX_WALL_ROWS);
 const MAX_CONTROL_SECTION_MM = 5000;
 const MAX_CONTROL_SECTION_CM = MAX_CONTROL_SECTION_MM / MM_PER_CM;
+// MVP layout rule: leave room for a full block between a joint and either wall end.
+const MIN_CONTROL_END_DISTANCE_MM = FULL_BLOCK_MM;
+const MIN_CONTROL_END_DISTANCE_CM = MIN_CONTROL_END_DISTANCE_MM / MM_PER_CM;
 const PROJECT_VERSION = 1;
 const PLAN_GEOMETRY = 'modular-cells-v3';
 const LOCAL_PROJECT_KEY = 'blocks-calculator-v3';

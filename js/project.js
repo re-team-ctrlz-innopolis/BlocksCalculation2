@@ -15,7 +15,7 @@ function getControlJoints(wall) {
     }
 
     const candidates = [0];
-    for (let jointCm = BLOCK_GRID_CM; jointCm < length; jointCm += BLOCK_GRID_CM) {
+    for (let jointCm = MIN_CONTROL_END_DISTANCE_CM; jointCm <= length - MIN_CONTROL_END_DISTANCE_CM; jointCm += BLOCK_GRID_CM) {
         const conflictsWithOpening = wall.openings.some(op => {
             const bounds = getOpeningBoundsCm(op);
             return bounds.startCm < jointCm + 2 * HALF_BLOCK_CM &&
@@ -103,6 +103,9 @@ function validateProject() {
                 errors.push(`${label}: leave at least three courses above opening #${op.id} before another opening.`);
         }
         const controls = [0, ...getControlJoints(wall), length];
+        if (controls.length > 2 && (controls[1] < MIN_CONTROL_END_DISTANCE_CM ||
+            length - controls[controls.length - 2] < MIN_CONTROL_END_DISTANCE_CM))
+            errors.push(`${label}: cannot place control joints at least ${MIN_CONTROL_END_DISTANCE_MM} mm from wall ends while keeping sections ≤5 m. Move or resize the openings.`);
         if (controls.some((x, i) => i && x - controls[i - 1] > MAX_CONTROL_SECTION_CM))
             errors.push(`${label}: cannot place control joints with sections ≤5 m clear of openings and T-joints. Move or resize the openings.`);
         for (const jointCm of getControlJoints(wall)) {
