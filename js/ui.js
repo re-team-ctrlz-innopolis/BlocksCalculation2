@@ -115,7 +115,8 @@ function updateInspector() {
 
                 const sortedOps = getOrderedOpenings(wall);
                 sortedOps.forEach(op => {
-                    const { startCm, endCm, lenCm } = getOpeningBoundsCm(op);
+                    const { lenCm } = getOpeningBoundsCm(op);
+                    const heightMm = Math.round((op.rowCount || 1) * COURSE_HEIGHT_CM * MM_PER_CM);
                     const isSel = op.id === state.selectedOpeningId;
                     const typeLabel = op.type === 'window' ? 'Window' : op.type === 'door' ? 'Door' : 'Opening';
                     const badgeColor = op.type === 'window'
@@ -125,27 +126,24 @@ function updateInspector() {
                             : 'text-purple-400 border-purple-500/40 bg-purple-950/50';
 
                     const item = document.createElement('div');
-                    item.className = `flex items-center justify-between px-2.5 py-1.5 rounded-lg border cursor-pointer text-xs transition ${
+                    item.className = `flex items-center gap-3 px-2.5 py-1.5 rounded-lg border text-xs transition ${
                         isSel ? 'bg-slate-800 border-blue-500 text-white' : 'bg-slate-900/70 border-slate-800 text-slate-300 hover:bg-slate-800/50'
                     }`;
                     item.innerHTML = `
-                        <div>
-                            <span class="text-[10px] px-1.5 py-0.5 rounded border ${badgeColor}">${typeLabel} #${getOpeningNumber(wall.id, op.id)}</span>
-                            <div class="mt-1 text-[11px] text-slate-400">${startCm * MM_PER_CM}–${endCm * MM_PER_CM} mm · Rows ${op.startRow}–${op.startRow + op.rowCount - 1}</div>
-                        </div>
-                        <span class="font-semibold text-slate-200">${lenCm * MM_PER_CM} mm</span>
+                        <button type="button" class="opening-select min-w-0 flex-1 rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400" aria-pressed="${isSel}">
+                            <span class="block">
+                                <span class="text-[10px] px-1.5 py-0.5 rounded border ${badgeColor}">${typeLabel} #${getOpeningNumber(wall.id, op.id)}</span>
+                            </span>
+                            <span class="mt-1 block font-semibold text-slate-200">${lenCm * MM_PER_CM} × ${heightMm} mm</span>
+                        </button>
+                        <button type="button" data-delete-opening="${op.id}" data-wall-id="${wall.id}" aria-label="Delete ${typeLabel.toLowerCase()} #${getOpeningNumber(wall.id, op.id)}" title="Delete opening (Delete / Backspace)" class="opening-delete-button">Delete</button>
                     `;
-                    item.tabIndex = 0;
-                    item.setAttribute('role', 'button');
                     const selectOpening = () => {
                         state.selectedOpeningId = op.id;
                         updateInspector();
                         render();
                     };
-                    item.addEventListener('click', selectOpening);
-                    item.addEventListener('keydown', e => {
-                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectOpening(); }
-                    });
+                    item.querySelector('.opening-select').addEventListener('click', selectOpening);
                     listEl.appendChild(item);
                 });
             }
@@ -202,14 +200,27 @@ function updateInspector() {
                 sliderStartRow.min = verticalLimits.minRow;
                 sliderStartRow.max = Math.max(verticalLimits.minRow, selectedOp.startRow, verticalLimits.maxEndRow - selectedOp.rowCount);
                 sliderStartRow.value = selectedOp.startRow;
-                sliderStartRow.disabled = selectedOp.type === 'door';
-                sliderStartRow.title = selectedOp.type === 'door' ? 'Doors start at floor level (course 1).' : '';
-                document.getElementById('doorFloorNote').classList.toggle('hidden', selectedOp.type !== 'door');
-                document.getElementById('valOpStartRow').textContent = `${selectedOp.startRow} · ${Math.round((selectedOp.startRow - 1) * COURSE_HEIGHT_CM * MM_PER_CM)} mm`;
+                const isDoor = selectedOp.type === 'door';
+                const bottomMm = Math.round((selectedOp.startRow - 1) * COURSE_HEIGHT_CM * MM_PER_CM);
+                sliderStartRow.disabled = isDoor;
+                sliderStartRow.classList.toggle('hidden', isDoor);
+                sliderStartRow.title = `Bottom course: ${selectedOp.startRow}. One course is 200 mm.`;
+                sliderStartRow.setAttribute('aria-valuetext', `${bottomMm} mm above floor, bottom course ${selectedOp.startRow}`);
+                document.getElementById('doorFloorNote').classList.toggle('hidden', !isDoor);
+                const startValue = document.getElementById('valOpStartRow');
+                startValue.classList.toggle('hidden', isDoor);
+                startValue.textContent = `${bottomMm} mm`;
+                startValue.title = `Bottom course: ${selectedOp.startRow}`;
 
                 const sliderRowCount = document.getElementById('sliderOpRowCount');
                 sliderRowCount.max = Math.max(selectedOp.rowCount || 1, verticalLimits.maxEndRow - selectedOp.startRow, 1);
                 sliderRowCount.value = selectedOp.rowCount || 7;
-                document.getElementById('valOpRowCount').textContent = `${selectedOp.rowCount || 7} (${Math.round((selectedOp.rowCount || 7) * COURSE_HEIGHT_CM * MM_PER_CM)} mm)`;
+                const rowCount = selectedOp.rowCount || 7;
+                const heightMm = Math.round(rowCount * COURSE_HEIGHT_CM * MM_PER_CM);
+                const heightValue = document.getElementById('valOpRowCount');
+                heightValue.textContent = `${heightMm} mm`;
+                heightValue.title = `${rowCount} courses`;
+                sliderRowCount.title = `${rowCount} courses. One course is 200 mm.`;
+                sliderRowCount.setAttribute('aria-valuetext', `${heightMm} mm, ${rowCount} courses`);
             }
         }

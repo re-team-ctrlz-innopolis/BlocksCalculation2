@@ -1107,7 +1107,7 @@ test('wall endpoint and rotation handles clear opening selection', () => {
 
 test('delete buttons use the same undoable removal behavior as keyboard shortcuts', () => {
     const run=app(true);
-    run(`const make=${wall};state.walls=[make(1,0,10,400,10,17)];state.walls[0].openings=[{id:2,offset:100,length:80,type:'window',startRow:2,rowCount:3}];state.selectedWallId=1;state.selectedOpeningId=2;resetEditHistory();document.getElementById('btnDeleteOpening').listeners.click[0]();`);
+    run(`const make=${wall};state.walls=[make(1,0,10,400,10,17)];state.walls[0].openings=[{id:2,offset:100,length:80,type:'window',startRow:2,rowCount:3}];state.selectedWallId=1;state.selectedOpeningId=2;resetEditHistory();document.getElementById('openingsList').listeners.click[0]({target:{closest:()=>({dataset:{wallId:'1',deleteOpening:'2'}})}});`);
     assert.equal(run('state.walls[0].openings.length'),0);
     run('undoLastEdit();');
     assert.equal(run('state.walls[0].openings.length'),1);
@@ -1115,6 +1115,20 @@ test('delete buttons use the same undoable removal behavior as keyboard shortcut
     assert.equal(run('state.walls.length'),0);
     run('undoLastEdit();');
     assert.equal(run('state.walls[0].openings.length'),1);
+});
+
+test('deleting an unselected opening from its card preserves the selected opening and supports undo', () => {
+    const run=app(true);
+    run(`const make=${wall};state.walls=[make(1,0,10,400,10,17)];
+        state.walls[0].openings=[{id:2,offset:100,length:80,type:'window',startRow:2,rowCount:3},
+            {id:3,offset:240,length:80,type:'door',startRow:1,rowCount:6}];
+        state.selectedWallId=1;state.selectedOpeningId=2;resetEditHistory();
+        document.getElementById('openingsList').listeners.click[0]({target:{closest:()=>({dataset:{wallId:'1',deleteOpening:'3'}})}});`);
+    assert.equal(run('state.walls[0].openings.map(o=>o.id).join(",")'),'2');
+    assert.equal(run('state.selectedOpeningId'),2);
+    run('undoLastEdit();');
+    assert.equal(run('state.walls[0].openings.length'),2);
+    assert.equal(run('state.selectedOpeningId'),2);
 });
 
 test('the 9-to-10-course corner transition keeps full-block joints staggered', () => {

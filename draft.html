@@ -307,7 +307,6 @@
                     <div id="openingEditor" class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 space-y-3 hidden">
                         <div class="flex items-center justify-between">
                             <span class="text-xs font-semibold text-white" id="openingEditorTitle">Opening settings</span>
-                            <button id="btnDeleteOpening" title="Delete opening (Delete / Backspace)" class="text-[11px] text-rose-400 hover:text-rose-300 underline">Delete</button>
                         </div>
 
                         <!-- Тип проёма -->
@@ -342,16 +341,16 @@
                         <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-700/70">
                             <div>
                                 <div class="flex flex-col gap-0.5 text-[11px] mb-1">
-                                    <span class="text-slate-400">Bottom course:</span>
-                                    <b class="text-slate-200 whitespace-nowrap tabular-nums" id="valOpStartRow">2</b>
+                                    <label for="sliderOpStartRow" class="text-slate-400">Height above floor:</label>
+                                    <b class="text-slate-200 whitespace-nowrap tabular-nums" id="valOpStartRow">200 mm</b>
+                                    <p id="doorFloorNote" class="hidden text-slate-200 font-semibold" title="Bottom course: 1">At floor level</p>
                                 </div>
                                 <input type="range" id="sliderOpStartRow" min="2" max="17" step="1" value="2" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
-                                <p id="doorFloorNote" class="hidden mt-1 text-[11px] text-slate-400">At floor level.</p>
                             </div>
                             <div>
                                 <div class="flex flex-col gap-0.5 text-[11px] mb-1">
-                                    <span class="text-slate-400">Height (courses):</span>
-                                    <b class="text-slate-200 whitespace-nowrap tabular-nums" id="valOpRowCount">7</b>
+                                    <label for="sliderOpRowCount" class="text-slate-400">Height:</label>
+                                    <b class="text-slate-200 whitespace-nowrap tabular-nums" id="valOpRowCount">1400 mm</b>
                                 </div>
                                 <input type="range" id="sliderOpRowCount" min="1" max="10" step="1" value="7" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                             </div>

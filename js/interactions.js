@@ -407,8 +407,9 @@ state.canvas.addEventListener('mousedown', handlePointerDown);
             removeWall(state.selectedWallId);
         });
 
-        document.getElementById('btnDeleteOpening').addEventListener('click', () => {
-            removeOpening(state.selectedWallId, state.selectedOpeningId);
+        document.getElementById('openingsList').addEventListener('click', event => {
+            const button = event.target.closest('[data-delete-opening]');
+            if (button) removeOpening(Number(button.dataset.wallId), Number(button.dataset.deleteOpening));
         });
 
         document.querySelectorAll('.opening-type-btn').forEach(btn => {
