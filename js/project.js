@@ -9,11 +9,50 @@ function arePerpendicular(a, b) {
 function getControlJoints(wall) {
     const length = getWallLengthCm(wall);
     if (length <= MAX_CONTROL_SECTION_CM) return [];
-    const joints = [];
+    const fixedJoints = [];
     for (let jointCm = MAX_CONTROL_SECTION_CM; jointCm < length; jointCm += MAX_CONTROL_SECTION_CM) {
-        joints.push(jointCm);
+        fixedJoints.push(jointCm);
     }
-    return joints;
+
+    const candidates = [0];
+    for (let jointCm = BLOCK_GRID_CM; jointCm < length; jointCm += BLOCK_GRID_CM) {
+        const conflictsWithOpening = wall.openings.some(op => {
+            const bounds = getOpeningBoundsCm(op);
+            return bounds.startCm < jointCm + 2 * HALF_BLOCK_CM &&
+                bounds.endCm > jointCm - 2 * HALF_BLOCK_CM;
+        });
+        if (!conflictsWithOpening) candidates.push(jointCm);
+    }
+    candidates.push(length);
+
+    const best = candidates.map(() => null);
+    best[0] = {jointCount: 0, shift: 0, previous: -1};
+    for (let i = 1; i < candidates.length; i++) {
+        const position = candidates[i];
+        const isEnd = i === candidates.length - 1;
+        const shift = isEnd ? 0 : Math.min(...fixedJoints.map(jointCm => Math.abs(position - jointCm)));
+        for (let previous = i - 1; previous >= 0; previous--) {
+            if (position - candidates[previous] > MAX_CONTROL_SECTION_CM) break;
+            if (!best[previous]) continue;
+            const candidate = {
+                jointCount: best[previous].jointCount + (isEnd ? 0 : 1),
+                shift: best[previous].shift + shift,
+                previous
+            };
+            if (!best[i] || candidate.jointCount < best[i].jointCount ||
+                (candidate.jointCount === best[i].jointCount && candidate.shift < best[i].shift)) {
+                best[i] = candidate;
+            }
+        }
+    }
+
+    const endIndex = candidates.length - 1;
+    if (!best[endIndex]) return fixedJoints;
+    const joints = [];
+    for (let index = best[endIndex].previous; index > 0; index = best[index].previous) {
+        joints.push(candidates[index]);
+    }
+    return joints.reverse();
 }
 
 function validateProject() {
@@ -72,7 +111,7 @@ function validateProject() {
                 return bounds.startCm < jointCm + 2 * HALF_BLOCK_CM &&
                     bounds.endCm > jointCm - 2 * HALF_BLOCK_CM;
             })) {
-                errors.push(`${label}: keep openings clear of the control-joint detail at ${jointCm * MM_PER_CM} mm.`);
+                errors.push(`${label}: cannot shift the control joint clear of openings near ${jointCm * MM_PER_CM} mm. Move or resize the openings.`);
             }
         }
         if (calculateWallBlocks(wall, joints).unfilledCm > 0)
