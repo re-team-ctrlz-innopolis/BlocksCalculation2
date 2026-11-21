@@ -269,7 +269,7 @@ test('project round trip preserves quantities; malformed imports are atomic', ()
     assert.equal(run('JSON.stringify(getProjectReport())===before'), true);
     assert.throws(() => run('const bad=JSON.parse(snapshot); bad.walls[1].id=bad.walls[0].id; restoreProject(bad);'), /duplicate/);
     assert.equal(run('JSON.stringify(getProjectReport())===before'), true);
-    assert.throws(() => run('const corrupt=JSON.parse(snapshot); corrupt.walls[0].x2+=1; restoreProject(corrupt);'), /20 cm grid/);
+    assert.throws(() => run('const corrupt=JSON.parse(snapshot); corrupt.walls[0].x2+=1; restoreProject(corrupt);'), /200 mm grid/);
 });
 
 test('display numbers close gaps after deletion and survive undo, redo and JSON restoration', () => {
@@ -813,7 +813,7 @@ test('legacy screenshot plan migrates to a 280 cm nested partition without chang
     assert.deepEqual(JSON.parse(run('JSON.stringify(state.walls.map(w=>({id:w.id,openings:w.openings})))')),
         fixture.walls.map(w=>({id:w.id,openings:w.openings})));
     assert.equal(run('JSON.stringify(original)===originalJSON'),true);
-    assert.ok(run('state.migrationNotes.some(s=>s.includes("300 to 280"))'));
+    assert.ok(run('state.migrationNotes.some(s=>s.includes("3000 to 2800 mm"))'));
     run('const converted=JSON.stringify(projectSnapshot());restoreProject(JSON.parse(converted));');
     assert.equal(run('JSON.stringify(projectSnapshot())===converted'),true);
 });
@@ -832,7 +832,7 @@ test('new-format off-grid walls are reported without being silently repositioned
     const run=app();
     run(`loadDemoHouse();const data=JSON.parse(JSON.stringify(projectSnapshot()));data.walls[0].y1+=1;data.walls[0].y2+=1;restoreProject(data);`);
     assert.equal(run('state.walls[0].y1===data.walls[0].y1'),true);
-    assert.ok(run('validateProject().errors.some(s=>s.includes("common 20 cm grid"))'));
+    assert.ok(run('validateProject().errors.some(s=>s.includes("common 200 mm grid"))'));
     assert.equal(run('getProjectReport()'),null);
 });
 

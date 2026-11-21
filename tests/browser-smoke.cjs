@@ -14,7 +14,7 @@ async function main() {
         if (!file.startsWith(root + path.sep)) { res.writeHead(403); res.end(); return; }
         fs.readFile(file, (error, data) => {
             if (error) { res.writeHead(404); res.end(); return; }
-            res.setHeader('Content-Type', file.endsWith('.js') ? 'application/javascript' : file.endsWith('.css') ? 'text/css' : 'text/html');
+            res.setHeader('Content-Type', file.endsWith('.js') ? 'application/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.svg') ? 'image/svg+xml' : 'text/html');
             res.end(data);
         });
     });
@@ -222,7 +222,7 @@ async function main() {
         await evaluate('document.getElementById("sliderTotalRows").value=4; document.getElementById("sliderTotalRows").dispatchEvent(new Event("input",{bubbles:true}));');
         assert.equal(await evaluate('JSON.stringify(state.walls.map(w=>w.openings))'), beforeHeightChange);
         assert.equal(await evaluate('document.getElementById("btnPrint").disabled'), true);
-        assert.ok(await evaluate('document.getElementById("valTotalRows").textContent.includes("71.6 cm")'));
+        assert.equal(await evaluate('document.getElementById("valTotalRows").textContent'), '4 courses / 800 mm');
         await evaluate('document.getElementById("sliderTotalRows").value=17; document.getElementById("sliderTotalRows").dispatchEvent(new Event("input",{bubbles:true}));');
         assert.equal(await evaluate('JSON.stringify(state.walls.map(w=>w.openings))'), beforeHeightChange);
         assert.deepEqual(await evaluate('validateProject().errors'), []);
@@ -246,7 +246,7 @@ async function main() {
         assert.equal(await evaluate('state.walls[1].rows'), 17);
         await evaluate('document.getElementById("sliderWallLength").value=601; document.getElementById("sliderWallLength").dispatchEvent(new Event("change",{bubbles:true}));');
         assert.equal(await evaluate('getWallLengthCm(state.walls[0])'), 600);
-        assert.ok(await evaluate('document.getElementById("toastText").textContent.includes("20 cm")'));
+        assert.ok(await evaluate('document.getElementById("toastText").textContent.includes("200 mm")'));
         // Opening can move both horizontally and vertically on the elevation.
         const point = await evaluate(`(() => {const g=state.elevationGeometry,w=state.walls[0],op=w.openings[0],r=state.elevCanvas.getBoundingClientRect();return {x:r.left+g.startX+160*g.scaleX,y:r.top+g.padTop+(getWallRows(w)-op.startRow-op.rowCount/2+0.5)*g.rowH,rowH:g.rowH};})()`);
         await call('Input.dispatchMouseEvent', {type: 'mousePressed', x: point.x, y: point.y, button: 'left', clickCount: 1});
@@ -274,7 +274,7 @@ async function main() {
         await evaluate(`restoreProject(${JSON.stringify(legacy)});updateInspector();render();saveProjectLocally();`);
         assert.deepEqual(await evaluate('validateProject().errors'),[]);
         assert.equal(await evaluate('getWallLengthCm(getPartnerWall(10))'),280);
-        assert.ok(await evaluate('document.getElementById("projectStatus").textContent.includes("300 to 280")'));
+        assert.ok(await evaluate('document.getElementById("projectStatus").textContent.includes("3000 to 2800 mm")'));
         assert.equal(await evaluate('JSON.parse(localStorage.getItem(LOCAL_PROJECT_KEY)).planGeometry'), 'modular-cells-v3');
         for (const [file, message] of [
             ['overlap-at-endpoint.json', 'overlap outside a supported L-corner'],
