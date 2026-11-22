@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "model": "nominal-400-200-mm",
+  "planGeometry": "modular-cells-v3",
+  "walls": [
+    {
+      "id": 1,
+      "x1": 100,
+      "y1": 110,
+      "x2": 900,
+      "y2": 110,
+      "rows": 17,
+      "openings": [
+        {
+          "id": 6,
+          "offset": 140,
+          "length": 120,
+          "type": "window",
+          "startRow": 5,
+          "rowCount": 6
+        },
+        {
+          "id": 7,
+          "offset": 620,
+          "length": 120,
+          "type": "window",
+          "startRow": 5,
+          "rowCount": 6
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "x1": 100,
+      "y1": 530,
+      "x2": 900,
+      "y2": 530,
+      "rows": 17,
+      "openings": [
+        {
+          "id": 8,
+          "offset": 250,
+          "length": 100,
+          "type": "door",
+          "startRow": 1,
+          "rowCount": 11
+        },
+        {
+          "id": 9,
+          "offset": 620,
+          "length": 120,
+          "type": "window",
+          "startRow": 5,
+          "rowCount": 6
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "x1": 110,
+      "y1": 100,
+      "x2": 110,
+      "y2": 540,
+      "rows": 17,
+      "openings": [
+        {
+          "id": 10,
+          "offset": 220,
+          "length": 120,
+          "type": "window",
+          "startRow": 5,
+          "rowCount": 6
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "x1": 890,
+      "y1": 100,
+      "x2": 890,
+      "y2": 540,
+      "rows": 17,
+      "openings": [
+        {
+          "id": 11,
+          "offset": 220,
+          "length": 120,
+          "type": "window",
+          "startRow": 5,
+          "rowCount": 6
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "x1": 510,
+      "y1": 120,
+      "x2": 510,
+      "y2": 520,
+      "rows": 15,
+      "openings": [
+        {
+          "id": 12,
+          "offset": 200,
+          "length": 80,
+          "type": "door",
+          "startRow": 1,
+          "rowCount": 10
+        }
+      ]
+    }
+  ],
+  "nextId": 13,
+  "totalWallRows": 17,
+  "migrationNotes": []
+}

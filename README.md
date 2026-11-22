@@ -22,8 +22,13 @@ Choose **File → Open project** and select one of the current-format projects:
 
 - [`examples/sample-house.json`](examples/sample-house.json): a house with a 3,600 mm internal partition.
 - [`examples/nested-partition.json`](examples/nested-partition.json): the same house with an additional 2,800 mm partition connected at both ends.
+- [`examples/compact-studio.json`](examples/compact-studio.json): a compact 4,000 × 3,200 mm room with a door, two windows, and 3,000 mm walls.
+- [`examples/two-room-house.json`](examples/two-room-house.json): an 8,000 × 4,400 mm house with two rooms, a door in the internal partition, and control joints in the long exterior walls.
+- [`examples/l-shaped-house.json`](examples/l-shaped-house.json): an L-shaped plan with six exterior walls, two doors, and windows on different sides.
+- [`examples/long-wall-with-openings.json`](examples/long-wall-with-openings.json): an 18,000 mm wall with a door and three windows; control joints shift away from the windows.
+- [`examples/house-with-annex.json`](examples/house-with-annex.json): a 3,400 mm-high house with a 2,400 mm-high annex, connected by a door; includes L- and T-junctions.
 
-Both examples use `modular-cells-v3`, 200 mm courses, and only Window/Door opening types. In `sample-house.json` and the built-in sample, the internal partition has an 800 × 2,000 mm Door starting at course 1. In `nested-partition.json`, the former `arch` opening is represented as a rectangular Window starting at course 2. The examples pass validation and contain no migration notices. `../review/nested-partition.json` is an identical copy of the second example. Files under `tests/fixtures/legacy-*` intentionally retain the old format for migration tests; the overlap and short-corner fixtures intentionally retain invalid geometry.
+All examples use `modular-cells-v3`, 200 mm courses, and only Window/Door opening types. In `sample-house.json` and the built-in sample, the internal partition has an 800 × 2,000 mm Door starting at course 1. In `nested-partition.json`, the former `arch` opening is represented as a rectangular Window starting at course 2. The examples pass validation and contain no migration notices. `../review/nested-partition.json` is an identical copy of the second example. Files under `tests/fixtures/legacy-*` intentionally retain the old format for migration tests; the overlap and short-corner fixtures intentionally retain invalid geometry.
 
 ## Features
 
