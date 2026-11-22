@@ -18,10 +18,6 @@ function resizeCanvases() {
             state.canvas.width = container.clientWidth;
             state.canvas.height = container.clientHeight;
 
-            const elevParent = state.elevCanvas.parentElement;
-            state.elevCanvas.width = elevParent.clientWidth;
-            state.elevCanvas.height = elevParent.clientHeight;
-
             render();
         }
 
@@ -236,19 +232,19 @@ function drawWall(wall, isSelected, allJoints) {
                     state.ctx.lineTo(ox + ow, 3);
                     state.ctx.stroke();
                 } else if (op.type === 'door') {
-                    // Дверь: полотно и дуга открывания
+                    // Полотно и радиус дуги равны полной ширине проёма в масштабе плана.
                     state.ctx.fillStyle = 'rgba(16, 185, 129, 0.18)';
                     state.ctx.fillRect(ox, -halfThick + 2, ow, WALL_THICKNESS - 4);
                     state.ctx.strokeStyle = '#34d399';
                     state.ctx.lineWidth = 1.8;
                     state.ctx.beginPath();
                     state.ctx.moveTo(ox, -halfThick);
-                    state.ctx.lineTo(ox, -halfThick - Math.min(ow, 34));
+                    state.ctx.lineTo(ox, -halfThick - ow);
                     state.ctx.stroke();
 
                     state.ctx.setLineDash([3, 3]);
                     state.ctx.beginPath();
-                    state.ctx.arc(ox, -halfThick, Math.min(ow, 34), -Math.PI / 2, 0);
+                    state.ctx.arc(ox, -halfThick, ow, -Math.PI / 2, 0);
                     state.ctx.stroke();
                     state.ctx.setLineDash([]);
                 } else {
@@ -431,13 +427,25 @@ function drawConnectedJoints() {
         }
 
 function drawElevationView(allJoints) {
+            const wall = state.walls.find(item => item.id === state.selectedWallId);
+            const viewport = state.elevCanvas.parentElement;
+            const padLeft = 72;
+            const padRight = 24;
+            const width = Math.max(viewport.clientWidth,
+                wall ? Math.ceil(getWallLengthCm(wall) * ELEVATION_PX_PER_CM) + padLeft + padRight : 0);
+            if (state.elevationGeometry?.wallId !== wall?.id) viewport.scrollLeft = 0;
+            state.elevCanvas.style.width = `${width}px`;
+            if (state.elevCanvas.width !== width) state.elevCanvas.width = width;
+            // Measure after setting the width so a visible scrollbar has room below the canvas.
+            const height = viewport.clientHeight;
+            state.elevCanvas.style.height = `${height}px`;
+            if (state.elevCanvas.height !== height) state.elevCanvas.height = height;
             const w = state.elevCanvas.width;
             const h = state.elevCanvas.height;
             state.elevCtx.clearRect(0, 0, w, h);
             state.elevCtx.fillStyle = '#0b1120';
             state.elevCtx.fillRect(0, 0, w, h);
 
-            const wall = state.walls.find(item => item.id === state.selectedWallId);
             const titleEl = document.getElementById('elevationTitle');
             const subEl = document.getElementById('elevationSubtitle');
 
@@ -454,15 +462,13 @@ function drawElevationView(allJoints) {
             titleEl.textContent = `Wall #${getWallNumber(wall.id)} · ${wallLenCm * MM_PER_CM} mm · ${getWallRows(wall)} courses`;
             subEl.textContent = `Full: ${stats.fullCount} · Half: ${stats.halfCount}${stats.unfilledCm > 0 ? ` · Unfilled: ${Math.round(stats.unfilledCm * MM_PER_CM)} mm` : ''}`;
 
-            const padLeft = 72;
-            const padRight = 24;
             const padTop = 18;
             const padBottom = 22;
 
             const availW = Math.max(100, w - padLeft - padRight);
             const availH = Math.max(40, h - padTop - padBottom);
 
-            const scaleX = Math.min(availW / wallLenCm, 1.8);
+            const scaleX = ELEVATION_PX_PER_CM;
             const drawWallW = wallLenCm * scaleX;
             const startX = padLeft + (availW - drawWallW) / 2;
             const rowH = availH / getWallRows(wall);

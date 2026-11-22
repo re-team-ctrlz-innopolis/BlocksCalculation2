@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Blocks Calculator</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./assets/vendor/tailwind.css">
     <link rel="stylesheet" href="./styles.css">
 </head>
 
@@ -33,7 +32,8 @@
                         <button id="btnLoadProject" type="button">Open project… <span>JSON</span></button>
                         <button id="btnSaveProject" type="button">Save project… <span>JSON</span></button>
                         <hr>
-                        <button id="btnPrint" type="button">Print / Save PDF…</button>
+                        <button id="btnSavePdf" type="button">Save PDF…</button>
+                        <button id="btnPrint" type="button">Print…</button>
                         <button id="btnExportCsv" type="button">Export CSV…</button>
                     </div>
                 </details>
@@ -169,8 +169,8 @@
                         <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-slate-700 border border-emerald-400/70 inline-block rounded-sm"></i> Shared corner</span>
                     </div>
                 </div>
-                <div class="flex-1 relative overflow-hidden">
-                    <canvas id="elevationCanvas" tabindex="0" aria-label="Wall side view. Select an opening; press Delete or Backspace to remove it." class="block w-full h-full"></canvas>
+                <div id="elevationViewport" class="flex-1 min-h-0 min-w-0 relative overflow-x-auto overflow-y-hidden" tabindex="0" role="region" aria-label="Wall side view. Scroll horizontally to see the rest of the wall.">
+                    <canvas id="elevationCanvas" tabindex="0" aria-label="Wall side view. Select an opening; press Delete or Backspace to remove it." class="block"></canvas>
                 </div>
             </div>
         </div>
@@ -262,7 +262,6 @@
                 <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-800 space-y-2 text-xs">
                     <div class="flex justify-between"><label for="inputWallRows">Wall height (courses):</label><b id="valWallHeight" class="text-blue-400"></b></div>
                     <input id="inputWallRows" type="number" min="2" max="17" step="1" value="10" class="w-full rounded bg-slate-900 border border-slate-700 p-2">
-                    <p class="text-slate-400">Control joints: <span id="wallControlJoints"></span></p>
                 </div>
                 <!-- Wall length -->
                 <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-800 space-y-2">
@@ -274,6 +273,10 @@
                     <div class="flex justify-between text-[11px] text-slate-400">
                         <span id="lblMinWallLen">Min: 200 mm</span><span>200 mm steps</span>
                     </div>
+                    <details class="text-xs">
+                        <summary class="cursor-pointer text-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400">Control joints</summary>
+                        <p id="wallControlJoints" class="mt-2 text-slate-400"></p>
+                    </details>
                 </div>
 
                 <!-- Угол поворота стены -->
@@ -390,7 +393,7 @@
             </section>
             <section class="tutorial-step" data-tutorial-step hidden>
                 <h3>5. Save your work</h3>
-                <p>Choose <b>File &rarr; Save project</b> to download an editable JSON project file. Use <b>File &rarr; Open project</b> to load it again. Choose <b>Print / Save PDF</b> for a printable report, or <b>Export CSV</b> to download the block quantities for a spreadsheet. Use <b>Undo</b> to reverse an edit and <b>Redo</b> to restore it. Click <b>Guide</b> to open these instructions again.</p>
+                <p>Choose <b>File &rarr; Save project</b> to download an editable JSON project file. Use <b>File &rarr; Open project</b> to load it again. Choose <b>Save PDF</b> to save the report, choosing its name and folder when your browser supports it. Otherwise, the browser uses its download settings. Choose <b>Print</b> to open the print dialog or <b>Export CSV</b> to download the block quantities for a spreadsheet. Use <b>Undo</b> to reverse an edit and <b>Redo</b> to restore it. Click <b>Guide</b> to open these instructions again.</p>
             </section>
         </div>
         <div class="tutorial-actions">
@@ -411,9 +414,13 @@
     <script src="./js/wall-actions.js"></script>
     <script src="./js/interactions.js"></script>
     <script src="./js/project.js"></script>
+    <script src="./js/vendor/jspdf.umd.min.js"></script>
+    <script src="./js/vendor/jspdf.plugin.autotable.min.js"></script>
+    <script src="./js/vendor/notosans-regular.js"></script>
+    <script src="./js/pdf-export.js"></script>
     <script src="./js/history.js"></script>
     <script src="./js/main.js"></script>
     <script src="./js/tutorial.js"></script>
-    <section id="printReport" aria-label="Material quantities report"></section>
+    <section id="printReport" aria-label="Blocks quantities report"></section>
 </body>
 </html>

@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
 
-function app(withInteractions = false) {
+function app(withInteractions = false, withPdf = false) {
     const elements = new Map();
     const element = id => {
         if (!elements.has(id)) elements.set(id, {
@@ -21,7 +21,13 @@ function app(withInteractions = false) {
         getElementById: element, addEventListener() {},
         querySelectorAll: selector => selector === '.opening-type-btn' ? typeButtons : []
     }, window: {addEventListener() {}, confirm:()=>true}, updateInspector() {}, render() {}, showToast() {}});
-    for (const file of ['constants', 'state', 'wall-logic', 'geometry-migration', 'wall-actions', 'project', 'history']) vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', file + '.js'), 'utf8'), context);
+    if (withPdf) {
+        const {jsPDF} = require('../js/vendor/jspdf.umd.min.js');
+        require('../js/vendor/jspdf.plugin.autotable.min.js').applyPlugin(jsPDF);
+        context.window.jspdf = {jsPDF};
+        vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/vendor/notosans-regular.js'), 'utf8'), context);
+    }
+    for (const file of ['constants', 'state', 'wall-logic', 'geometry-migration', 'wall-actions', 'project', 'pdf-export', 'history']) vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', file + '.js'), 'utf8'), context);
     if (withInteractions) {
         for (const file of ['render','interactions']) vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', file + '.js'), 'utf8'), context);
         vm.runInContext('render=()=>{};showToast=()=>{};bindEvents();bindProjectEvents();',context);
@@ -103,6 +109,64 @@ test('manual zoom uses round ten-percentage-point levels and keeps the pointer a
     assert.equal(run('state.zoom'),0.25);
     run('state.zoom=3.9;zoomAt(430,280,1);zoomAt(430,280,1);');
     assert.equal(run('state.zoom'),4);
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('saved'));
+    assert.equal(run('editHistory.length'),0);
+});
+
+test('elevation keeps a fixed block width across wall lengths and viewport sizes', () => {
+    const run = app(true);
+    run(`const make=${wall};state.walls=[make(1,0,10,400,10),make(2,0,1010,10000,1010)];
+        state.selectedWallId=1;state.elevCanvas.parentElement={clientWidth:500,clientHeight:180,scrollLeft:0};
+        state.elevCtx=new Proxy({}, {get:(target,key)=>target[key] ?? (()=>{})});
+        const saved=JSON.stringify(projectSnapshot());resetEditHistory();drawElevationView([]);`);
+    assert.equal(run('state.elevationGeometry.scaleX*FULL_BLOCK_CM'),72);
+    assert.ok(run('state.elevCanvas.width>state.elevCanvas.parentElement.clientWidth'));
+    run('state.elevCanvas.parentElement.scrollLeft=200;drawElevationView([]);');
+    assert.equal(run('state.elevCanvas.parentElement.scrollLeft'),200);
+    run('state.elevCanvas.parentElement.clientWidth=1200;drawElevationView([]);');
+    assert.equal(run('state.elevationGeometry.scaleX*FULL_BLOCK_CM'),72);
+    assert.equal(run('state.elevCanvas.width'),1200);
+    run('state.selectedWallId=2;drawElevationView([]);');
+    assert.equal(run('state.elevationGeometry.scaleX*FULL_BLOCK_CM'),72);
+    assert.equal(run('state.elevCanvas.width'),18096);
+    assert.equal(run('state.elevCanvas.parentElement.scrollLeft'),0);
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('saved'));
+    assert.equal(run('editHistory.length'),0);
+    run('state.elevCanvas.parentElement.scrollLeft=1000;state.selectedWallId=null;drawElevationView([]);');
+    assert.equal(run('state.elevationGeometry'),null);
+    assert.equal(run('state.elevCanvas.width'),1200);
+    assert.equal(run('state.elevCanvas.parentElement.scrollLeft'),0);
+});
+
+test('vertical wheel scrolls the elevation horizontally without editing the project', () => {
+    const run = app(true);
+    run(`const viewport=document.getElementById('elevationViewport');
+        viewport.scrollWidth=3000;viewport.clientWidth=1000;viewport.scrollLeft=500;
+        const saved=JSON.stringify(projectSnapshot());resetEditHistory();
+        let prevented=false;
+        const wheel=(deltaX,deltaY,deltaMode=0,ctrlKey=false)=>{
+            prevented=false;viewport.listeners.wheel[0]({deltaX,deltaY,deltaMode,ctrlKey,preventDefault(){prevented=true;}});
+        };
+        wheel(0,120);`);
+    assert.equal(run('viewport.scrollLeft'),620);
+    assert.equal(run('prevented'),true);
+    run('wheel(0,-120);');
+    assert.equal(run('viewport.scrollLeft'),500);
+    run('wheel(0,3,1);');
+    assert.equal(run('viewport.scrollLeft'),548);
+    run('wheel(0,1,2);');
+    assert.equal(run('viewport.scrollLeft'),1548);
+    run('wheel(0,99999);');
+    assert.equal(run('viewport.scrollLeft'),2000);
+    run('wheel(0,-99999);');
+    assert.equal(run('viewport.scrollLeft'),0);
+    for (const gesture of ['wheel(100,0)','wheel(100,10)','wheel(0,100,0,true)']) {
+        run(gesture);
+        assert.equal(run('viewport.scrollLeft'),0);
+        assert.equal(run('prevented'),false);
+    }
+    run('viewport.scrollWidth=1000;wheel(0,100);');
+    assert.equal(run('prevented'),false);
     assert.equal(run('JSON.stringify(projectSnapshot())'),run('saved'));
     assert.equal(run('editHistory.length'),0);
 });
@@ -324,16 +388,16 @@ test('display numbers close gaps after deletion and survive undo, redo and JSON 
         state.walls[1].openings=[{id:110,offset:160,length:80,type:'window',startRow:3,rowCount:3}];state.nextId=111;
         const original=JSON.stringify(projectSnapshot());resetEditHistory();`);
     assert.equal(run('JSON.stringify(state.walls.map(w=>getWallNumber(w.id)))'), '[1,2,3]');
-    assert.equal(run('JSON.stringify(state.walls.flatMap(w=>getOrderedOpenings(w).map(o=>getOpeningNumber(w.id,o.id))))'), '[1,2,3]');
+    assert.equal(run('JSON.stringify(state.walls.flatMap(w=>getOrderedOpenings(w).map(o=>getOpeningNumber(w.id,o.id))))'), '[1,2,1]');
     assert.equal(run('JSON.stringify(projectSnapshot())'), run('original'));
     run('removeOpening(40,60);');
     assert.equal(run('getOpeningNumber(40,90)'), 1);
-    assert.equal(run('getOpeningNumber(7,110)'), 2);
+    assert.equal(run('getOpeningNumber(7,110)'), 1);
     run('undoLastEdit();');
     assert.equal(run('JSON.stringify(projectSnapshot())'), run('original'));
-    assert.equal(run('getOpeningNumber(7,110)'), 3);
+    assert.equal(run('getOpeningNumber(7,110)'), 1);
     run('redoLastEdit();');
-    assert.equal(run('getOpeningNumber(7,110)'), 2);
+    assert.equal(run('getOpeningNumber(7,110)'), 1);
     run('undoLastEdit();removeWall(40);');
     assert.equal(run('getWallNumber(7)'), 1);
     assert.equal(run('getWallNumber(100)'), 2);
@@ -348,12 +412,47 @@ test('display numbers close gaps after deletion and survive undo, redo and JSON 
     assert.ok(run('state.walls[0].id > 100'));
 });
 
+test('door and window numbering is independent within each wall and follows edits', () => {
+    const run = app();
+    run(`const make=${wall};state.walls=[make(40,0,10,800,10,17),make(7,0,410,800,410,17)];
+        const op=(id,offset,type)=>({id,offset,length:80,type,startRow:type==='door'?1:3,rowCount:3});
+        state.walls[0].openings=[op(90,660,'door'),op(60,100,'window'),op(80,480,'window'),op(70,280,'door')];
+        state.walls[1].openings=[op(120,280,'window'),op(110,100,'door')];state.nextId=121;
+        const original=JSON.stringify(projectSnapshot());resetEditHistory();`);
+    assert.equal(run('JSON.stringify(state.walls.flatMap(w=>getOrderedOpenings(w).map(o=>getOpeningLabel(w.id,o.id))))'),
+        '["Window #1","Door #1","Window #2","Door #2","Door #1","Window #1"]');
+    assert.equal(run('JSON.stringify(projectSnapshot())'), run('original'));
+    run('removeOpening(40,70);');
+    assert.equal(run('getOpeningLabel(40,90)'), 'Door #1');
+    assert.equal(run('getOpeningLabel(40,80)'), 'Window #2');
+    assert.equal(run('getOpeningLabel(7,110)'), 'Door #1');
+    run('undoLastEdit();');
+    assert.equal(run('getOpeningLabel(40,90)'), 'Door #2');
+    run('redoLastEdit();');
+    assert.equal(run('getOpeningLabel(40,90)'), 'Door #1');
+    run(`state.walls[0].openings.find(o=>o.id===60).type='door';
+        state.walls[0].openings.find(o=>o.id===60).startRow=1;`);
+    assert.equal(run('getOpeningLabel(40,60)'), 'Door #1');
+    assert.equal(run('getOpeningLabel(40,90)'), 'Door #2');
+    assert.equal(run('getOpeningLabel(40,80)'), 'Window #1');
+    run('const saved=JSON.stringify(projectSnapshot());restoreProject(JSON.parse(saved));');
+    assert.equal(run('JSON.stringify(projectSnapshot())'), run('saved'));
+    assert.equal(run('getOpeningLabel(40,90)'), 'Door #2');
+    run('state.walls[0].openings.find(o=>o.id===90).offset=40;');
+    assert.equal(run('getOpeningLabel(40,90)'), 'Door #1');
+    assert.equal(run('getOpeningLabel(40,60)'), 'Door #2');
+    assert.equal(run('getOpeningNumber(40,999)'), null);
+    assert.equal(run('getOpeningNumber(999,90)'), null);
+    run(`state.walls[0].openings=[op(60,100,'door'),op(80,100,'window')];`);
+    assert.ok(run('validateProject().errors.includes("Wall #1: door #1 and window #1 overlap.")'));
+});
+
 test('validation messages and CSV use current display numbers instead of internal IDs', () => {
     const run = app();
     run(`const make=${wall};state.walls=[make(40,0,10,400,10,17),make(70,0,210,400,210,17)];
         state.walls[0].openings=[{id:90,offset:160,length:80,type:'window',startRow:3,rowCount:3}];
         state.walls[1].openings=[{id:110,offset:160,length:80,type:'window',startRow:15,rowCount:1}];`);
-    assert.ok(run('validateProject().errors.includes("Wall #2: leave at least three courses above opening #2 (2 available).")'));
+    assert.ok(run('validateProject().errors.includes("Wall #2: leave at least three courses above window #1 (2 available).")'));
     run('state.walls[1].openings[0].startRow=3;var csv="";downloadFile=(name,text)=>{csv=text;};exportCsv();');
     const lines = run('csv').replace(/^\ufeff/, '').trim().split('\r\n');
     assert.equal(lines[1].split(';')[0], '1');
@@ -990,7 +1089,7 @@ test('stacked openings retain the existing three-course lintel clearance', () =>
     const run=app();
     run(`const make=${wall}; state.walls=[make(1,0,10,400,10,17)]; state.walls[0].openings=[{id:2,offset:100,length:80,startRow:2,rowCount:3,type:'window'},{id:3,offset:100,length:80,startRow:7,rowCount:3,type:'window'}];`);
     assert.equal(run('openingsOverlap(...state.walls[0].openings)'),false);
-    assert.ok(run('validateProject().errors.some(s=>s.includes("three courses above opening #1 before another opening"))'));
+    assert.ok(run('validateProject().errors.some(s=>s.includes("three courses above window #1 before another opening"))'));
     assert.equal(run('getProjectReport()'),null);
     run('state.walls[0].openings[1].startRow=8;');
     assert.equal(run('JSON.stringify(validateProject().errors)'),'[]');
@@ -1215,7 +1314,7 @@ test('an end-only L-corner keeps its bond when the shorter neighbour ends on an 
 test('CSV control-joint lists stay in one cell and totals match the wall rows', () => {
     const run=app();
     run(`const make=${wall};state.walls=[make(1,0,10,1200,10),make(2,0,210,400,210)];let captured=null;downloadFile=(name,content,type)=>{captured={name,content,type}};exportCsv();const lines=captured.content.slice(1).trimEnd().split('\\r\\n').map(line=>line.split(';'));`);
-    assert.equal(run('captured.name'),'blocks-materials.csv');
+    assert.equal(run('captured.name'),'blocks-quantities.csv');
     assert.equal(run('captured.type'),'text/csv;charset=utf-8');
     assert.equal(run('lines.length'),4);
     assert.equal(run('lines.every(line=>line.length===8)'),true);
@@ -1231,6 +1330,87 @@ test('CSV serialization escapes delimiters, double quotes and multiline Unicode 
     const values=[['semi;colon','a "quote"','two\nlines','400×200×200 мм',null,200]];
     const expected='\ufeff"semi;colon";"a ""quote""";"two\nlines";400×200×200 мм;;200\r\n';
     assert.equal(run(`serializeCsvRows(${JSON.stringify(values)})`),expected);
+});
+
+test('Save PDF generates a real downloadable report without invoking print or editing the project', async () => {
+    const run = app(true, true);
+    await run(`loadDemoHouse();resetEditHistory();const saved=JSON.stringify(projectSnapshot());
+        var pdfCapture=null,printCalls=0;window.print=()=>{printCalls++;};
+        downloadFile=(name,content,type)=>{pdfCapture={name,content,type};};
+        document.getElementById('btnSavePdf').listeners.click[0]();`);
+    assert.equal(run('pdfCapture.name'),'blocks-quantities.pdf');
+    assert.equal(run('pdfCapture.type'),'application/pdf');
+    const bytes = Buffer.from(run('pdfCapture.content'));
+    assert.equal(bytes.subarray(0,5).toString(),'%PDF-');
+    assert.ok(bytes.length>10000);
+    assert.ok(bytes.toString('latin1').includes('/ToUnicode'));
+    assert.equal(run('printCalls'),0);
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('saved'));
+    assert.equal(run('editHistory.length'),0);
+});
+
+test('PDF pagination supports the maximum project size and invalid geometry blocks PDF downloads', async () => {
+    const run = app(false, true);
+    await run(`const make=${wall};state.walls=Array.from({length:200},(_,i)=>make(i+1,0,i*40+10,400,i*40+10));
+        var pdfCapture=null;downloadFile=(name,content,type)=>{pdfCapture={name,content,type};};exportPdf();`);
+    const bytes = Buffer.from(run('pdfCapture.content'));
+    assert.ok((bytes.toString('latin1').match(/\/Type \/Page\b/g)||[]).length>1);
+    await run('state.walls.push({...state.walls[0],id:1000});pdfCapture=null;exportPdf();');
+    assert.equal(run('pdfCapture'),null);
+});
+
+test('Save PDF asks for a destination before generating and writes the selected file', async () => {
+    const run = app(true, true);
+    await run(`loadDemoHouse();resetEditHistory();const saved=JSON.stringify(projectSnapshot());
+        var pickerOptions, savedPdf, saveEvents=[], downloads=0, printCalls=0, notice='';
+        const generate=createPdfReport;
+        createPdfReport=(...args)=>{saveEvents.push('generate');return generate(...args);};
+        downloadFile=()=>{downloads++;};window.print=()=>{printCalls++;};showToast=text=>{notice=text;};
+        window.showSaveFilePicker=async options=>{
+            saveEvents.push('pick');pickerOptions=options;
+            return {createWritable:async()=>({
+                write:async bytes=>{saveEvents.push('write');savedPdf=bytes;},
+                close:async()=>{saveEvents.push('close');}
+            })};
+        };
+        document.getElementById('btnSavePdf').listeners.click[0]();`);
+    assert.equal(run('pickerOptions.suggestedName'),'blocks-quantities.pdf');
+    assert.equal(run('pickerOptions.types[0].accept["application/pdf"][0]'),'.pdf');
+    assert.equal(run('saveEvents.join(",")'),'pick,generate,write,close');
+    assert.equal(Buffer.from(run('savedPdf')).subarray(0,5).toString(),'%PDF-');
+    assert.equal(run('downloads+printCalls'),0);
+    assert.equal(run('notice'),'PDF saved.');
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('saved'));
+    assert.equal(run('editHistory.length'),0);
+});
+
+test('cancelling the PDF destination does not generate, download or report an error', async () => {
+    const run = app(false, true);
+    await run(`loadDemoHouse();var work=0;
+        createPdfReport=downloadFile=showToast=()=>{work++;};
+        window.showSaveFilePicker=async()=>{throw Object.assign(new Error('Cancelled'),{name:'AbortError'});};
+        exportPdf();`);
+    assert.equal(run('work'),0);
+});
+
+test('a PDF write failure aborts the write and reports an error without a fallback download', async () => {
+    const run = app(false, true);
+    await run(`loadDemoHouse();var aborted=false,closed=false,downloaded=false,notice='';
+        console={error(){}};downloadFile=()=>{downloaded=true;};showToast=text=>{notice=text;};
+        window.showSaveFilePicker=async()=>({createWritable:async()=>({
+            write:async()=>{throw new Error('Disk full');},
+            close:async()=>{closed=true;},abort:async()=>{aborted=true;}
+        })});exportPdf();`);
+    assert.equal(run('aborted'),true);
+    assert.equal(run('closed || downloaded'),false);
+    assert.match(run('notice'),/Could not save/);
+});
+
+test('invalid geometry cannot open a PDF save picker', async () => {
+    const run = app(false, true);
+    await run(`const make=${wall};state.walls=[make(1,0,10,400,10),make(2,0,10,400,10)];
+        var pickerCalls=0;window.showSaveFilePicker=async()=>{pickerCalls++;};exportPdf();`);
+    assert.equal(run('pickerCalls'),0);
 });
 
 test('invalid geometry cannot trigger a CSV download', () => {

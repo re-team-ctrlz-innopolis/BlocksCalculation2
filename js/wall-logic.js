@@ -29,15 +29,19 @@ function getOrderedOpenings(wall) {
 }
 
 function getOpeningNumber(wallId, openingId, walls = state.walls) {
-    let preceding = 0;
-    for (const wall of walls) {
-        if (wall.id === wallId) {
-            const index = getOrderedOpenings(wall).findIndex(opening => opening.id === openingId);
-            return index < 0 ? null : preceding + index + 1;
-        }
-        preceding += wall.openings.length;
-    }
-    return null;
+    const wall = walls.find(wall => wall.id === wallId);
+    const opening = wall?.openings.find(opening => opening.id === openingId);
+    if (!opening) return null;
+    // Each wall has a separate sequence for each opening type, in position order.
+    return getOrderedOpenings(wall).filter(item => item.type === opening.type)
+        .findIndex(item => item.id === openingId) + 1;
+}
+
+function getOpeningLabel(wallId, openingId, walls = state.walls) {
+    const opening = walls.find(wall => wall.id === wallId)?.openings.find(opening => opening.id === openingId);
+    if (!opening) return null;
+    const type = opening.type === 'door' ? 'Door' : opening.type === 'window' ? 'Window' : 'Opening';
+    return `${type} #${getOpeningNumber(wallId, openingId, walls)}`;
 }
 
 function getWallLength(w) {

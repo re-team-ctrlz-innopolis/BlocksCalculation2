@@ -13,3 +13,5 @@ if (!restored) loadDemoHouse();
 updateInspector();
 render();
 resetEditHistory();
+// Canvas text needs a redraw once the bundled UI font has finished loading.
+document.fonts.ready.then(render);

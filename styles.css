@@ -1,3 +1,11 @@
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('./assets/fonts/InterVariable.woff2') format('woff2');
+}
+
 body {
             font-family: 'Inter', sans-serif;
             user-select: none;
@@ -25,6 +33,10 @@ body {
 
 input[type="number"] { user-select: text; }
 button:disabled { cursor: not-allowed; }
+#elevationViewport { scrollbar-color: #64748b #1e293b; }
+#elevationViewport::-webkit-scrollbar { height: 10px; }
+#elevationViewport::-webkit-scrollbar-thumb { background: #64748b; }
+#elevationViewport:focus-visible { outline: 2px solid #60a5fa; outline-offset: -2px; }
 .opening-delete-button {
     flex-shrink: 0; min-height: 32px; padding: 6px 10px;
     border: 1px solid #be123c; border-radius: 6px;
@@ -186,12 +198,14 @@ header > div:nth-child(2) { flex-wrap: wrap; }
     .file-menu-actions { top: 100%; left: 16px; }
     header { position: relative; }
 }
+@page { size: A4 portrait; margin: 18mm; }
 @media print {
-    body { height: auto !important; overflow: visible; background: white !important; color: black !important; user-select: text; }
+    body { margin: 0; height: auto !important; overflow: visible; background: white !important; color: black !important; user-select: text; }
     body > :not(#printReport) { display: none !important; }
-    #printReport { display: block; padding: 24px; font-size: 12px; }
-    #printReport h1 { font-size: 22px; margin-bottom: 20px; }
-    #printReport table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    #printReport td, #printReport th { border: 1px solid #888; padding: 8px; text-align: left; }
-    #printReport p { margin-top: 12px; }
+    #printReport { display: block; padding: 0; font: 12px/18px BlocksReport, sans-serif; color: #000; }
+    #printReport h1 { font-size: 22px; font-weight: 400; line-height: 33px; margin: 0 0 20px; }
+    #printReport table { width: 174mm; table-layout: fixed; border-collapse: collapse; margin-bottom: 20px; }
+    #printReport tr { break-inside: avoid; }
+    #printReport td, #printReport th { border: 1px solid #888; padding: 8px; text-align: left; font-weight: 400; vertical-align: middle; }
+    #printReport p { margin: 12px 0 0; orphans: 2; widows: 2; }
 }

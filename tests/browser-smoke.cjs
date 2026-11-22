@@ -14,7 +14,8 @@ async function main() {
         if (!file.startsWith(root + path.sep)) { res.writeHead(403); res.end(); return; }
         fs.readFile(file, (error, data) => {
             if (error) { res.writeHead(404); res.end(); return; }
-            res.setHeader('Content-Type', file.endsWith('.js') ? 'application/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.svg') ? 'image/svg+xml' : 'text/html');
+            const types = {'.js':'application/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'};
+            res.setHeader('Content-Type', types[path.extname(file)] || 'text/html');
             res.end(data);
         });
     });
@@ -29,14 +30,17 @@ async function main() {
         const portFile = path.join(profile, 'DevToolsActivePort');
         for (let i = 0; !fs.existsSync(portFile) && i < 100; i++) await new Promise(r => setTimeout(r, 100));
         const port = fs.readFileSync(portFile, 'utf8').split('\n')[0];
-        const target = await (await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(url)}`, {method: 'PUT'})).json();
+        const initialUrl = process.argv.includes('--offline-only') ? 'about:blank' : url;
+        const target = await (await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(initialUrl)}`, {method: 'PUT'})).json();
         socket = new WebSocket(target.webSocketDebuggerUrl);
         await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, {once: true}); socket.addEventListener('error', reject, {once: true}); });
         let serial = 0;
-        const pending = new Map(), errors = [];
+        const pending = new Map(), errors = [], networkRequests = [], failedResources = [];
         socket.addEventListener('message', e => {
             const message = JSON.parse(e.data);
             if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails);
+            if (message.method === 'Network.requestWillBeSent' && /^https?:/.test(message.params.request.url)) networkRequests.push(message.params.request.url);
+            if (message.method === 'Network.loadingFailed') failedResources.push(message.params.errorText);
             if (message.id && pending.has(message.id)) {
                 const {resolve, reject, timer} = pending.get(message.id); clearTimeout(timer); pending.delete(message.id);
                 if (message.error) reject(new Error(JSON.stringify(message.error))); else resolve(message.result);
@@ -62,12 +66,161 @@ async function main() {
         };
         await call('Runtime.enable');
         await call('Page.enable');
+        if (process.argv.includes('--offline-only')) {
+            // Start from a blank tab in a new profile: neither CDN code nor cached fonts can help.
+            await call('Network.enable');
+            await call('Network.setCacheDisabled', {cacheDisabled:true});
+            await call('Network.setBlockedURLs', {urls:['http://*','https://*']});
+            await call('Page.navigate', {url:'file:///'+root.replaceAll('\\','/')+'/draft.html'});
+        }
         for (let i = 0; i < 100; i++) {
             if (await evaluate('typeof validateProject === "function" && document.readyState === "complete"')) break;
             await new Promise(r => setTimeout(r, 200));
         }
         assert.deepEqual(await evaluate('validateProject().errors'), []);
         await evaluate('if(document.getElementById("tutorialDialog").open)document.getElementById("btnTutorialClose").click();');
+        if (process.argv.includes('--offline-only')) {
+            const qaDir = path.resolve(root, '../tmp', 'offline-qa-' + Date.now());
+            fs.mkdirSync(qaDir, {recursive:true});
+            await evaluate('document.fonts.ready');
+            assert.equal(await evaluate('document.fonts.check("400 14px Inter") && Array.from(document.fonts).some(f=>f.family==="Inter" && f.status==="loaded")'),true);
+            assert.equal(await evaluate('getComputedStyle(document.body).display'),'flex');
+            assert.equal(await evaluate('getComputedStyle(document.querySelector("header")).display'),'grid');
+            assert.equal(await evaluate('getComputedStyle(document.body).backgroundColor'),'rgb(2, 6, 23)');
+            assert.equal(await evaluate('document.querySelector("aside").getBoundingClientRect().width'),384);
+            assert.ok(await evaluate('state.canvas.width>500 && state.canvas.height>200 && state.elevCanvas.height>0'));
+            const screenshot = await call('Page.captureScreenshot', {format:'png'});
+            fs.writeFileSync(path.join(qaDir,'desktop.png'),Buffer.from(screenshot.data,'base64'));
+
+            // Exercise dynamically styled controls and a new project, rather than only the built-in sample.
+            await evaluate(`state.walls=[];state.migrationNotes=[];state.selectedWallId=null;state.selectedOpeningId=null;
+                resetEditHistory();updateInspector();render();document.getElementById('btnAddWall').click();
+                document.getElementById('sliderWallLength').value=4000;
+                document.getElementById('sliderWallLength').dispatchEvent(new Event('change',{bubbles:true}));
+                document.getElementById('btnAddOpening').click();document.querySelector('[data-optype=door]').click();`);
+            assert.equal(await evaluate('state.walls.length'),1);
+            assert.equal(await evaluate('state.walls[0].openings.length'),1);
+            assert.equal(await evaluate('document.getElementById("openingEditorTitle").textContent'),'Door #1');
+            assert.equal(await evaluate('getComputedStyle(document.querySelector("#openingsList .opening-select span span")).color'),'rgb(52, 211, 153)');
+            assert.deepEqual(await evaluate('validateProject().errors'),[]);
+            const savedProject = await evaluate('JSON.stringify(projectSnapshot())');
+            await call('Browser.setDownloadBehavior', {behavior:'allow',downloadPath:qaDir});
+            await evaluate('window.showSaveFilePicker=undefined;');
+            for (const id of ['btnSaveProject','btnExportCsv','btnSavePdf']) {
+                await evaluate(`document.getElementById('fileMenu').open=true;document.getElementById('${id}').click();`);
+            }
+            for (const name of ['blocks-project.json','blocks-quantities.csv','blocks-quantities.pdf']) {
+                const file = path.join(qaDir,name);
+                for(let i=0;!fs.existsSync(file)&&i<100;i++) await new Promise(resolve=>setTimeout(resolve,100));
+                assert.ok(fs.existsSync(file), name+' downloads without a network');
+            }
+            assert.deepEqual(JSON.parse(fs.readFileSync(path.join(qaDir,'blocks-project.json'),'utf8')),JSON.parse(savedProject));
+            assert.ok(fs.readFileSync(path.join(qaDir,'blocks-quantities.csv'),'utf8').includes('TOTAL'));
+            assert.equal(fs.readFileSync(path.join(qaDir,'blocks-quantities.pdf')).subarray(0,5).toString(),'%PDF-');
+
+            await evaluate(`document.getElementById('sliderWallLength').value=6000;
+                document.getElementById('sliderWallLength').dispatchEvent(new Event('change',{bubbles:true}));`);
+            assert.notEqual(await evaluate('JSON.stringify(projectSnapshot())'),savedProject);
+            const {root:domRoot} = await call('DOM.getDocument');
+            const {nodeId} = await call('DOM.querySelector',{nodeId:domRoot.nodeId,selector:'#projectFile'});
+            await call('DOM.setFileInputFiles',{nodeId,files:[path.join(qaDir,'blocks-project.json')]});
+            for(let i=0;await evaluate('JSON.stringify(projectSnapshot())')!==savedProject&&i<100;i++) await new Promise(resolve=>setTimeout(resolve,50));
+            assert.equal(await evaluate('JSON.stringify(projectSnapshot())'),savedProject);
+            await evaluate('window.offlinePrintCalls=0;window.print=()=>{offlinePrintCalls++;};printReport();');
+            await evaluate('loadQuantityReportFont()');
+            assert.equal(await evaluate('offlinePrintCalls'),1);
+            const printed = await call('Page.printToPDF',{preferCSSPageSize:true,displayHeaderFooter:false});
+            fs.writeFileSync(path.join(qaDir,'printed.pdf'),Buffer.from(printed.data,'base64'));
+            assert.ok(Buffer.from(printed.data,'base64').length>1000);
+            await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
+            await evaluate('resizeCanvases();');
+            assert.ok(await evaluate('document.documentElement.scrollWidth<=window.innerWidth'));
+            const mobile = await call('Page.captureScreenshot',{format:'png'});
+            fs.writeFileSync(path.join(qaDir,'mobile.png'),Buffer.from(mobile.data,'base64'));
+            assert.deepEqual(networkRequests,[], 'The app must not attempt any HTTP/HTTPS requests');
+            assert.deepEqual(failedResources,[], 'All local resources must load');
+            assert.deepEqual(errors,[]);
+            console.log('PASS: cold offline file launch, local styles/font, editing, JSON save/load, CSV, PDF, print and responsive layout; zero HTTP/HTTPS requests.');
+            console.log('OFFLINE_QA_DIR='+qaDir);
+            return;
+        }
+        if (process.argv.includes('--pdf-only')) {
+            const qaDir = path.resolve(root, '../tmp/pdfs', 'qa-' + Date.now());
+            fs.mkdirSync(qaDir, {recursive: true});
+            await evaluate('window.pdfPrintCalls=0;window.print=()=>{window.pdfPrintCalls++;};');
+            assert.equal(await evaluate('document.getElementById("btnSavePdf").textContent'), 'Save PDF…');
+            assert.equal(await evaluate('document.getElementById("btnPrint").textContent'), 'Print…');
+            // Substitute only the native chooser, then exercise a real browser file writer.
+            await evaluate(`(async()=>{window.pdfTestDirectory=await navigator.storage.getDirectory();
+                window.pdfTestHandle=await pdfTestDirectory.getFileHandle('chosen-report.pdf',{create:true});
+                window.pdfPickerOptions=null;
+                window.showSaveFilePicker=async options=>{window.pdfPickerOptions=options;return pdfTestHandle;};
+                await exportPdf();})()`);
+            assert.equal(await evaluate('pdfPickerOptions.suggestedName'),'blocks-quantities.pdf');
+            assert.equal(await evaluate('(async()=>(await (await pdfTestHandle.getFile()).text()).slice(0,5))()'),'%PDF-');
+            assert.equal(await evaluate('pdfPrintCalls'),0);
+            await evaluate(`(async()=>{window.pdfCancelWork=0;window.pdfRealCreate=createPdfReport;
+                createPdfReport=(...args)=>{pdfCancelWork++;return pdfRealCreate(...args);};
+                window.showSaveFilePicker=async()=>{throw new DOMException('Cancelled','AbortError');};
+                await exportPdf();createPdfReport=pdfRealCreate;})()`);
+            assert.equal(await evaluate('pdfCancelWork'),0);
+            // Include a wide-opening notice and Unicode notes in the rendered sample.
+            await evaluate(`setOpeningBoundsCm(state.walls[0].openings[0],80,160);
+                state.migrationNotes=['Unicode note: '+String.fromCharCode(1058,1077,1089,1090)+' '+String.fromCharCode(8212)+' 400'+String.fromCharCode(215)+'200'+String.fromCharCode(215)+'200 mm'];
+                updateInspector();render();`);
+            assert.deepEqual(await evaluate('validateProject().errors'), []);
+            const downloadPdf = async name => {
+                const downloadDir = path.join(qaDir, name);
+                fs.mkdirSync(downloadDir);
+                await call('Browser.setDownloadBehavior', {behavior:'allow', downloadPath:downloadDir});
+                const before = await evaluate('JSON.stringify(projectSnapshot())');
+                const expected = await evaluate('({rows:getProjectReport(),warnings:validateProject().warnings})');
+                await evaluate('window.showSaveFilePicker=undefined;'); // Unsupported-browser download path.
+                await evaluate('document.getElementById("fileMenu").open=true;document.getElementById("btnSavePdf").click();');
+                const saved = path.join(downloadDir, 'blocks-quantities.pdf');
+                for (let i=0;!fs.existsSync(saved)&&i<100;i++) await new Promise(resolve=>setTimeout(resolve,100));
+                assert.ok(fs.existsSync(saved), 'Save PDF downloads a file');
+                assert.equal(fs.readFileSync(saved).subarray(0,5).toString(), '%PDF-');
+                fs.writeFileSync(path.join(downloadDir,'expected.json'),JSON.stringify(expected,null,2));
+                assert.equal(await evaluate('pdfPrintCalls'),0);
+                assert.equal(await evaluate('document.getElementById("fileMenu").open'),false);
+                assert.equal(await evaluate('JSON.stringify(projectSnapshot())'),before);
+                // Capture the browser's actual print rendering for visual comparison with the download.
+                await evaluate('printReport()');
+                assert.equal(await evaluate('pdfPrintCalls'),1);
+                assert.equal(await evaluate('document.querySelector("#printReport h1").textContent'),
+                    'BlocksCalculator — Blocks quantities');
+                assert.deepEqual(await evaluate('Array.from(document.querySelectorAll("#printReport tbody tr"),tr=>Array.from(tr.cells,td=>td.textContent))'),
+                    await evaluate('getQuantityReportContent(getProjectReport(),validateProject().warnings).body.map(row=>row.map(String))'));
+                assert.equal(await evaluate('document.fonts.check("12px BlocksReport")'),true);
+                const printed = await call('Page.printToPDF', {preferCSSPageSize:true, displayHeaderFooter:false});
+                fs.writeFileSync(path.join(downloadDir,'printed.pdf'),Buffer.from(printed.data,'base64'));
+                await evaluate('window.pdfPrintCalls=0;');
+            };
+            await downloadPdf('sample-house');
+            await evaluate(`state.walls=Array.from({length:200},(_,i)=>({id:i+1,x1:0,y1:i*40+10,x2:i===0?10000:400,y2:i*40+10,rows:17,openings:[]}));
+                state.nextId=201;state.migrationNotes=[];state.selectedWallId=1;state.selectedOpeningId=null;updateInspector();render();`);
+            assert.deepEqual(await evaluate('validateProject().errors'),[]);
+            await downloadPdf('large-project');
+            await evaluate('document.getElementById("btnPrint").click();');
+            for(let i=0;await evaluate('pdfPrintCalls')===0&&i<100;i++) await new Promise(resolve=>setTimeout(resolve,20));
+            assert.equal(await evaluate('pdfPrintCalls'),1);
+            await evaluate('state.walls.push({...state.walls[0],id:999});updateInspector();');
+            assert.equal(await evaluate('document.getElementById("btnSavePdf").disabled && document.getElementById("btnPrint").disabled && document.getElementById("btnExportCsv").disabled'),true);
+            await call('Network.enable');
+            await call('Network.setBlockedURLs',{urls:['http://*','https://*']});
+            await call('Page.navigate',{url:'file:///'+root.replaceAll('\\','/')+'/draft.html'});
+            for(let i=0;i<100;i++){
+                if(await evaluate('document.readyState==="complete" && typeof exportPdf==="function" && typeof state!=="undefined" && state.walls.length>0'))break;
+                await new Promise(resolve=>setTimeout(resolve,100));
+            }
+            await evaluate('window.pdfPrintCalls=0;window.print=()=>{window.pdfPrintCalls++;};');
+            await downloadPdf('offline-file');
+            assert.deepEqual(errors,[]);
+            console.log('PASS: chosen-file PDF saving, cancellation, fallback downloads, separate print action, pagination, blocked invalid exports and offline local-file export.');
+            console.log('PDF_QA_DIR='+qaDir);
+            return;
+        }
         const navigationProject = await evaluate('JSON.stringify(projectSnapshot())');
         if (!process.argv.includes('--navigation-only')) {
             for (const screen of [{width:1366,height:768},{width:800,height:600}]) {
@@ -295,9 +448,10 @@ async function main() {
         await call('Input.dispatchMouseEvent', {type: 'mouseReleased', x: point.x, y: point.y + point.rowH, button: 'left', clickCount: 1});
         assert.equal(await evaluate('state.walls[0].openings[0].startRow'), 4);
         await evaluate('window.csvCapture=null; downloadFile=(name,content,type)=>{window.csvCapture={name,content,type}}; document.getElementById("btnExportCsv").click();');
-        assert.equal(await evaluate('csvCapture.name'), 'blocks-materials.csv');
+        assert.equal(await evaluate('csvCapture.name'), 'blocks-quantities.csv');
         assert.ok(await evaluate('csvCapture.content.includes("TOTAL")'));
-        await evaluate('window.print=()=>{}; document.getElementById("btnPrint").click();');
+        await evaluate('window.print=()=>{}; printReport();');
+        await evaluate('loadQuantityReportFont()');
         assert.equal(await evaluate('document.querySelectorAll("#printReport tr").length'), 6);
         const pdf = await call('Page.printToPDF', {printBackground: true});
         assert.ok(Buffer.from(pdf.data, 'base64').length > 1000);

@@ -4,13 +4,17 @@ A Requirements Engineering course project for entering wall layouts and calculat
 
 ## Running the application
 
-Open `draft.html` in a browser. For consistent persistence between sessions, use a local HTTP server from the project root:
+Keep the entire project folder together and open `draft.html` in a browser. The application works offline from its first launch: styles, fonts, scripts, JSON projects and PDF generation are all local. No installation, build step, npm packages, backend or internet connection is needed to run it.
+
+For consistent persistence between sessions, optionally use a local HTTP server from the project root:
 
 ```powershell
 python -m http.server 8000
 ```
 
-Open `http://localhost:8000/draft.html`. Tailwind styles and the Inter font are loaded over the internet, as in the original project. No build tool, npm packages, or backend are required.
+Open `http://localhost:8000/draft.html`. This server runs on your computer and does not require an internet connection. Browser autosave depends on local storage settings; use **File → Save project** to keep a portable JSON copy.
+
+Tailwind CSS is precompiled and Inter is bundled under `assets/`. Sources, licenses and instructions for rebuilding CSS after adding utility classes are in [`assets/README.md`](assets/README.md).
 
 ## Saved examples
 
@@ -24,20 +28,21 @@ Both examples use `modular-cells-v3`, 200 mm courses, and only Window/Door openi
 ## Features
 
 - Add, delete, move, resize, and rotate walls in 90° increments.
-- Wall display numbers run from 1 to the current wall count, in wall-list order. Openings have their own project-wide sequence, ordered by wall and then position along that wall. Lists, the inspector, validation messages, and reports use these numbers and close gaps after deletions. Internal IDs remain unchanged for connections, JSON files, and undo/redo.
+- Wall display numbers run from 1 to the current wall count, in wall-list order. Each wall has its own separate door and window sequences, ordered by position along that wall: Door #1, Door #2 and Window #1, Window #2. Lists, the inspector, validation messages, and reports use these numbers and close gaps after deletions or type changes. Messages include the opening type to distinguish a door and window with the same number. Internal IDs remain unchanged for connections, JSON files, and undo/redo.
 - Press Delete or Backspace (the Delete key on a Mac keyboard) to remove the selected wall or opening. Clicking wall masonry selects the wall; clicking an opening selects that opening. Selecting a wall does not automatically select one of its openings. The shortcuts preserve text editing in fields, ignore held-key repeats and modifier combinations, and are inactive while the File menu is open. Deletions can be undone with Ctrl/Cmd+Z. Clearing the canvas and loading the sample project require confirmation.
 - Camera controls: scroll to zoom around the cursor; the wheel and +/− buttons use fixed 10-percentage-point levels (100%, 110%, 120%, etc.), bounded by the zoom limits. After an automatic fit, a manual step selects the next round level in its direction. Drag empty space with the left mouse button, or drag anywhere with the middle button, to pan. A permanent hint appears beside the zoom controls, and empty space uses a hand cursor. **Show entire project** fits all wall footprints into view with room for labels, avoiding the legend and navigation controls. Large plans can fit below 25% zoom. Reset restores the original camera position and 100% zoom. Camera actions do not modify walls or enter undo/redo history.
 - Use the back arrow or Ctrl/Cmd+Z to undo plan edits: creation, deletion, property changes, rotation, dragging, clearing, and importing. Use the forward arrow, Ctrl/Cmd+Shift+Z, or Ctrl/Cmd+Y to redo an undone edit. A new edit clears the redo history. Each drag gesture counts as one operation. Up to 50 operations are retained for the current session; camera movements are excluded. When typing in a field, the browser's native text undo remains available.
 - Wall orientation is shown as Horizontal / Vertical. Turn left / Turn right rotates the wall by a quarter turn without entering angles.
 - Snapping for L- and T-junctions; a wall list for selection and access to properties.
 - Individual wall heights, with a separate action to apply a height to all walls.
+- The wall side view uses a fixed horizontal scale: a 400 mm block is 72 pixels wide. Long walls scroll horizontally instead of shrinking to fit. Use the scrollbar, horizontal trackpad gestures, or the mouse wheel (down to move right, up to move left). Selecting a different wall starts its view at the beginning; editing the current wall preserves the scroll position. The plan zoom does not affect this scale.
 - Rectangular openings with width, position, bottom course, and height in courses. A Door starts at the first course at floor level; a Window starts at course 2 or above. Width and position use the nominal block module without accounting for joint width. Curved arches are not modeled.
 - Move and resize openings on the plan; move them horizontally and vertically in the elevation. Openings can be stacked when their rectangles do not overlap. Property controls, dragging, and JSON import enforce the same two-dimensional collision rule. Each opening card shows its type, number, width × height in millimetres, and a Delete button. Select stacked openings there or in the elevation. The editor displays millimetres, with course counts in tooltips; doors show "At floor level" instead of the bottom-height slider. On the plan, the selected opening is drawn and hit-tested on top.
 - Automatic full/half block layouts, alternating course bonds, and shared L-corners counted once. The bond continues without resetting above a shorter connected wall.
 - Control joints target 5,000 mm intervals and automatically shift on the 200 mm grid to clear openings and stay at least 400 mm from either wall end; sections stay no longer than 5 m. Full/half blocks beside each joint follow the actual wall bond and joint position, with markers in both views.
 - Validation messages for unsupported geometry. The final report is unavailable when errors exist, and preliminary quantities are marked as drafts.
-- CSV export and a printable report; PDF output through the browser's print dialog. CSV files use UTF-8 with a BOM, semicolon separators, and eight columns for wall quantities and totals. Multiple control-joint positions share one cell, separated by ` | `. CSV contains only table data; model assumptions and exclusions remain in the print/PDF report. If a spreadsheet asks for an import delimiter, choose semicolon (`;`).
-- The File menu next to the application name groups Open project / Save project (JSON), Print / Save PDF, and Export CSV. Result exports are disabled when the model has validation errors. Close the menu by choosing an action, clicking outside it, or pressing Escape; keyboard navigation is also supported.
+- CSV export, a downloadable PDF, and a printable report. **Save PDF** opens a save dialog to choose the folder and filename (suggested: `blocks-quantities.pdf`) in browsers supporting `showSaveFilePicker`; cancelling does not download a file. In other browsers it uses the regular download flow, with a reminder to enable the browser's "Ask where to save each file" setting if a folder choice is needed; **Print** opens the browser's print dialog. Both use the same plain, black-and-white A4 portrait layout, font, column widths, headings, totals and notes, titled **Blocks quantities**. Tables wrap long cells and repeat headers across pages. The PDF libraries and Unicode font are bundled locally; PDF generation needs no server or internet, including when `draft.html` is opened from disk. Versions and licenses are in [`js/vendor/README.md`](js/vendor/README.md). CSV downloads as `blocks-quantities.csv`, using UTF-8 with a BOM, semicolon separators, and eight columns for wall quantities and totals. Multiple control-joint positions share one cell, separated by ` | `. CSV contains only table data; model assumptions and exclusions remain in the print/PDF report. If a spreadsheet asks for an import delimiter, choose semicolon (`;`).
+- The File menu next to the application name groups Open project / Save project (JSON), Save PDF, Print, and Export CSV. Result exports are disabled when the model has validation errors. Close the menu by choosing an action, clicking outside it, or pressing Escape; keyboard navigation is also supported.
 - A step-by-step guide opens automatically on first use and can be reopened any time with the **Guide** button beside File. Its completion is remembered in the current browser.
 - Autosave in the current browser, plus JSON project export and import with structure and identifier validation. A failed import does not replace the current project.
 
@@ -89,5 +94,9 @@ node tests/browser-smoke.cjs
 To check only navigation (panning, fitting the project, large drawings, and narrow screens), run `node tests/browser-smoke.cjs --navigation-only`.
 
 To check inspector scrolling after adding an opening, including wheel gestures over focused wall-height and wall-length fields, run `node tests/browser-smoke.cjs --scroll-only`. These gestures scroll the panel without changing wall dimensions.
+
+To check saving to a chosen file, cancellation, fallback PDF downloads, separate printing, a 200-wall report, and direct local-file export with HTTP/HTTPS blocked, run `node tests/browser-smoke.cjs --pdf-only`. Generated reports and expected quantities are written under `../tmp/pdfs/`; the script prints the specific folder.
+
+To check a cold offline launch, run `node tests/browser-smoke.cjs --offline-only`. It opens `draft.html` directly from disk in a fresh browser profile with caching disabled and all HTTP/HTTPS requests blocked. It checks local styles and fonts, editing, JSON downloads and import, CSV, PDF, printing and narrow-screen layout, and fails if the application attempts any HTTP/HTTPS requests. Screenshots and exported files are written under `../tmp/offline-qa-*`.
 
 The screenshot is saved in the operating system's temporary directory. The script checks loading, wall properties, invalid dimensions, dragging an opening in the elevation, CSV export, the printable table, restoration after reload, blocked export, and adding/clearing walls.

@@ -91,29 +91,29 @@ function validateProject() {
             }
         }
         for (const op of wall.openings) {
-            const openingNumber = getOpeningNumber(wall.id, op.id);
+            const openingLabel = getOpeningLabel(wall.id, op.id).toLowerCase();
             const b = getOpeningBoundsCm(op);
             if (b.startCm < HALF_BLOCK_CM || b.endCm > length - HALF_BLOCK_CM)
-                errors.push(`${label}: opening #${openingNumber} needs a 200 mm pier at both wall ends.`);
+                errors.push(`${label}: ${openingLabel} needs a 200 mm pier at both wall ends.`);
             if (!Number.isInteger(op.startRow) || !Number.isInteger(op.rowCount) || op.startRow < 1 || op.rowCount < 1 || op.startRow + op.rowCount - 1 > getWallRows(wall))
-                errors.push(`${label}: opening #${openingNumber} is outside the wall height.`);
+                errors.push(`${label}: ${openingLabel} is outside the wall height.`);
             if (op.type === 'door' && op.startRow !== 1)
-                errors.push(`${label}: door opening #${openingNumber} must start at course 1 (floor level).`);
+                errors.push(`${label}: ${openingLabel} must start at course 1 (floor level).`);
             if (op.type === 'window' && op.startRow < 2)
-                errors.push(`${label}: window opening #${openingNumber} must start at course 2 or above.`);
-            if (b.lenCm > 150) notices.push(`${label}: opening #${openingNumber} is wider than 1500 mm and requires a separate lintel or beam. Lintel/beam design and quantities are not calculated.`);
+                errors.push(`${label}: ${openingLabel} must start at course 2 or above.`);
+            if (b.lenCm > 150) notices.push(`${label}: ${openingLabel} is wider than 1500 mm and requires a separate lintel or beam. Lintel/beam design and quantities are not calculated.`);
             const openingTopRow = op.startRow + op.rowCount - 1;
             const coursesAbove = getWallRows(wall) - openingTopRow;
             if (coursesAbove < 3)
-                errors.push(`${label}: leave at least three courses above opening #${openingNumber} (${Math.max(0, coursesAbove)} available).`);
+                errors.push(`${label}: leave at least three courses above ${openingLabel} (${Math.max(0, coursesAbove)} available).`);
             for (const other of wall.openings) {
                 if (other.id <= op.id) continue;
-                if (openingsOverlap(op, other)) errors.push(`${label}: openings #${openingNumber} and #${getOpeningNumber(wall.id, other.id)} overlap.`);
+                if (openingsOverlap(op, other)) errors.push(`${label}: ${openingLabel} and ${getOpeningLabel(wall.id, other.id).toLowerCase()} overlap.`);
             }
             const lintelStart = getOpeningRowRange(op).endRow;
             if (wall.openings.some(other => other.id !== op.id && openingWidthsOverlap(op, other) &&
                 getOpeningRowRange(other).startRow < lintelStart + 3 && getOpeningRowRange(other).endRow > lintelStart))
-                errors.push(`${label}: leave at least three courses above opening #${openingNumber} before another opening.`);
+                errors.push(`${label}: leave at least three courses above ${openingLabel} before another opening.`);
         }
         const controls = [0, ...getControlJoints(wall), length];
         if (controls.length > 2 && (controls[1] < MIN_CONTROL_END_DISTANCE_CM ||
@@ -203,6 +203,7 @@ function updateProjectStatus() {
     }
     status.hidden = result.errors.length === 0 && result.notices.length === 0;
     document.getElementById('btnPrint').disabled = result.errors.length > 0;
+    document.getElementById('btnSavePdf').disabled = result.errors.length > 0;
     document.getElementById('btnExportCsv').disabled = result.errors.length > 0;
     const resultsStatus = document.getElementById('resultsStatus');
     resultsStatus.className = `export-status ${result.errors.length ? 'export-status-unavailable' : 'export-status-ready'}`;
@@ -250,27 +251,48 @@ function exportCsv() {
         ['TOTAL', '', '', '', total[0], total[1], total[0] + total[1], '']
     ];
     // CSV contains only tabular data. Scope and model explanations remain in the print/PDF report.
-    downloadFile('blocks-materials.csv', serializeCsvRows(table), 'text/csv;charset=utf-8');
+    downloadFile('blocks-quantities.csv', serializeCsvRows(table), 'text/csv;charset=utf-8');
 }
 
-function printReport() {
+// Both export actions use the same headings, values, totals and notes.
+function getQuantityReportContent(rows, warnings) {
+    const totals = rows.reduce((sum, row) => [sum[0] + row.fullCount, sum[1] + row.halfCount], [0, 0]);
+    return {
+        title: 'BlocksCalculator — Blocks quantities',
+        headers: ['Wall', 'Length (mm)', 'Height (mm)', 'Full', 'Half', 'Total', 'Control joints (mm)'],
+        body: rows.map(row => [row.number, row.length, row.height, row.fullCount, row.halfCount, row.totalCount, row.controls.join(', ') || '—']),
+        total: `Full: ${totals[0]} · Half: ${totals[1]} · Total: ${totals[0] + totals[1]}`,
+        notes: warnings
+    };
+}
+
+async function printReport() {
     const rows = getProjectReport(); if (!rows) return;
+    const content = getQuantityReportContent(rows, validateProject().warnings);
     const report = document.getElementById('printReport');
     report.replaceChildren();
-    const title = document.createElement('h1'); title.textContent = 'BlocksCalculator — Material quantities'; report.appendChild(title);
+    const title = document.createElement('h1'); title.textContent = content.title; report.appendChild(title);
     const table = document.createElement('table');
-    const header = document.createElement('tr');
-    for (const label of ['Wall', 'Length (mm)', 'Height (mm)', 'Full', 'Half', 'Total', 'Control joints (mm)']) { const th = document.createElement('th'); th.textContent = label; header.appendChild(th); }
-    table.appendChild(header);
-    let full = 0, half = 0;
-    for (const row of rows) {
-        const tr = document.createElement('tr');
-        for (const value of [row.number, row.length, row.height, row.fullCount, row.halfCount, row.totalCount, row.controls.join(', ') || '—']) { const td = document.createElement('td'); td.textContent = value; tr.appendChild(td); }
-        table.appendChild(tr); full += row.fullCount; half += row.halfCount;
+    const columns = document.createElement('colgroup');
+    for (const width of QUANTITY_REPORT_LAYOUT.columnWidths) {
+        const col = document.createElement('col'); col.style.width = `${width}mm`; columns.appendChild(col);
     }
+    table.appendChild(columns);
+    const head = document.createElement('thead');
+    const header = document.createElement('tr');
+    for (const label of content.headers) { const th = document.createElement('th'); th.textContent = label; header.appendChild(th); }
+    head.appendChild(header); table.appendChild(head);
+    const body = document.createElement('tbody');
+    for (const row of content.body) {
+        const tr = document.createElement('tr');
+        for (const value of row) { const td = document.createElement('td'); td.textContent = value; tr.appendChild(td); }
+        body.appendChild(tr);
+    }
+    table.appendChild(body);
     report.appendChild(table);
-    const total = document.createElement('p'); total.textContent = `Full: ${full} · Half: ${half} · Total: ${full + half}`; report.appendChild(total);
-    for (const warning of validateProject().warnings) { const p = document.createElement('p'); p.textContent = warning; report.appendChild(p); }
+    const total = document.createElement('p'); total.textContent = content.total; report.appendChild(total);
+    for (const warning of content.notes) { const p = document.createElement('p'); p.textContent = warning; report.appendChild(p); }
+    await loadQuantityReportFont();
     window.print();
 }
 
@@ -356,6 +378,15 @@ function bindFileMenuEvents() {
 
 function bindProjectEvents() {
     bindFileMenuEvents();
+    const elevationViewport = document.getElementById('elevationViewport');
+    elevationViewport.addEventListener('wheel', event => {
+        if (event.ctrlKey || !event.deltaY || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+        const maxScroll = elevationViewport.scrollWidth - elevationViewport.clientWidth;
+        if (maxScroll <= 0) return;
+        const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? elevationViewport.clientWidth : 1;
+        elevationViewport.scrollLeft = clamp(elevationViewport.scrollLeft + event.deltaY * unit, 0, maxScroll);
+        event.preventDefault();
+    }, { passive: false });
     document.getElementById('planCourse').addEventListener('change', e => {
         state.activePlanRow = Number(e.target.value);
         render();
@@ -405,6 +436,7 @@ function bindProjectEvents() {
         wall.rows = rows; clampWallOpenings(wall); updateInspector(); render(); saveProjectLocally();
     });
     document.getElementById('btnPrint').addEventListener('click', printReport);
+    document.getElementById('btnSavePdf').addEventListener('click', exportPdf);
     document.getElementById('btnExportCsv').addEventListener('click', exportCsv);
     document.getElementById('btnSaveProject').addEventListener('click', () => downloadFile('blocks-project.json', JSON.stringify(projectSnapshot(), null, 2), 'application/json'));
     document.getElementById('btnLoadProject').addEventListener('click', () => document.getElementById('projectFile').click());
