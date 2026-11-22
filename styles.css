@@ -33,6 +33,7 @@ body {
 
 input[type="number"] { user-select: text; }
 button:disabled { cursor: not-allowed; }
+#btnAddWall:disabled { opacity: 0.4; }
 #elevationViewport { scrollbar-color: #64748b #1e293b; }
 #elevationViewport::-webkit-scrollbar { height: 10px; }
 #elevationViewport::-webkit-scrollbar-thumb { background: #64748b; }

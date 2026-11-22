@@ -170,7 +170,9 @@
                     </div>
                 </div>
                 <div id="elevationViewport" class="flex-1 min-h-0 min-w-0 relative overflow-x-auto overflow-y-hidden" tabindex="0" role="region" aria-label="Wall side view. Scroll horizontally to see the rest of the wall.">
+                    <div id="elevationTrack">
                     <canvas id="elevationCanvas" tabindex="0" aria-label="Wall side view. Select an opening; press Delete or Backspace to remove it." class="block"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -269,7 +271,7 @@
                         <label for="sliderWallLength" class="text-slate-300 font-medium">Wall length:</label>
                         <span class="font-bold text-blue-400" id="valWallLength">400 mm</span>
                     </div>
-                    <input type="number" id="sliderWallLength" aria-label="Wall length in millimetres" title="Use 200 mm steps. Measure T-partitions between wall faces." min="200" max="100000" step="200" value="400" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm">
+                    <input type="number" id="sliderWallLength" aria-label="Wall length in millimetres" title="Use 200 mm steps. Measure T-partitions between wall faces." min="200" step="200" value="400" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm">
                     <div class="flex justify-between text-[11px] text-slate-400">
                         <span id="lblMinWallLen">Min: 200 mm</span><span>200 mm steps</span>
                     </div>
@@ -324,7 +326,7 @@
                                 <span class="text-slate-300">Position from start:</span>
                                 <span class="font-bold text-amber-400" id="valOpeningOffset">400 mm</span>
                             </div>
-                            <input type="range" id="sliderOpeningOffset" min="200" max="100000" step="200" value="400" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                            <input type="range" id="sliderOpeningOffset" min="200" max="400" step="200" value="400" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                             <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
                                 <span id="lblOpMinOffset">Min: 200 mm</span>
                                 <span id="lblOpMaxOffset">Max: 2400 mm</span>
@@ -337,7 +339,7 @@
                                 <span class="text-slate-300">Opening width:</span>
                                 <span class="font-bold text-emerald-400" id="valOpeningLength">400 mm</span>
                             </div>
-                            <input type="range" id="sliderOpeningLength" min="200" max="100000" step="200" value="400" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                            <input type="range" id="sliderOpeningLength" min="200" max="400" step="200" value="400" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                         </div>
 
                         <!-- Ряды по высоте (для расчёта блоков) -->

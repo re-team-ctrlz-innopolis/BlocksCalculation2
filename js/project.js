@@ -42,7 +42,8 @@ function getControlJoints(wall) {
     for (let i = 1; i < candidates.length; i++) {
         const position = candidates[i];
         const isEnd = i === candidates.length - 1;
-        const shift = isEnd ? 0 : Math.min(...fixedJoints.map(jointCm => Math.abs(position - jointCm)));
+        const nearestNominal = clamp(Math.round(position / MAX_CONTROL_SECTION_CM), 1, fixedJoints.length) * MAX_CONTROL_SECTION_CM;
+        const shift = isEnd ? 0 : Math.abs(position - nearestNominal);
         for (let previous = i - 1; previous >= 0; previous--) {
             if (position - candidates[previous] > MAX_CONTROL_SECTION_CM) break;
             if (!best[previous]) continue;
@@ -71,11 +72,12 @@ function validateProject() {
     const errors = [], warnings = [], notices = [];
     const joints = getAllWallJoints();
     if (!state.walls.length) errors.push('Add at least one wall.');
+    if (state.walls.length > MAX_PROJECT_WALLS) errors.push(`A project can contain up to ${MAX_PROJECT_WALLS} walls.`);
     for (const wall of state.walls) {
         const label = `Wall #${getWallNumber(wall.id)}`;
         const rawLength = pxToCm(getWallLength(wall));
-        if (Math.abs(rawLength / BLOCK_GRID_CM - Math.round(rawLength / BLOCK_GRID_CM)) > 0.00001 || rawLength < MIN_WALL_CM || rawLength > MAX_WALL_CM)
-            errors.push(`${label}: length must be ${MIN_WALL_MM}–${MAX_WALL_MM} mm in 200 mm modules. No cutting.`);
+        if (!Number.isFinite(rawLength) || Math.abs(rawLength / BLOCK_GRID_CM - Math.round(rawLength / BLOCK_GRID_CM)) > 0.00001 || rawLength < MIN_WALL_CM)
+            errors.push(`${label}: length must be at least ${MIN_WALL_MM} mm in 200 mm modules. No cutting.`);
         if (Math.abs(getWallAngleRad(wall) / (Math.PI / 2) - Math.round(getWallAngleRad(wall) / (Math.PI / 2))) > 0.00001)
             errors.push(`${label}: only 90° rotations are supported.`);
         if (!isWallOnGrid(wall))
@@ -189,6 +191,9 @@ function validateProject() {
 
 function updateProjectStatus() {
     const result = validateProject();
+    const addWall = document.getElementById('btnAddWall');
+    addWall.disabled = state.walls.length >= MAX_PROJECT_WALLS;
+    addWall.title = addWall.disabled ? `Maximum ${MAX_PROJECT_WALLS} walls per project.` : 'Add wall';
     const status = document.getElementById('projectStatus');
     status.replaceChildren();
     for (const message of result.errors) {
@@ -305,7 +310,7 @@ function saveProjectLocally() {
     try { localStorage.setItem(LOCAL_PROJECT_KEY, JSON.stringify(projectSnapshot())); } catch { /* Saving is optional when storage is unavailable. */ }
 }
 function restoreProject(data) {
-    if (!data || data.version !== PROJECT_VERSION || data.model !== 'nominal-400-200-mm' || !Array.isArray(data.walls) || data.walls.length > 200) throw new Error('Unsupported project format (maximum 200 walls).');
+    if (!data || data.version !== PROJECT_VERSION || data.model !== 'nominal-400-200-mm' || !Array.isArray(data.walls) || data.walls.length > MAX_PROJECT_WALLS) throw new Error(`Unsupported project format (maximum ${MAX_PROJECT_WALLS} walls).`);
     if (data.planGeometry != null && ![PLAN_GEOMETRY, 'face-t-v2'].includes(data.planGeometry)) throw new Error('Unsupported plan geometry.');
     const ids = new Set();
     const takeId = id => { if (!Number.isSafeInteger(id) || id < 1 || ids.has(id)) throw new Error('Invalid or duplicate object ID.'); ids.add(id); return id; };
@@ -313,9 +318,9 @@ function restoreProject(data) {
     if (!Number.isInteger(rows) || rows < 2 || rows > MAX_SAVED_WALL_ROWS) throw new Error('Invalid default height.');
     const walls = data.walls.map((w, wallIndex) => {
         const id = takeId(w.id);
-        if (![w.x1, w.y1, w.x2, w.y2].every(x => Number.isFinite(x) && Math.abs(x) < 100000) || !Array.isArray(w.openings) || w.openings.length > 100 || !Number.isInteger(w.rows) || w.rows < 2 || w.rows > MAX_SAVED_WALL_ROWS) throw new Error('Invalid wall geometry or height.');
+        if (![w.x1, w.y1, w.x2, w.y2].every(Number.isFinite) || !Array.isArray(w.openings) || w.openings.length > 100 || !Number.isInteger(w.rows) || w.rows < 2 || w.rows > MAX_SAVED_WALL_ROWS) throw new Error('Invalid wall geometry or height.');
         const raw = pxToCm(dist(w.x1,w.y1,w.x2,w.y2));
-        if (raw < MIN_WALL_CM || raw > MAX_WALL_CM || Math.abs(raw / BLOCK_GRID_CM - Math.round(raw / BLOCK_GRID_CM)) > 0.00001 || Math.abs((w.x2-w.x1)*(w.y2-w.y1)) > 0.001) throw new Error('Wall dimensions must follow the 200 mm grid and 90° angles.');
+        if (!Number.isFinite(raw) || raw < MIN_WALL_CM || Math.abs(raw / BLOCK_GRID_CM - Math.round(raw / BLOCK_GRID_CM)) > 0.00001 || Math.abs((w.x2-w.x1)*(w.y2-w.y1)) > 0.001) throw new Error('Wall dimensions must follow the 200 mm grid and 90° angles.');
         const openings = w.openings.map(o => {
             const oid = takeId(o.id);
             const start = pxToCm(o.offset - o.length / 2), width = pxToCm(o.length);
@@ -379,6 +384,9 @@ function bindFileMenuEvents() {
 function bindProjectEvents() {
     bindFileMenuEvents();
     const elevationViewport = document.getElementById('elevationViewport');
+    elevationViewport.addEventListener('scroll', () => {
+        if (state.elevationGeometry?.virtual) drawElevationView();
+    });
     elevationViewport.addEventListener('wheel', event => {
         if (event.ctrlKey || !event.deltaY || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
         const maxScroll = elevationViewport.scrollWidth - elevationViewport.clientWidth;
@@ -400,7 +408,7 @@ function bindProjectEvents() {
         if (!g) return;
         const wall = getPartnerWall(g.wallId); if (!wall) return;
         const rect = state.elevCanvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left - g.startX) / g.scaleX;
+        const x = (e.clientX - rect.left + (g.scrollOffset || 0) - g.startX) / g.scaleX;
         const row = getWallRows(wall) - Math.floor((e.clientY - rect.top - g.padTop) / g.rowH);
         const opening = wall.openings.find(op => {
             const b = getOpeningBoundsCm(op);

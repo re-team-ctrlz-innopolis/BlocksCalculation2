@@ -428,23 +428,33 @@ function drawConnectedJoints() {
 
 function drawElevationView(allJoints) {
             const wall = state.walls.find(item => item.id === state.selectedWallId);
-            const viewport = state.elevCanvas.parentElement;
+            const track = state.elevCanvas.parentElement;
+            const viewport = track.id === 'elevationTrack' ? track.parentElement : track;
             const padLeft = 72;
             const padRight = 24;
             const width = Math.max(viewport.clientWidth,
                 wall ? Math.ceil(getWallLengthCm(wall) * ELEVATION_PX_PER_CM) + padLeft + padRight : 0);
             if (state.elevationGeometry?.wallId !== wall?.id) viewport.scrollLeft = 0;
-            state.elevCanvas.style.width = `${width}px`;
-            if (state.elevCanvas.width !== width) state.elevCanvas.width = width;
+            if (track.id === 'elevationTrack') track.style.width = `${width}px`;
+            // Keep the fixed-scale scroll track, but paint only its visible part when
+            // a full-width bitmap would exceed browser canvas dimension limits.
+            const virtual = width > 30000;
+            const canvasWidth = virtual ? viewport.clientWidth : width;
+            const scrollOffset = virtual ? viewport.scrollLeft : 0;
+            state.elevCanvas.style.position = virtual ? 'sticky' : 'static';
+            state.elevCanvas.style.left = '0';
+            state.elevCanvas.style.width = `${canvasWidth}px`;
+            if (state.elevCanvas.width !== canvasWidth) state.elevCanvas.width = canvasWidth;
             // Measure after setting the width so a visible scrollbar has room below the canvas.
             const height = viewport.clientHeight;
             state.elevCanvas.style.height = `${height}px`;
             if (state.elevCanvas.height !== height) state.elevCanvas.height = height;
-            const w = state.elevCanvas.width;
+            const w = width;
             const h = state.elevCanvas.height;
-            state.elevCtx.clearRect(0, 0, w, h);
+            state.elevCtx.setTransform(1, 0, 0, 1, 0, 0);
+            state.elevCtx.clearRect(0, 0, canvasWidth, h);
             state.elevCtx.fillStyle = '#0b1120';
-            state.elevCtx.fillRect(0, 0, w, h);
+            state.elevCtx.fillRect(0, 0, canvasWidth, h);
 
             const titleEl = document.getElementById('elevationTitle');
             const subEl = document.getElementById('elevationSubtitle');
@@ -472,7 +482,8 @@ function drawElevationView(allJoints) {
             const drawWallW = wallLenCm * scaleX;
             const startX = padLeft + (availW - drawWallW) / 2;
             const rowH = availH / getWallRows(wall);
-            state.elevationGeometry = {wallId: wall.id, startX, scaleX, padTop, availH, rowH};
+            state.elevationGeometry = {wallId: wall.id, startX, scaleX, padTop, availH, rowH, virtual, scrollOffset};
+            state.elevCtx.translate(-scrollOffset, 0);
 
             state.elevCtx.fillStyle = '#38bdf8';
             state.elevCtx.font = '600 11px Inter, sans-serif';
@@ -544,6 +555,7 @@ function drawElevationView(allJoints) {
                 for (const b of layout.blocks) {
                     const bx = startX + b.startCm * scaleX;
                     const bw = b.lenCm * scaleX;
+                    if (virtual && (bx + bw < scrollOffset || bx > scrollOffset + canvasWidth)) continue;
                     const isFull = b.kind === 'full';
 
                     state.elevCtx.fillStyle = isFull ? '#2563eb' : '#d97706';

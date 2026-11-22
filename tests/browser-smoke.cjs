@@ -10,7 +10,7 @@ async function main() {
     const root = path.resolve(__dirname, '..');
     const server = http.createServer((req, res) => {
         const name = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-        const file = path.resolve(root, '.' + (name === '/' ? '/draft.html' : name));
+        const file = path.resolve(root, '.' + (name === '/' ? '/BlocksCalculation2.html' : name));
         if (!file.startsWith(root + path.sep)) { res.writeHead(403); res.end(); return; }
         fs.readFile(file, (error, data) => {
             if (error) { res.writeHead(404); res.end(); return; }
@@ -20,7 +20,7 @@ async function main() {
         });
     });
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-    const url = `http://127.0.0.1:${server.address().port}/draft.html`;
+    const url = `http://127.0.0.1:${server.address().port}/BlocksCalculation2.html`;
     const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'blocks-browser-'));
     const executable = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'].find(fs.existsSync);
     if (!executable) throw new Error('Install Chrome or Edge to run this smoke test.');
@@ -71,7 +71,7 @@ async function main() {
             await call('Network.enable');
             await call('Network.setCacheDisabled', {cacheDisabled:true});
             await call('Network.setBlockedURLs', {urls:['http://*','https://*']});
-            await call('Page.navigate', {url:'file:///'+root.replaceAll('\\','/')+'/draft.html'});
+            await call('Page.navigate', {url:'file:///'+root.replaceAll('\\','/')+'/BlocksCalculation2.html'});
         }
         for (let i = 0; i < 100; i++) {
             if (await evaluate('typeof validateProject === "function" && document.readyState === "complete"')) break;
@@ -79,6 +79,66 @@ async function main() {
         }
         assert.deepEqual(await evaluate('validateProject().errors'), []);
         await evaluate('if(document.getElementById("tutorialDialog").open)document.getElementById("btnTutorialClose").click();');
+        if (process.argv.includes('--limits-only')) {
+            await evaluate(`state.walls=[{id:1,x1:0,y1:10,x2:400,y2:10,rows:17,openings:[]}];
+                state.nextId=2;state.selectedWallId=1;state.selectedOpeningId=null;state.migrationNotes=[];
+                updateInspector();render();
+                document.getElementById('sliderWallLength').value=1200000;
+                document.getElementById('sliderWallLength').dispatchEvent(new Event('change',{bubbles:true}));`);
+            assert.equal(await evaluate('getWallLengthCm(state.walls[0])*MM_PER_CM'),1200000);
+            assert.equal(await evaluate('document.getElementById("sliderWallLength").hasAttribute("max")'),false);
+            assert.deepEqual(await evaluate('validateProject().errors'),[]);
+            await evaluate(`window.visibleElevationPixel=()=>{
+                const g=state.elevationGeometry,w=getPartnerWall(g.wallId);
+                const b=buildWallRowLayout(w,1,getAllWallJoints()).blocks.find(b=>{
+                    const x=g.startX+b.startCm*g.scaleX-g.scrollOffset;
+                    return x>=0 && x+b.lenCm*g.scaleX<=state.elevCanvas.width;
+                });
+                const x=Math.floor(g.startX+(b.startCm+b.lenCm/2)*g.scaleX-g.scrollOffset);
+                const y=Math.floor(g.padTop+(getWallRows(w)-0.5)*g.rowH);
+                return Array.from(state.elevCtx.getImageData(x,y,1,1).data).slice(0,3);
+            };`);
+            assert.deepEqual(await evaluate('visibleElevationPixel()'),[37,99,235], 'Long-wall elevation paints full blocks');
+            await evaluate(`state.walls[0].openings=[{id:2,offset:119940,length:80,type:'window',startRow:3,rowCount:3}];
+                state.nextId=3;updateInspector();render();
+                document.getElementById('elevationViewport').scrollLeft=9999999;`);
+            await new Promise(resolve=>setTimeout(resolve,100));
+            assert.deepEqual(await evaluate('visibleElevationPixel()'),[37,99,235], 'End of a long elevation paints full blocks');
+            assert.equal(await evaluate('state.elevCanvas.width<=document.getElementById("elevationViewport").clientWidth'),true);
+            const openingPoint = await evaluate(`(()=>{
+                const g=state.elevationGeometry,w=state.walls[0],op=w.openings[0],r=state.elevCanvas.getBoundingClientRect();
+                return {x:r.left+g.startX+op.offset*g.scaleX-g.scrollOffset,
+                    y:r.top+g.padTop+(getWallRows(w)-op.startRow-Math.floor(op.rowCount/2)+0.5)*g.rowH};
+            })()`);
+            await call('Input.dispatchMouseEvent',{type:'mousePressed',...openingPoint,button:'left',clickCount:1});
+            await call('Input.dispatchMouseEvent',{type:'mouseReleased',...openingPoint,button:'left',clickCount:1});
+            assert.equal(await evaluate('state.selectedOpeningId'),2,'Opening selection accounts for the virtual scroll offset');
+            const screenshot = await call('Page.captureScreenshot',{format:'png'});
+            const screenshotPath=path.join(os.tmpdir(),'blocks-long-wall.png');
+            fs.writeFileSync(screenshotPath,Buffer.from(screenshot.data,'base64'));
+            const longProject = await evaluate('JSON.stringify(projectSnapshot())');
+            await evaluate('restoreProject(JSON.parse('+JSON.stringify(longProject)+'));updateInspector();render();');
+            assert.equal(await evaluate('JSON.stringify(projectSnapshot())'),longProject);
+            await evaluate(`state.walls=Array.from({length:499},(_,i)=>({id:i+1,x1:0,y1:i*40+10,x2:400,y2:i*40+10,rows:17,openings:[]}));
+                state.nextId=500;state.selectedWallId=1;state.selectedOpeningId=null;updateInspector();render();
+                document.getElementById('btnAddWall').click();
+                Object.assign(state.walls[499],{x1:0,y1:19970,x2:400,y2:19970});updateInspector();render();`);
+            assert.equal(await evaluate('state.walls.length'),500);
+            assert.equal(await evaluate('document.getElementById("btnAddWall").disabled'),true);
+            assert.deepEqual(await evaluate('validateProject().errors'),[]);
+            const project500 = await evaluate('JSON.stringify(projectSnapshot())');
+            await evaluate('addNewWall();restoreProject(JSON.parse('+JSON.stringify(project500)+'));updateInspector();render();');
+            assert.equal(await evaluate('JSON.stringify(projectSnapshot())'),project500);
+            assert.equal(await evaluate(`(()=>{const data=projectSnapshot();data.walls=[...data.walls,{...data.walls[0],id:501}];
+                try{restoreProject(data);return false;}catch(error){return error.message.includes('500 walls');}})()`),true);
+            assert.equal(await evaluate('JSON.stringify(projectSnapshot())'),project500);
+            await evaluate('removeWall(500);');
+            assert.equal(await evaluate('document.getElementById("btnAddWall").disabled'),false);
+            assert.deepEqual(errors,[]);
+            console.log('PASS: unrestricted wall length, visible elevation, 500-wall creation and JSON round trip, 501-wall rejection and re-enabled Add wall.');
+            console.log('Screenshot: '+screenshotPath);
+            return;
+        }
         if (process.argv.includes('--offline-only')) {
             const qaDir = path.resolve(root, '../tmp', 'offline-qa-' + Date.now());
             fs.mkdirSync(qaDir, {recursive:true});
@@ -198,8 +258,8 @@ async function main() {
                 await evaluate('window.pdfPrintCalls=0;');
             };
             await downloadPdf('sample-house');
-            await evaluate(`state.walls=Array.from({length:200},(_,i)=>({id:i+1,x1:0,y1:i*40+10,x2:i===0?10000:400,y2:i*40+10,rows:17,openings:[]}));
-                state.nextId=201;state.migrationNotes=[];state.selectedWallId=1;state.selectedOpeningId=null;updateInspector();render();`);
+            await evaluate(`state.walls=Array.from({length:500},(_,i)=>({id:i+1,x1:0,y1:i*40+10,x2:i===0?20000:400,y2:i*40+10,rows:17,openings:[]}));
+                state.nextId=501;state.migrationNotes=[];state.selectedWallId=2;state.selectedOpeningId=null;updateInspector();render();`);
             assert.deepEqual(await evaluate('validateProject().errors'),[]);
             await downloadPdf('large-project');
             await evaluate('document.getElementById("btnPrint").click();');
@@ -209,7 +269,7 @@ async function main() {
             assert.equal(await evaluate('document.getElementById("btnSavePdf").disabled && document.getElementById("btnPrint").disabled && document.getElementById("btnExportCsv").disabled'),true);
             await call('Network.enable');
             await call('Network.setBlockedURLs',{urls:['http://*','https://*']});
-            await call('Page.navigate',{url:'file:///'+root.replaceAll('\\','/')+'/draft.html'});
+            await call('Page.navigate',{url:'file:///'+root.replaceAll('\\','/')+'/BlocksCalculation2.html'});
             for(let i=0;i<100;i++){
                 if(await evaluate('document.readyState==="complete" && typeof exportPdf==="function" && typeof state!=="undefined" && state.walls.length>0'))break;
                 await new Promise(resolve=>setTimeout(resolve,100));

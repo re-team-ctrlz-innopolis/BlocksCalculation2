@@ -115,7 +115,7 @@ test('manual zoom uses round ten-percentage-point levels and keeps the pointer a
 
 test('elevation keeps a fixed block width across wall lengths and viewport sizes', () => {
     const run = app(true);
-    run(`const make=${wall};state.walls=[make(1,0,10,400,10),make(2,0,1010,10000,1010)];
+    run(`const make=${wall};state.walls=[make(1,0,10,400,10),make(2,0,1010,10000,1010),make(3,0,2010,120000,2010,2)];
         state.selectedWallId=1;state.elevCanvas.parentElement={clientWidth:500,clientHeight:180,scrollLeft:0};
         state.elevCtx=new Proxy({}, {get:(target,key)=>target[key] ?? (()=>{})});
         const saved=JSON.stringify(projectSnapshot());resetEditHistory();drawElevationView([]);`);
@@ -130,6 +130,12 @@ test('elevation keeps a fixed block width across wall lengths and viewport sizes
     assert.equal(run('state.elevationGeometry.scaleX*FULL_BLOCK_CM'),72);
     assert.equal(run('state.elevCanvas.width'),18096);
     assert.equal(run('state.elevCanvas.parentElement.scrollLeft'),0);
+    run('state.selectedWallId=3;drawElevationView([]);');
+    assert.equal(run('state.elevCanvas.width'),1200);
+    assert.equal(run('state.elevationGeometry.virtual'),true);
+    assert.equal(run('state.elevationGeometry.scaleX*FULL_BLOCK_CM'),72);
+    run('state.elevCanvas.parentElement.scrollLeft=100000;drawElevationView([]);');
+    assert.equal(run('state.elevationGeometry.scrollOffset'),100000);
     assert.equal(run('JSON.stringify(projectSnapshot())'),run('saved'));
     assert.equal(run('editHistory.length'),0);
     run('state.elevCanvas.parentElement.scrollLeft=1000;state.selectedWallId=null;drawElevationView([]);');
@@ -537,13 +543,41 @@ test('control-joint end clearance and opening clearance are solved together', ()
     assert.equal(run('getProjectReport()'), null);
 });
 
-test('100,000 mm wall limit and exact control-joint multiples are enforced', () => {
+test('walls longer than 100 metres retain modular lengths, control joints and JSON geometry', () => {
     const run = app();
-    run(`const make=${wall}; state.walls=[make(1,0,10,10000,10)];`);
+    run(`const make=${wall}; state.walls=[make(1,0,10,10000,10)];state.nextId=2;`);
     assert.equal(run('validateProject().errors.length'), 0);
     assert.equal(run('getControlJoints(state.walls[0]).length'), 19);
     run('state.walls[0].x2=10020;');
-    assert.ok(run('validateProject().errors.some(s=>s.includes("100000 mm"))'));
+    assert.equal(run('validateProject().errors.length'), 0);
+    assert.equal(run('getControlJoints(state.walls[0]).join(",").endsWith("9500,9980")'),true);
+    run('setWallLength(state.walls[0],120000);');
+    assert.equal(run('getWallLengthCm(state.walls[0])'),120000);
+    run('resizeWallEndpoint(state.walls[0],false,{x:120020,y:10});');
+    assert.equal(run('getWallLengthCm(state.walls[0])'),120020);
+    run('const saved=JSON.stringify(projectSnapshot());restoreProject(JSON.parse(saved));');
+    assert.equal(run('getWallLengthCm(state.walls[0])'),120020);
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('saved'));
+    assert.equal(run('validateProject().errors.length'),0);
+});
+
+test('500 walls can be created and reopened, while a 501st wall is rejected atomically', () => {
+    const run = app();
+    run(`const make=${wall};state.totalWallRows=17;state.nextId=500;
+        state.walls=Array.from({length:499},(_,i)=>make(i+1,0,i*40+10,400,i*40+10,17));addNewWall();
+        Object.assign(state.walls[499],{x1:0,y1:19970,x2:400,y2:19970});
+        var notices=[];showToast=text=>notices.push(text);const fullProject=JSON.stringify(projectSnapshot());`);
+    assert.equal(run('state.walls.length'),500);
+    assert.equal(run('validateProject().errors.length'),0);
+    run('addNewWall();');
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('fullProject'));
+    assert.match(run('notices[0]'),/500 walls/);
+    run('restoreProject(JSON.parse(fullProject));');
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('fullProject'));
+    assert.throws(()=>run('const oversized=JSON.parse(fullProject);oversized.walls.push({...oversized.walls[0],id:501});restoreProject(oversized);'),/500 walls/);
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('fullProject'));
+    run('removeWall(500);addNewWall();');
+    assert.equal(run('state.walls.length'),500);
 });
 
 test('lowering and restoring height preserves openings and reports temporary overflow', () => {
@@ -1351,7 +1385,7 @@ test('Save PDF generates a real downloadable report without invoking print or ed
 
 test('PDF pagination supports the maximum project size and invalid geometry blocks PDF downloads', async () => {
     const run = app(false, true);
-    await run(`const make=${wall};state.walls=Array.from({length:200},(_,i)=>make(i+1,0,i*40+10,400,i*40+10));
+    await run(`const make=${wall};state.walls=Array.from({length:500},(_,i)=>make(i+1,0,i*40+10,400,i*40+10));
         var pdfCapture=null;downloadFile=(name,content,type)=>{pdfCapture={name,content,type};};exportPdf();`);
     const bytes = Buffer.from(run('pdfCapture.content'));
     assert.ok((bytes.toString('latin1').match(/\/Type \/Page\b/g)||[]).length>1);

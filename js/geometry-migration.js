@@ -86,7 +86,7 @@ function migrateLegacyGeometry(walls) {
             const points=link=>getWallFaceSnapPoints(byId.get(link.hostId),w).filter(p=>p.side===link.side);
             const addOption=(a,b)=>{
                 const dx=b.x-a.x,dy=b.y-a.y,n=dx*u.x+dy*u.y;
-                if (Math.abs(dx*u.y-dy*u.x)>0.01 || n<cmToPx(MIN_WALL_CM) || n>cmToPx(MAX_WALL_CM) || Math.abs(pxToCm(n)-snapCmToGrid(pxToCm(n)))>0.01) return;
+                if (!Number.isFinite(n) || Math.abs(dx*u.y-dy*u.x)>0.01 || n<cmToPx(MIN_WALL_CM) || Math.abs(pxToCm(n)-snapCmToGrid(pxToCm(n)))>0.01) return;
                 if (w.openings.some(op=>getOpeningBoundsCm(op).endCm>pxToCm(n)-HALF_BLOCK_CM)) return;
                 options.push({a,b,cost:dist(a.x,a.y,start.x,start.y)+dist(b.x,b.y,end.x,end.y)});
             };
