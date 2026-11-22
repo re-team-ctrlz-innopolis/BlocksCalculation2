@@ -305,6 +305,41 @@ function projectSnapshot() {
     return {version: PROJECT_VERSION, model: 'nominal-400-200-mm', planGeometry: PLAN_GEOMETRY,
         walls: state.walls, nextId: state.nextId, totalWallRows: state.totalWallRows, migrationNotes: state.migrationNotes};
 }
+async function saveProjectFile() {
+    let writable;
+    try {
+        // Capture the editable project, including drafts with validation errors.
+        const content = JSON.stringify(projectSnapshot(), null, 2);
+        const name = 'blocks-project.json';
+        let handle;
+        if (typeof window.showSaveFilePicker === 'function') {
+            // Keep the picker in the click's user activation, before any asynchronous work.
+            try {
+                handle = await window.showSaveFilePicker({
+                    suggestedName: name,
+                    types: [{description: 'BlocksCalculator project', accept: {'application/json': ['.json']}}]
+                });
+            } catch (error) {
+                if (error.name === 'AbortError') return;
+                throw error;
+            }
+        }
+        if (handle) {
+            writable = await handle.createWritable();
+            await writable.write(content);
+            await writable.close();
+            writable = null;
+            showToast('Project saved.');
+        } else {
+            downloadFile(name, content, 'application/json');
+            showToast('Project downloaded. To choose a folder, enable "Ask where to save each file" in your browser settings.');
+        }
+    } catch (error) {
+        if (writable) { try { await writable.abort(); } catch { /* Preserve the original save error. */ } }
+        console.error('Project save failed:', error);
+        showToast('Could not save the project. Please try again.');
+    }
+}
 function saveProjectLocally() {
     commitEditHistory();
     try { localStorage.setItem(LOCAL_PROJECT_KEY, JSON.stringify(projectSnapshot())); } catch { /* Saving is optional when storage is unavailable. */ }
@@ -446,7 +481,7 @@ function bindProjectEvents() {
     document.getElementById('btnPrint').addEventListener('click', printReport);
     document.getElementById('btnSavePdf').addEventListener('click', exportPdf);
     document.getElementById('btnExportCsv').addEventListener('click', exportCsv);
-    document.getElementById('btnSaveProject').addEventListener('click', () => downloadFile('blocks-project.json', JSON.stringify(projectSnapshot(), null, 2), 'application/json'));
+    document.getElementById('btnSaveProject').addEventListener('click', saveProjectFile);
     document.getElementById('btnLoadProject').addEventListener('click', () => document.getElementById('projectFile').click());
     document.getElementById('projectFile').addEventListener('change', async e => {
         const file = e.target.files[0]; if (!file) return;

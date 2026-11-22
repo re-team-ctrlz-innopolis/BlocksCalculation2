@@ -211,6 +211,31 @@ async function main() {
             assert.equal(await evaluate('document.getElementById("btnSavePdf").textContent'), 'Save PDF…');
             assert.equal(await evaluate('document.getElementById("btnPrint").textContent'), 'Print…');
             // Substitute only the native chooser, then exercise a real browser file writer.
+            const projectBeforeSave = await evaluate('JSON.stringify(projectSnapshot())');
+            await evaluate(`(async()=>{window.projectTestDirectory=await navigator.storage.getDirectory();
+                window.projectTestHandle=await projectTestDirectory.getFileHandle('chosen-project.json',{create:true});
+                window.projectPickerOptions=null;
+                window.showSaveFilePicker=async options=>{window.projectPickerOptions=options;return projectTestHandle;};
+                await saveProjectFile();})()`);
+            assert.equal(await evaluate('projectPickerOptions.suggestedName'),'blocks-project.json');
+            assert.equal(await evaluate('projectPickerOptions.types[0].accept["application/json"][0]'),'.json');
+            assert.equal(await evaluate('(async()=>JSON.stringify(JSON.parse(await (await projectTestHandle.getFile()).text())))()'),projectBeforeSave);
+            assert.equal(await evaluate('JSON.stringify(projectSnapshot())'),projectBeforeSave);
+            await evaluate(`(async()=>{window.projectCancelWork=0;
+                const download=downloadFile,toast=showToast;
+                downloadFile=showToast=()=>{projectCancelWork++;};
+                window.showSaveFilePicker=async()=>{throw new DOMException('Cancelled','AbortError');};
+                try {await saveProjectFile();} finally {downloadFile=download;showToast=toast;}
+            })()`);
+            assert.equal(await evaluate('projectCancelWork'),0);
+            // Reopen the chosen file using the actual import event.
+            await evaluate(`(async()=>{const file=await projectTestHandle.getFile();
+                const transfer=new DataTransfer();transfer.items.add(file);
+                const input=document.getElementById('projectFile');
+                state.walls=[];input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));
+            })()`);
+            for(let i=0;await evaluate('state.walls.length')===0&&i<100;i++) await new Promise(resolve=>setTimeout(resolve,20));
+            assert.deepEqual(await evaluate('projectSnapshot()'),JSON.parse(projectBeforeSave));
             await evaluate(`(async()=>{window.pdfTestDirectory=await navigator.storage.getDirectory();
                 window.pdfTestHandle=await pdfTestDirectory.getFileHandle('chosen-report.pdf',{create:true});
                 window.pdfPickerOptions=null;
@@ -277,7 +302,7 @@ async function main() {
             await evaluate('window.pdfPrintCalls=0;window.print=()=>{window.pdfPrintCalls++;};');
             await downloadPdf('offline-file');
             assert.deepEqual(errors,[]);
-            console.log('PASS: chosen-file PDF saving, cancellation, fallback downloads, separate print action, pagination, blocked invalid exports and offline local-file export.');
+            console.log('PASS: chosen-file JSON/PDF saving, project reopening, cancellation, fallback downloads, separate print action, pagination, blocked invalid exports and offline local-file export.');
             console.log('PDF_QA_DIR='+qaDir);
             return;
         }
