@@ -27,6 +27,10 @@ function removeOpening(wallId, openingId) {
 }
 
 function addNewWall() {
+            if (state.walls.length >= MAX_PROJECT_WALLS) {
+                showToast(`A project can contain up to ${MAX_PROJECT_WALLS} walls.`);
+                return;
+            }
             const cx = snapWorldCoordinate((state.canvas.width / 2 - state.panX) / state.zoom);
             const cy = snapWorldCoordinate((state.canvas.height / 2 - state.panY) / state.zoom);
             const offset = (state.walls.length % 5) * cmToPx(FULL_BLOCK_CM);

@@ -115,7 +115,7 @@ test('manual zoom uses round ten-percentage-point levels and keeps the pointer a
 
 test('elevation keeps a fixed block width across wall lengths and viewport sizes', () => {
     const run = app(true);
-    run(`const make=${wall};state.walls=[make(1,0,10,400,10),make(2,0,1010,10000,1010)];
+    run(`const make=${wall};state.walls=[make(1,0,10,400,10),make(2,0,1010,10000,1010),make(3,0,2010,120000,2010,2)];
         state.selectedWallId=1;state.elevCanvas.parentElement={clientWidth:500,clientHeight:180,scrollLeft:0};
         state.elevCtx=new Proxy({}, {get:(target,key)=>target[key] ?? (()=>{})});
         const saved=JSON.stringify(projectSnapshot());resetEditHistory();drawElevationView([]);`);
@@ -130,6 +130,12 @@ test('elevation keeps a fixed block width across wall lengths and viewport sizes
     assert.equal(run('state.elevationGeometry.scaleX*FULL_BLOCK_CM'),72);
     assert.equal(run('state.elevCanvas.width'),18096);
     assert.equal(run('state.elevCanvas.parentElement.scrollLeft'),0);
+    run('state.selectedWallId=3;drawElevationView([]);');
+    assert.equal(run('state.elevCanvas.width'),1200);
+    assert.equal(run('state.elevationGeometry.virtual'),true);
+    assert.equal(run('state.elevationGeometry.scaleX*FULL_BLOCK_CM'),72);
+    run('state.elevCanvas.parentElement.scrollLeft=100000;drawElevationView([]);');
+    assert.equal(run('state.elevationGeometry.scrollOffset'),100000);
     assert.equal(run('JSON.stringify(projectSnapshot())'),run('saved'));
     assert.equal(run('editHistory.length'),0);
     run('state.elevCanvas.parentElement.scrollLeft=1000;state.selectedWallId=null;drawElevationView([]);');
@@ -537,13 +543,41 @@ test('control-joint end clearance and opening clearance are solved together', ()
     assert.equal(run('getProjectReport()'), null);
 });
 
-test('100,000 mm wall limit and exact control-joint multiples are enforced', () => {
+test('walls longer than 100 metres retain modular lengths, control joints and JSON geometry', () => {
     const run = app();
-    run(`const make=${wall}; state.walls=[make(1,0,10,10000,10)];`);
+    run(`const make=${wall}; state.walls=[make(1,0,10,10000,10)];state.nextId=2;`);
     assert.equal(run('validateProject().errors.length'), 0);
     assert.equal(run('getControlJoints(state.walls[0]).length'), 19);
     run('state.walls[0].x2=10020;');
-    assert.ok(run('validateProject().errors.some(s=>s.includes("100000 mm"))'));
+    assert.equal(run('validateProject().errors.length'), 0);
+    assert.equal(run('getControlJoints(state.walls[0]).join(",").endsWith("9500,9980")'),true);
+    run('setWallLength(state.walls[0],120000);');
+    assert.equal(run('getWallLengthCm(state.walls[0])'),120000);
+    run('resizeWallEndpoint(state.walls[0],false,{x:120020,y:10});');
+    assert.equal(run('getWallLengthCm(state.walls[0])'),120020);
+    run('const saved=JSON.stringify(projectSnapshot());restoreProject(JSON.parse(saved));');
+    assert.equal(run('getWallLengthCm(state.walls[0])'),120020);
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('saved'));
+    assert.equal(run('validateProject().errors.length'),0);
+});
+
+test('500 walls can be created and reopened, while a 501st wall is rejected atomically', () => {
+    const run = app();
+    run(`const make=${wall};state.totalWallRows=17;state.nextId=500;
+        state.walls=Array.from({length:499},(_,i)=>make(i+1,0,i*40+10,400,i*40+10,17));addNewWall();
+        Object.assign(state.walls[499],{x1:0,y1:19970,x2:400,y2:19970});
+        var notices=[];showToast=text=>notices.push(text);const fullProject=JSON.stringify(projectSnapshot());`);
+    assert.equal(run('state.walls.length'),500);
+    assert.equal(run('validateProject().errors.length'),0);
+    run('addNewWall();');
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('fullProject'));
+    assert.match(run('notices[0]'),/500 walls/);
+    run('restoreProject(JSON.parse(fullProject));');
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('fullProject'));
+    assert.throws(()=>run('const oversized=JSON.parse(fullProject);oversized.walls.push({...oversized.walls[0],id:501});restoreProject(oversized);'),/500 walls/);
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('fullProject'));
+    run('removeWall(500);addNewWall();');
+    assert.equal(run('state.walls.length'),500);
 });
 
 test('lowering and restoring height preserves openings and reports temporary overflow', () => {
@@ -1332,6 +1366,80 @@ test('CSV serialization escapes delimiters, double quotes and multiline Unicode 
     assert.equal(run(`serializeCsvRows(${JSON.stringify(values)})`),expected);
 });
 
+test('Save project writes a snapshot to the chosen JSON file without editing the project', async () => {
+    const run = app(true);
+    await run(`loadDemoHouse();resetEditHistory();state.migrationNotes=['Тест — 400×200×200 mm'];
+        const saved=JSON.stringify(projectSnapshot());
+        var pickerOptions,savedProject,saveEvents=[],downloads=0,notice='';
+        downloadFile=()=>{downloads++;};showToast=text=>{notice=text;};
+        window.showSaveFilePicker=async options=>{
+            saveEvents.push('pick');pickerOptions=options;
+            return {createWritable:async()=>({
+                write:async content=>{saveEvents.push('write');savedProject=content;},
+                close:async()=>{saveEvents.push('close');}
+            })};
+        };
+        document.getElementById('btnSaveProject').listeners.click[0]();`);
+    assert.equal(run('pickerOptions.suggestedName'),'blocks-project.json');
+    assert.equal(run('pickerOptions.types[0].accept["application/json"][0]'),'.json');
+    assert.equal(run('saveEvents.join(",")'),'pick,write,close');
+    assert.equal(run('JSON.stringify(JSON.parse(savedProject))'),run('saved'));
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('saved'));
+    assert.equal(run('downloads'),0);
+    assert.equal(run('notice'),'Project saved.');
+    assert.equal(run('editHistory.length'),0);
+    run('state.walls=[];restoreProject(JSON.parse(savedProject));');
+    assert.deepEqual(JSON.parse(run('JSON.stringify(projectSnapshot())')),JSON.parse(run('saved')));
+});
+
+test('cancelling the project destination does not download, report an error or edit the project', async () => {
+    const run = app();
+    await run(`loadDemoHouse();const saved=JSON.stringify(projectSnapshot());var work=0;
+        downloadFile=showToast=()=>{work++;};
+        window.showSaveFilePicker=async()=>{throw Object.assign(new Error('Cancelled'),{name:'AbortError'});};
+        saveProjectFile();`);
+    assert.equal(run('work'),0);
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('saved'));
+});
+
+test('a project write failure aborts the write and reports an error without a fallback download', async () => {
+    const run = app();
+    await run(`loadDemoHouse();var aborted=false,closed=false,downloaded=false,notice='';
+        console={error(){}};downloadFile=()=>{downloaded=true;};showToast=text=>{notice=text;};
+        window.showSaveFilePicker=async()=>({createWritable:async()=>({
+            write:async()=>{throw new Error('Disk full');},
+            close:async()=>{closed=true;},abort:async()=>{aborted=true;}
+        })});saveProjectFile();`);
+    assert.equal(run('aborted'),true);
+    assert.equal(run('closed || downloaded'),false);
+    assert.match(run('notice'),/Could not save the project/);
+});
+
+test('unsupported browsers download an editable JSON project, including drafts with validation errors', async () => {
+    const run = app(true);
+    await run(`const make=${wall};state.walls=[make(1,0,10,400,10),make(2,0,10,400,10)];state.nextId=3;
+        const saved=JSON.stringify(projectSnapshot());var capture,notice='';
+        downloadFile=(name,content,type)=>{capture={name,content,type};};showToast=text=>{notice=text;};
+        document.getElementById('btnSaveProject').listeners.click[0]();`);
+    assert.ok(run('validateProject().errors.length')>0);
+    assert.equal(run('capture.name'),'blocks-project.json');
+    assert.equal(run('capture.type'),'application/json');
+    assert.equal(run('JSON.stringify(JSON.parse(capture.content))'),run('saved'));
+    assert.match(run('notice'),/Ask where to save each file/);
+    run('state.walls=[];restoreProject(JSON.parse(capture.content));');
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('saved'));
+});
+
+test('Save project can use the destination picker for a draft with validation errors', async () => {
+    const run = app();
+    await run(`const make=${wall};state.walls=[make(1,0,10,400,10),make(2,0,10,400,10)];state.nextId=3;
+        var savedProject;window.showSaveFilePicker=async()=>({createWritable:async()=>({
+            write:async content=>{savedProject=content;},close:async()=>{}
+        })});saveProjectFile();`);
+    assert.ok(run('validateProject().errors.length')>0);
+    assert.equal(run('JSON.stringify(JSON.parse(savedProject))'),run('JSON.stringify(projectSnapshot())'));
+});
+
 test('Save PDF generates a real downloadable report without invoking print or editing the project', async () => {
     const run = app(true, true);
     await run(`loadDemoHouse();resetEditHistory();const saved=JSON.stringify(projectSnapshot());
@@ -1351,7 +1459,7 @@ test('Save PDF generates a real downloadable report without invoking print or ed
 
 test('PDF pagination supports the maximum project size and invalid geometry blocks PDF downloads', async () => {
     const run = app(false, true);
-    await run(`const make=${wall};state.walls=Array.from({length:200},(_,i)=>make(i+1,0,i*40+10,400,i*40+10));
+    await run(`const make=${wall};state.walls=Array.from({length:500},(_,i)=>make(i+1,0,i*40+10,400,i*40+10));
         var pdfCapture=null;downloadFile=(name,content,type)=>{pdfCapture={name,content,type};};exportPdf();`);
     const bytes = Buffer.from(run('pdfCapture.content'));
     assert.ok((bytes.toString('latin1').match(/\/Type \/Page\b/g)||[]).length>1);

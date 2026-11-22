@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "model": "nominal-400-200-mm",
+  "planGeometry": "modular-cells-v3",
+  "walls": [
+    {
+      "id": 1,
+      "x1": 100,
+      "y1": 110,
+      "x2": 900,
+      "y2": 110,
+      "rows": 17,
+      "openings": [
+        {
+          "id": 7,
+          "offset": 160,
+          "length": 120,
+          "type": "window",
+          "startRow": 5,
+          "rowCount": 6
+        },
+        {
+          "id": 8,
+          "offset": 660,
+          "length": 120,
+          "type": "window",
+          "startRow": 5,
+          "rowCount": 6
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "x1": 890,
+      "y1": 100,
+      "x2": 890,
+      "y2": 420,
+      "rows": 17,
+      "openings": [
+        {
+          "id": 9,
+          "offset": 150,
+          "length": 100,
+          "type": "window",
+          "startRow": 5,
+          "rowCount": 6
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "x1": 500,
+      "y1": 410,
+      "x2": 900,
+      "y2": 410,
+      "rows": 17,
+      "openings": [
+        {
+          "id": 10,
+          "offset": 190,
+          "length": 100,
+          "type": "door",
+          "startRow": 1,
+          "rowCount": 11
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "x1": 510,
+      "y1": 400,
+      "x2": 510,
+      "y2": 740,
+      "rows": 17,
+      "openings": []
+    },
+    {
+      "id": 5,
+      "x1": 100,
+      "y1": 730,
+      "x2": 520,
+      "y2": 730,
+      "rows": 17,
+      "openings": [
+        {
+          "id": 11,
+          "offset": 190,
+          "length": 100,
+          "type": "door",
+          "startRow": 1,
+          "rowCount": 11
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "x1": 110,
+      "y1": 100,
+      "x2": 110,
+      "y2": 740,
+      "rows": 17,
+      "openings": [
+        {
+          "id": 12,
+          "offset": 180,
+          "length": 120,
+          "type": "window",
+          "startRow": 5,
+          "rowCount": 6
+        },
+        {
+          "id": 13,
+          "offset": 460,
+          "length": 120,
+          "type": "window",
+          "startRow": 5,
+          "rowCount": 6
+        }
+      ]
+    }
+  ],
+  "nextId": 14,
+  "totalWallRows": 17,
+  "migrationNotes": []
+}

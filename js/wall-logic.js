@@ -246,7 +246,7 @@ function setWallLength(wall, newLenCm) {
                 return;
             }
             const minAllowed = getMinAllowedWallLengthCm(wall);
-            const clampedCm = clamp(snapCmToGrid(newLenCm), minAllowed, MAX_WALL_CM);
+            const clampedCm = Math.max(snapCmToGrid(newLenCm), minAllowed);
             const newLenPx = cmToPx(clampedCm);
             const angle = getWallAngleRad(wall);
             // Keep the first face fixed; changing length by one cell must not
@@ -380,11 +380,11 @@ function resizeWallEndpoint(wall, first, position) {
             const host = state.walls.find(w => w.id === p.wallId);
             if (worldToWallLocal(host, anchor.x, anchor.y).perp * p.side <= WALL_THICKNESS / 2) return false;
         }
-        return Math.abs(dx * uy - dy * ux) < 0.001 && along >= minimum && along <= MAX_WALL_CM && Math.abs(along - snapCmToGrid(along)) < 0.001;
+        return Math.abs(dx * uy - dy * ux) < 0.001 && along >= minimum && Math.abs(along - snapCmToGrid(along)) < 0.001;
     });
     const snap = candidates[0];
     const along = pxToCm((position.x - anchor.x) * ux + (position.y - anchor.y) * uy);
-    const finalLength = cmToPx(clamp(snapCmToGrid(along), minimum, MAX_WALL_CM));
+    const finalLength = cmToPx(Math.max(snapCmToGrid(along), minimum));
     const point = snap || {x: anchor.x + ux * finalLength, y: anchor.y + uy * finalLength};
     if (first) { wall.x1 = point.x; wall.y1 = point.y; }
     else { wall.x2 = point.x; wall.y2 = point.y; }

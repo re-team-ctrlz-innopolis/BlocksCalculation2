@@ -82,7 +82,6 @@ function updateInspector() {
             // Ползунок длины стены с учётом ограничения по проёмам
             const sliderLen = document.getElementById('sliderWallLength');
             sliderLen.min = minAllowedLenCm * MM_PER_CM;
-            sliderLen.max = MAX_WALL_MM;
             sliderLen.step = BLOCK_GRID_CM * MM_PER_CM;
             sliderLen.value = lenCm * MM_PER_CM;
             document.getElementById('valWallLength').textContent = `${lenCm * MM_PER_CM} mm`;

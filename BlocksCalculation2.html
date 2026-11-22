@@ -170,7 +170,9 @@
                     </div>
                 </div>
                 <div id="elevationViewport" class="flex-1 min-h-0 min-w-0 relative overflow-x-auto overflow-y-hidden" tabindex="0" role="region" aria-label="Wall side view. Scroll horizontally to see the rest of the wall.">
+                    <div id="elevationTrack">
                     <canvas id="elevationCanvas" tabindex="0" aria-label="Wall side view. Select an opening; press Delete or Backspace to remove it." class="block"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -269,7 +271,7 @@
                         <label for="sliderWallLength" class="text-slate-300 font-medium">Wall length:</label>
                         <span class="font-bold text-blue-400" id="valWallLength">400 mm</span>
                     </div>
-                    <input type="number" id="sliderWallLength" aria-label="Wall length in millimetres" title="Use 200 mm steps. Measure T-partitions between wall faces." min="200" max="100000" step="200" value="400" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm">
+                    <input type="number" id="sliderWallLength" aria-label="Wall length in millimetres" title="Use 200 mm steps. Measure T-partitions between wall faces." min="200" step="200" value="400" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm">
                     <div class="flex justify-between text-[11px] text-slate-400">
                         <span id="lblMinWallLen">Min: 200 mm</span><span>200 mm steps</span>
                     </div>
@@ -324,7 +326,7 @@
                                 <span class="text-slate-300">Position from start:</span>
                                 <span class="font-bold text-amber-400" id="valOpeningOffset">400 mm</span>
                             </div>
-                            <input type="range" id="sliderOpeningOffset" min="200" max="100000" step="200" value="400" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                            <input type="range" id="sliderOpeningOffset" min="200" max="400" step="200" value="400" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                             <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
                                 <span id="lblOpMinOffset">Min: 200 mm</span>
                                 <span id="lblOpMaxOffset">Max: 2400 mm</span>
@@ -337,7 +339,7 @@
                                 <span class="text-slate-300">Opening width:</span>
                                 <span class="font-bold text-emerald-400" id="valOpeningLength">400 mm</span>
                             </div>
-                            <input type="range" id="sliderOpeningLength" min="200" max="100000" step="200" value="400" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                            <input type="range" id="sliderOpeningLength" min="200" max="400" step="200" value="400" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer">
                         </div>
 
                         <!-- Ряды по высоте (для расчёта блоков) -->
@@ -393,7 +395,7 @@
             </section>
             <section class="tutorial-step" data-tutorial-step hidden>
                 <h3>5. Save your work</h3>
-                <p>Choose <b>File &rarr; Save project</b> to download an editable JSON project file. Use <b>File &rarr; Open project</b> to load it again. Choose <b>Save PDF</b> to save the report, choosing its name and folder when your browser supports it. Otherwise, the browser uses its download settings. Choose <b>Print</b> to open the print dialog or <b>Export CSV</b> to download the block quantities for a spreadsheet. Use <b>Undo</b> to reverse an edit and <b>Redo</b> to restore it. Click <b>Guide</b> to open these instructions again.</p>
+                <p>Choose <b>File &rarr; Save project</b> to save an editable JSON project file. Use <b>File &rarr; Open project</b> to load it again. Choose <b>Save PDF</b> to save the report. Both save actions let you choose a name and folder when your browser supports it. Otherwise, the browser uses its download settings; enable <b>Ask where to save each file</b> there to choose a folder. Choose <b>Print</b> to open the print dialog or <b>Export CSV</b> to download the block quantities for a spreadsheet. Use <b>Undo</b> to reverse an edit and <b>Redo</b> to restore it. Click <b>Guide</b> to open these instructions again.</p>
             </section>
         </div>
         <div class="tutorial-actions">
