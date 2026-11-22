@@ -1,109 +1,41 @@
-# BlocksCalculator MVP
+# BlocksCalculator
 
-A Requirements Engineering course project for entering wall layouts and calculating the quantities of full and half Stumbelbloc blocks. The original editor layout is retained: a top-down plan, an elevation of the selected wall, and a properties panel on the right.
+An offline wall-plan editor for calculating full and half Stumbelbloc quantities, with a top-down plan and a course-by-course wall view.
 
-## Running the application
+## Getting started
 
-Keep the entire project folder together and open `BlocksCalculation2.html` in a browser. The application works offline from its first launch: styles, fonts, scripts, JSON projects and PDF generation are all local. No installation, build step, npm packages, backend or internet connection is needed to run it.
+Keep the project folder together and open [BlocksCalculation2.html](BlocksCalculation2.html) in a browser. All styles, fonts and scripts are bundled; no installation or internet connection is required.
 
-For consistent persistence between sessions, optionally use a local HTTP server from the project root:
+- **Guide** explains editing, navigation and keyboard shortcuts.
+- **File → Open project / Save project** loads and saves editable JSON files. Browser autosave also keeps the current project locally.
+- **File → Save PDF / Print / Export CSV** produces a block quantities report. Validation errors block reports; drafts can still be saved as JSON.
 
-```powershell
-python -m http.server 8000
-```
+Saving JSON or PDF lets you choose a folder and filename in supported browsers. Otherwise, enable **Ask where to save each file** in the browser's download settings.
 
-Open `http://localhost:8000/BlocksCalculation2.html`. This server runs on your computer and does not require an internet connection. Browser autosave depends on local storage settings; use **File → Save project** to keep a portable JSON copy.
+For consistent browser storage between sessions, optionally run `python -m http.server 8000` from this folder and open `http://localhost:8000/BlocksCalculation2.html`.
 
-Tailwind CSS is precompiled and Inter is bundled under `assets/`. Sources, licenses and instructions for rebuilding CSS after adding utility classes are in [`assets/README.md`](assets/README.md).
+## Examples
 
-## Saved examples
+Load any example through **File → Open project**:
 
-Choose **File → Open project** and select one of the current-format projects:
+| Project | Description |
+| --- | --- |
+| [Sample house](examples/sample-house.json) | House with an internal partition |
+| [Nested partition](examples/nested-partition.json) | House with an additional connected partition |
+| [Compact studio](examples/compact-studio.json) | 4,000 × 3,200 mm room with a door and two windows |
+| [Two-room house](examples/two-room-house.json) | Two rooms, windows and control joints |
+| [L-shaped house](examples/l-shaped-house.json) | Six exterior walls and two doors |
+| [Long wall](examples/long-wall-with-openings.json) | 18,000 mm wall with joints shifted clear of windows |
+| [House with annex](examples/house-with-annex.json) | Connected walls of different heights |
 
-- [`examples/sample-house.json`](examples/sample-house.json): a house with a 3,600 mm internal partition.
-- [`examples/nested-partition.json`](examples/nested-partition.json): the same house with an additional 2,800 mm partition connected at both ends.
-- [`examples/compact-studio.json`](examples/compact-studio.json): a compact 4,000 × 3,200 mm room with a door, two windows, and 3,000 mm walls.
-- [`examples/two-room-house.json`](examples/two-room-house.json): an 8,000 × 4,400 mm house with two rooms, a door in the internal partition, and control joints in the long exterior walls.
-- [`examples/l-shaped-house.json`](examples/l-shaped-house.json): an L-shaped plan with six exterior walls, two doors, and windows on different sides.
-- [`examples/long-wall-with-openings.json`](examples/long-wall-with-openings.json): an 18,000 mm wall with a door and three windows; control joints shift away from the windows.
-- [`examples/house-with-annex.json`](examples/house-with-annex.json): a 3,400 mm-high house with a 2,400 mm-high annex, connected by a door; includes L- and T-junctions.
+## Editing and calculation
 
-All examples use `modular-cells-v3`, 200 mm courses, and only Window/Door opening types. In `sample-house.json` and the built-in sample, the internal partition has an 800 × 2,000 mm Door starting at course 1. In `nested-partition.json`, the former `arch` opening is represented as a rectangular Window starting at course 2. The examples pass validation and contain no migration notices. `../review/nested-partition.json` is an identical copy of the second example. Files under `tests/fixtures/legacy-*` intentionally retain the old format for migration tests; the overlap and short-corner fixtures intentionally retain invalid geometry.
+- Up to **500 walls**, with no predefined length limit. Move, resize and rotate walls by 90°, snap L/T-junctions, and set individual heights.
+- Add rectangular doors and windows, including stacked openings. Undo/redo supports up to 50 edits. The lower wall view scrolls horizontally with the scrollbar or mouse wheel.
+- Full blocks: **400 × 200 × 200 mm**; half blocks: **200 × 200 × 200 mm**. Placement and courses follow a **200 mm grid**; mortar and joint widths are excluded. Blocks are not cut.
+- Wall heights: **2–17 courses (400–3,400 mm)** within the 3.5 m limit. Doors start at floor level; windows start at course 2 or above.
+- Openings need **200 mm of masonry at each wall end** and **three solid courses above**, including before another opening. Widths over 1,500 mm show a notice about a separate lintel or beam but do not block export by themselves.
+- L-corners share masonry counted once. At T-junctions, the host wall stays continuous and the branch fits between wall faces.
+- Control joints target **5,000 mm intervals**, shifting clear of openings and staying at least **400 mm** from openings and wall ends. Sections must remain no longer than 5 m; impossible layouts block reports. The end clearance is an adopted layout rule.
 
-## Features
-
-- Add, delete, move, resize, and rotate walls in 90° increments. Projects support up to 500 walls; creation and JSON import use the same limit. Deleting a wall frees a slot for another wall.
-- Wall display numbers run from 1 to the current wall count, in wall-list order. Each wall has its own separate door and window sequences, ordered by position along that wall: Door #1, Door #2 and Window #1, Window #2. Lists, the inspector, validation messages, and reports use these numbers and close gaps after deletions or type changes. Messages include the opening type to distinguish a door and window with the same number. Internal IDs remain unchanged for connections, JSON files, and undo/redo.
-- Press Delete or Backspace (the Delete key on a Mac keyboard) to remove the selected wall or opening. Clicking wall masonry selects the wall; clicking an opening selects that opening. Selecting a wall does not automatically select one of its openings. The shortcuts preserve text editing in fields, ignore held-key repeats and modifier combinations, and are inactive while the File menu is open. Deletions can be undone with Ctrl/Cmd+Z. Clearing the canvas and loading the sample project require confirmation.
-- Camera controls: scroll to zoom around the cursor; the wheel and +/− buttons use fixed 10-percentage-point levels (100%, 110%, 120%, etc.), bounded by the zoom limits. After an automatic fit, a manual step selects the next round level in its direction. Drag empty space with the left mouse button, or drag anywhere with the middle button, to pan. A permanent hint appears beside the zoom controls, and empty space uses a hand cursor. **Show entire project** fits all wall footprints into view with room for labels, avoiding the legend and navigation controls. Large plans can fit below 25% zoom. Reset restores the original camera position and 100% zoom. Camera actions do not modify walls or enter undo/redo history.
-- Use the back arrow or Ctrl/Cmd+Z to undo plan edits: creation, deletion, property changes, rotation, dragging, clearing, and importing. Use the forward arrow, Ctrl/Cmd+Shift+Z, or Ctrl/Cmd+Y to redo an undone edit. A new edit clears the redo history. Each drag gesture counts as one operation. Up to 50 operations are retained for the current session; camera movements are excluded. When typing in a field, the browser's native text undo remains available.
-- Wall orientation is shown as Horizontal / Vertical. Turn left / Turn right rotates the wall by a quarter turn without entering angles.
-- Snapping for L- and T-junctions; a wall list for selection and access to properties.
-- Individual wall heights, with a separate action to apply a height to all walls.
-- The wall side view uses a fixed horizontal scale: a 400 mm block is 72 pixels wide. Long walls scroll horizontally instead of shrinking to fit. Very long walls paint the visible part of the scroll track to avoid browser bitmap-size limits. Use the scrollbar, horizontal trackpad gestures, or the mouse wheel (down to move right, up to move left). Selecting a different wall starts its view at the beginning; editing the current wall preserves the scroll position. The plan zoom does not affect this scale.
-- Rectangular openings with width, position, bottom course, and height in courses. A Door starts at the first course at floor level; a Window starts at course 2 or above. Width and position use the nominal block module without accounting for joint width. Curved arches are not modeled.
-- Move and resize openings on the plan; move them horizontally and vertically in the elevation. Openings can be stacked when their rectangles do not overlap. Property controls, dragging, and JSON import enforce the same two-dimensional collision rule. Each opening card shows its type, number, width × height in millimetres, and a Delete button. Select stacked openings there or in the elevation. The editor displays millimetres, with course counts in tooltips; doors show "At floor level" instead of the bottom-height slider. On the plan, the selected opening is drawn and hit-tested on top.
-- Automatic full/half block layouts, alternating course bonds, and shared L-corners counted once. The bond continues without resetting above a shorter connected wall.
-- Control joints target 5,000 mm intervals and automatically shift on the 200 mm grid to clear openings and stay at least 400 mm from either wall end; sections stay no longer than 5 m. Full/half blocks beside each joint follow the actual wall bond and joint position, with markers in both views.
-- Validation messages for unsupported geometry. The final report is unavailable when errors exist, and preliminary quantities are marked as drafts.
-- CSV export, a downloadable PDF, and a printable report. **Save PDF** opens a save dialog to choose the folder and filename (suggested: `blocks-quantities.pdf`) in browsers supporting `showSaveFilePicker`; cancelling does not download a file. In other browsers it uses the regular download flow, with a reminder to enable the browser's "Ask where to save each file" setting if a folder choice is needed; **Print** opens the browser's print dialog. Both use the same plain, black-and-white A4 portrait layout, font, column widths, headings, totals and notes, titled **Blocks quantities**. Tables wrap long cells and repeat headers across pages. The PDF libraries and Unicode font are bundled locally; PDF generation needs no server or internet, including when `BlocksCalculation2.html` is opened from disk. Versions and licenses are in [`js/vendor/README.md`](js/vendor/README.md). CSV downloads as `blocks-quantities.csv`, using UTF-8 with a BOM, semicolon separators, and eight columns for wall quantities and totals. Multiple control-joint positions share one cell, separated by ` | `. CSV contains only table data; model assumptions and exclusions remain in the print/PDF report. If a spreadsheet asks for an import delimiter, choose semicolon (`;`).
-- The File menu next to the application name groups Open project / Save project (JSON), Save PDF, Print, and Export CSV. Result exports are disabled when the model has validation errors. Close the menu by choosing an action, clicking outside it, or pressing Escape; keyboard navigation is also supported.
-- A step-by-step guide opens automatically on first use and can be reopened any time with the **Guide** button beside File. Its completion is remembered in the current browser.
-- Autosave in the current browser, plus JSON project export and import with structure and identifier validation. **Save project** opens a save dialog to choose a folder and filename (suggested: `blocks-project.json`) when `showSaveFilePicker` is supported. Cancelling does not save or download anything. Other browsers use their download settings; enable **Ask where to save each file** to choose a destination. Saving is available even for drafts with validation errors. A failed import does not replace the current project.
-
-## Adopted model and accuracy limits
-
-Sources: two customer meeting transcripts and `Rational-Design-.pdf` (Draft Rational Design Report, February 2011). Page references below refer to PDF pages.
-
-1. **Customer-confirmed block dimensions (length × width × height):** full blocks measure 400 × 200 × 200 mm and half blocks measure 200 × 200 × 200 mm. These dimensions take precedence over different dimensions in the original PDF. Wall thickness is 200 mm. The interface accepts millimeters; internal coordinates with the `Cm` suffix remain in centimeters. Horizontal placement follows 400/200 mm modules. Individual vertical mortar joints are not added to these lengths.
-2. **Course height is 200 mm:** one block height, with no additional mortar allowance. Mortar joints are currently excluded in every direction, and control-joint width is not subtracted. Results count blocks using the customer-confirmed dimensions rather than simulate construction tolerances.
-3. **Single storey, rectangular walls, and a 3.5 m height limit**, based on the wall-plate level on p. 81. At 200 mm per course, 2–17 whole courses are allowed, up to 3,400 mm; 18 courses would reach 3,600 mm and exceed the limit. Wall length has no predefined maximum and follows the 200 mm module. This does not represent a permitted unsupported structural span: stability is not calculated.
-4. **Plan dimensions use modular lengths on a shared 20 × 20 cm grid.** Wall faces lie on cell boundaries, and wall axes run through cell centers. An L-junction occupies one shared 20 × 20 cm cell, assigned to one wall in odd courses and the other in even courses. Above the shorter wall, the shared-corner deduction stops, while the taller wall retains its alternating 200 mm course offset. The bond is anchored to the first course rather than recalculated from the active corner at each height. At a T-junction, the host wall remains continuous; the branch wall length is the clear distance between faces. With 300 cm between the axes of two walls, the partition length is 280 cm. The T-detail follows the metal-strap connection and concrete-filled cavities on pp. 9 and 67; these materials are excluded from the block report. The shared grid is the editor's adopted nominal model, with no block cutting.
-5. **Openings** follow the 20 cm grid, with at least 20 cm of masonry at both wall ends. Their horizontal ranges may overlap when they occupy different rows; intersection of the actual opening rectangles is prohibited. Touching edges alone do not count as an intersection. Width is limited by the available wall space rather than a fixed 1.5 m cap. Openings wider than 1,500 mm show a warning and remain eligible for export when all other checks pass. Page 66 limits the described block lintel to 1.5 m and specifies standard lintels and beams for larger spans; their design and quantities are not calculated. The block layout continues to count masonry above the opening without modeling a replacement beam. At least three solid courses must remain above an opening, including before another opening at the same horizontal position; otherwise final export is blocked. Reinforcement and concrete quantities are not calculated. Changing wall dimensions does not repack stacked openings into one horizontal row. Invalid overlapping JSON imports are rejected without replacing the current project.
-6. **Control joints** target 5,000 mm intervals and shift on the 200 mm grid to clear openings while keeping sections no longer than 5 m, based on p. 70. Openings are not allowed within 400 mm of a joint line. Joints also stay at least 400 mm from either wall end, leaving one full-block length for an alternating bond instead of a 200 mm column of halves. For example, a 5,200 mm wall places its joint at 4,800 mm; a 10,200 mm wall uses 5,000 and 9,800 mm. This minimum end distance is an adopted MVP layout rule, not a minimum stated in the PDF. If no arrangement satisfies the end distance, opening clearance, and maximum section length together, validation blocks final export. The joint splits the masonry without resetting the wall's bond. Full blocks are used where their ends align with the joint; half blocks are used where that bond needs them. There is no fixed odd/even rule for joint end blocks: two joints in the same course may require different block types, and L-corners may change which courses use full blocks. Additional halves are not reserved at the joint. No block crosses a joint. These layout choices are the team's MVP model, not a verified interpretation of the manual's wording. The geometric joint width is not deducted.
-7. **Cutting blocks to length or height is not supported.** Page 64 prohibits half blocks in the foundation setting-out course. That course and the foundation are excluded from the above-floor wall calculation; the rule is not arbitrarily applied to the first above-floor course. Page 69 allows an alternative door installation method involving cutting; the MVP follows the customer's no-cutting constraint.
-8. **The report covers only above-floor wall blocks**, including lintel blocks. Foundations, gables, roofing, reinforcement, straps, concrete, mortar, and production waste are not calculated. Strength, stability, and compliance with current building codes are not assessed. Descriptions of tests in the PDF do not constitute requirements to implement engineering analysis in the application.
-
-The block dimensions are confirmed by the customer. Before final acceptance, the customer must confirm reference layouts of two adjacent courses for a standalone wall, an L-corner, a T-junction, an opening, and a control joint. Expected block counts must be provided for these examples.
-
-## Verification
-
-The plan, pointer interactions, and snapping use the same nominal coordinates, without rescaling block spacing when walls are connected. The shared L-corner area counted in the neighboring wall is marked in green in both the plan and elevation. The shared grid is 20 cm, with wall axes offset 10 cm from cell boundaries. T-snap positions on parallel walls are coordinated, including exterior walls and internal partitions. The grid is independent of pan and zoom.
-
-Dragging evaluates candidates for both wall ends simultaneously: an exact connection at both ends takes priority, followed by the nearest positional correction. Moving a wall does not change its length. If the distance between walls is incompatible with the partition length, the editor does not simulate a connection at both ends. Resizing with a handle preserves the wall direction, and a snap preview is shown only for an exactly reachable point. Numeric length changes preserve the wall's first face. The buttons and yellow handle rotate the wall around the center of its first cell; four 90° turns return it to its original position.
-
-New projects use `planGeometry: modular-cells-v3`. Older projects without this marker, or with `face-t-v2`, are migrated to the shared grid: modular L-wall lengths are preserved, and T-partitions are fitted between faces. Identifiers, heights, and opening dimensions/positions are preserved. Changed lengths are listed in yellow messages, such as 380 → 360 cm and 300 → 280 cm in the old sample house with an additional partition. Migration is not repeated. If migration invalidates opening dimensions or cannot preserve L-connections, the entire import is rejected with an explanation; the current project is not replaced. New autosaves use a separate `blocks-calculator-v3` key, leaving the original `blocks-calculator-v1` data available and unchanged.
-
-Changing wall height does not trim or move openings. If an opening extends above the wall, an error is shown and the final report is blocked. Restoring the height preserves the original openings, including after saving and reopening the project.
-
-Perpendicular wall intersections are checked using the nominal 20 cm thickness, including areas near wall ends. The shared area of a valid L-corner is handled by the corner-bond rules; other overlaps block printing and CSV export. If a wall is too short for both L-corners in any course, it must be lengthened or its connections changed. Such projects can be opened for correction; preliminary quantities are marked as drafts.
-
-The editor retains its 3.5 m wall-plate height limit. With the updated 200 mm block height and no mortar allowance, it permits at most 17 courses (3,400 mm). The sample house keeps its 17-course exterior walls, now displayed as 3,400 mm high. Older saved projects with 18 or 19 courses can still be opened for correction without removing walls or openings; their final reports remain blocked until heights meet the new limit. Stored course counts are preserved, and heights in millimeters are recalculated using 200 mm per course. Gables are not modeled. The editor limit is not a structural safety check.
-
-The T-junction follows p. 9 (Fig. 4) and p. 67 (Step 7): the connection uses a metal strap, and cavities are filled with concrete. A shared block between the two walls is not required. Block counting keeps the host wall continuous and does not deduct a branch-wall block from it. A glue-only model does not match the full connection detail; straps and concrete remain outside the block report.
-
-Use Node.js 24 or a compatible version with built-in `node:test`:
-
-```powershell
-node --test tests/calculation.test.cjs
-```
-
-Calculation tests cover course bonding, counting L-corners once, bond continuity across unequal-height corners, walls of different heights, T-junctions, a nested 280 cm partition, openings by course, control joints, geometry errors, the sample house, and atomic imports. Stacked-opening tests cover two-dimensional intersections, lintel clearance, property and pointer handlers, plan selection, undo/redo, and JSON round trips. A separate check compares every occupied layout cell against the wall geometry across all courses and four orientations, checking for both gaps and duplicate counts of shared cells.
-
-The integration check requires Chrome or Edge installed on Windows. The script starts a headless browser with a separate temporary profile, starts a temporary server, and checks the interface through DevTools. No npm dependencies are required:
-
-```powershell
-node tests/browser-smoke.cjs
-```
-
-To check only navigation (panning, fitting the project, large drawings, and narrow screens), run `node tests/browser-smoke.cjs --navigation-only`.
-
-To check inspector scrolling after adding an opening, including wheel gestures over focused wall-height and wall-length fields, run `node tests/browser-smoke.cjs --scroll-only`. These gestures scroll the panel without changing wall dimensions.
-
-To check JSON and PDF saving to chosen files, cancellation, fallback PDF downloads, separate printing, a 500-wall report, and direct local-file export with HTTP/HTTPS blocked, run `node tests/browser-smoke.cjs --pdf-only`. Generated reports and expected quantities are written under `../tmp/pdfs/`; the script prints the specific folder.
-
-To check wall lengths beyond 100 m, scrolling and opening selection in a 1.2 km elevation, the 500-wall creation/import limit and rejection of a 501st wall, run `node tests/browser-smoke.cjs --limits-only`.
-
-To check a cold offline launch, run `node tests/browser-smoke.cjs --offline-only`. It opens `BlocksCalculation2.html` directly from disk in a fresh browser profile with caching disabled and all HTTP/HTTPS requests blocked. It checks local styles and fonts, editing, JSON downloads and import, CSV, PDF, printing and narrow-screen layout, and fails if the application attempts any HTTP/HTTPS requests. Screenshots and exported files are written under `../tmp/offline-qa-*`.
-
-The screenshot is saved in the operating system's temporary directory. The script checks loading, wall properties, invalid dimensions, dragging an opening in the elevation, CSV export, the printable table, restoration after reload, blocked export, and adding/clearing walls.
+The nominal model uses customer-confirmed block dimensions and `Rational-Design-.pdf`. Reports count above-floor wall blocks, including lintel blocks. Foundations, gables, reinforcement, straps, concrete, mortar, waste and separate beam quantities are excluded. Structural strength and stability are not calculated. Reference layouts and expected counts still require customer confirmation.
