@@ -4,13 +4,17 @@ A Requirements Engineering course project for entering wall layouts and calculat
 
 ## Running the application
 
-Open `draft.html` in a browser. For consistent persistence between sessions, use a local HTTP server from the project root:
+Keep the entire project folder together and open `draft.html` in a browser. The application works offline from its first launch: styles, fonts, scripts, JSON projects and PDF generation are all local. No installation, build step, npm packages, backend or internet connection is needed to run it.
+
+For consistent persistence between sessions, optionally use a local HTTP server from the project root:
 
 ```powershell
 python -m http.server 8000
 ```
 
-Open `http://localhost:8000/draft.html`. Tailwind styles and the Inter font are loaded over the internet, as in the original project. No build tool, npm packages, or backend are required.
+Open `http://localhost:8000/draft.html`. This server runs on your computer and does not require an internet connection. Browser autosave depends on local storage settings; use **File → Save project** to keep a portable JSON copy.
+
+Tailwind CSS is precompiled and Inter is bundled under `assets/`. Sources, licenses and instructions for rebuilding CSS after adding utility classes are in [`assets/README.md`](assets/README.md).
 
 ## Saved examples
 
@@ -92,5 +96,7 @@ To check only navigation (panning, fitting the project, large drawings, and narr
 To check inspector scrolling after adding an opening, including wheel gestures over focused wall-height and wall-length fields, run `node tests/browser-smoke.cjs --scroll-only`. These gestures scroll the panel without changing wall dimensions.
 
 To check saving to a chosen file, cancellation, fallback PDF downloads, separate printing, a 200-wall report, and direct local-file export with HTTP/HTTPS blocked, run `node tests/browser-smoke.cjs --pdf-only`. Generated reports and expected quantities are written under `../tmp/pdfs/`; the script prints the specific folder.
+
+To check a cold offline launch, run `node tests/browser-smoke.cjs --offline-only`. It opens `draft.html` directly from disk in a fresh browser profile with caching disabled and all HTTP/HTTPS requests blocked. It checks local styles and fonts, editing, JSON downloads and import, CSV, PDF, printing and narrow-screen layout, and fails if the application attempts any HTTP/HTTPS requests. Screenshots and exported files are written under `../tmp/offline-qa-*`.
 
 The screenshot is saved in the operating system's temporary directory. The script checks loading, wall properties, invalid dimensions, dragging an opening in the elevation, CSV export, the printable table, restoration after reload, blocked export, and adding/clearing walls.

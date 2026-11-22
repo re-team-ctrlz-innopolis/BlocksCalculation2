@@ -14,7 +14,8 @@ async function main() {
         if (!file.startsWith(root + path.sep)) { res.writeHead(403); res.end(); return; }
         fs.readFile(file, (error, data) => {
             if (error) { res.writeHead(404); res.end(); return; }
-            res.setHeader('Content-Type', file.endsWith('.js') ? 'application/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.svg') ? 'image/svg+xml' : 'text/html');
+            const types = {'.js':'application/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'};
+            res.setHeader('Content-Type', types[path.extname(file)] || 'text/html');
             res.end(data);
         });
     });
@@ -29,14 +30,17 @@ async function main() {
         const portFile = path.join(profile, 'DevToolsActivePort');
         for (let i = 0; !fs.existsSync(portFile) && i < 100; i++) await new Promise(r => setTimeout(r, 100));
         const port = fs.readFileSync(portFile, 'utf8').split('\n')[0];
-        const target = await (await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(url)}`, {method: 'PUT'})).json();
+        const initialUrl = process.argv.includes('--offline-only') ? 'about:blank' : url;
+        const target = await (await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(initialUrl)}`, {method: 'PUT'})).json();
         socket = new WebSocket(target.webSocketDebuggerUrl);
         await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, {once: true}); socket.addEventListener('error', reject, {once: true}); });
         let serial = 0;
-        const pending = new Map(), errors = [];
+        const pending = new Map(), errors = [], networkRequests = [], failedResources = [];
         socket.addEventListener('message', e => {
             const message = JSON.parse(e.data);
             if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails);
+            if (message.method === 'Network.requestWillBeSent' && /^https?:/.test(message.params.request.url)) networkRequests.push(message.params.request.url);
+            if (message.method === 'Network.loadingFailed') failedResources.push(message.params.errorText);
             if (message.id && pending.has(message.id)) {
                 const {resolve, reject, timer} = pending.get(message.id); clearTimeout(timer); pending.delete(message.id);
                 if (message.error) reject(new Error(JSON.stringify(message.error))); else resolve(message.result);
@@ -62,12 +66,84 @@ async function main() {
         };
         await call('Runtime.enable');
         await call('Page.enable');
+        if (process.argv.includes('--offline-only')) {
+            // Start from a blank tab in a new profile: neither CDN code nor cached fonts can help.
+            await call('Network.enable');
+            await call('Network.setCacheDisabled', {cacheDisabled:true});
+            await call('Network.setBlockedURLs', {urls:['http://*','https://*']});
+            await call('Page.navigate', {url:'file:///'+root.replaceAll('\\','/')+'/draft.html'});
+        }
         for (let i = 0; i < 100; i++) {
             if (await evaluate('typeof validateProject === "function" && document.readyState === "complete"')) break;
             await new Promise(r => setTimeout(r, 200));
         }
         assert.deepEqual(await evaluate('validateProject().errors'), []);
         await evaluate('if(document.getElementById("tutorialDialog").open)document.getElementById("btnTutorialClose").click();');
+        if (process.argv.includes('--offline-only')) {
+            const qaDir = path.resolve(root, '../tmp', 'offline-qa-' + Date.now());
+            fs.mkdirSync(qaDir, {recursive:true});
+            await evaluate('document.fonts.ready');
+            assert.equal(await evaluate('document.fonts.check("400 14px Inter") && Array.from(document.fonts).some(f=>f.family==="Inter" && f.status==="loaded")'),true);
+            assert.equal(await evaluate('getComputedStyle(document.body).display'),'flex');
+            assert.equal(await evaluate('getComputedStyle(document.querySelector("header")).display'),'grid');
+            assert.equal(await evaluate('getComputedStyle(document.body).backgroundColor'),'rgb(2, 6, 23)');
+            assert.equal(await evaluate('document.querySelector("aside").getBoundingClientRect().width'),384);
+            assert.ok(await evaluate('state.canvas.width>500 && state.canvas.height>200 && state.elevCanvas.height>0'));
+            const screenshot = await call('Page.captureScreenshot', {format:'png'});
+            fs.writeFileSync(path.join(qaDir,'desktop.png'),Buffer.from(screenshot.data,'base64'));
+
+            // Exercise dynamically styled controls and a new project, rather than only the built-in sample.
+            await evaluate(`state.walls=[];state.migrationNotes=[];state.selectedWallId=null;state.selectedOpeningId=null;
+                resetEditHistory();updateInspector();render();document.getElementById('btnAddWall').click();
+                document.getElementById('sliderWallLength').value=4000;
+                document.getElementById('sliderWallLength').dispatchEvent(new Event('change',{bubbles:true}));
+                document.getElementById('btnAddOpening').click();document.querySelector('[data-optype=door]').click();`);
+            assert.equal(await evaluate('state.walls.length'),1);
+            assert.equal(await evaluate('state.walls[0].openings.length'),1);
+            assert.equal(await evaluate('document.getElementById("openingEditorTitle").textContent'),'Door #1');
+            assert.equal(await evaluate('getComputedStyle(document.querySelector("#openingsList .opening-select span span")).color'),'rgb(52, 211, 153)');
+            assert.deepEqual(await evaluate('validateProject().errors'),[]);
+            const savedProject = await evaluate('JSON.stringify(projectSnapshot())');
+            await call('Browser.setDownloadBehavior', {behavior:'allow',downloadPath:qaDir});
+            await evaluate('window.showSaveFilePicker=undefined;');
+            for (const id of ['btnSaveProject','btnExportCsv','btnSavePdf']) {
+                await evaluate(`document.getElementById('fileMenu').open=true;document.getElementById('${id}').click();`);
+            }
+            for (const name of ['blocks-project.json','blocks-quantities.csv','blocks-quantities.pdf']) {
+                const file = path.join(qaDir,name);
+                for(let i=0;!fs.existsSync(file)&&i<100;i++) await new Promise(resolve=>setTimeout(resolve,100));
+                assert.ok(fs.existsSync(file), name+' downloads without a network');
+            }
+            assert.deepEqual(JSON.parse(fs.readFileSync(path.join(qaDir,'blocks-project.json'),'utf8')),JSON.parse(savedProject));
+            assert.ok(fs.readFileSync(path.join(qaDir,'blocks-quantities.csv'),'utf8').includes('TOTAL'));
+            assert.equal(fs.readFileSync(path.join(qaDir,'blocks-quantities.pdf')).subarray(0,5).toString(),'%PDF-');
+
+            await evaluate(`document.getElementById('sliderWallLength').value=6000;
+                document.getElementById('sliderWallLength').dispatchEvent(new Event('change',{bubbles:true}));`);
+            assert.notEqual(await evaluate('JSON.stringify(projectSnapshot())'),savedProject);
+            const {root:domRoot} = await call('DOM.getDocument');
+            const {nodeId} = await call('DOM.querySelector',{nodeId:domRoot.nodeId,selector:'#projectFile'});
+            await call('DOM.setFileInputFiles',{nodeId,files:[path.join(qaDir,'blocks-project.json')]});
+            for(let i=0;await evaluate('JSON.stringify(projectSnapshot())')!==savedProject&&i<100;i++) await new Promise(resolve=>setTimeout(resolve,50));
+            assert.equal(await evaluate('JSON.stringify(projectSnapshot())'),savedProject);
+            await evaluate('window.offlinePrintCalls=0;window.print=()=>{offlinePrintCalls++;};printReport();');
+            await evaluate('loadQuantityReportFont()');
+            assert.equal(await evaluate('offlinePrintCalls'),1);
+            const printed = await call('Page.printToPDF',{preferCSSPageSize:true,displayHeaderFooter:false});
+            fs.writeFileSync(path.join(qaDir,'printed.pdf'),Buffer.from(printed.data,'base64'));
+            assert.ok(Buffer.from(printed.data,'base64').length>1000);
+            await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
+            await evaluate('resizeCanvases();');
+            assert.ok(await evaluate('document.documentElement.scrollWidth<=window.innerWidth'));
+            const mobile = await call('Page.captureScreenshot',{format:'png'});
+            fs.writeFileSync(path.join(qaDir,'mobile.png'),Buffer.from(mobile.data,'base64'));
+            assert.deepEqual(networkRequests,[], 'The app must not attempt any HTTP/HTTPS requests');
+            assert.deepEqual(failedResources,[], 'All local resources must load');
+            assert.deepEqual(errors,[]);
+            console.log('PASS: cold offline file launch, local styles/font, editing, JSON save/load, CSV, PDF, print and responsive layout; zero HTTP/HTTPS requests.');
+            console.log('OFFLINE_QA_DIR='+qaDir);
+            return;
+        }
         if (process.argv.includes('--pdf-only')) {
             const qaDir = path.resolve(root, '../tmp/pdfs', 'qa-' + Date.now());
             fs.mkdirSync(qaDir, {recursive: true});
