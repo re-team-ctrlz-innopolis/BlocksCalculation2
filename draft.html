@@ -262,7 +262,6 @@
                 <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-800 space-y-2 text-xs">
                     <div class="flex justify-between"><label for="inputWallRows">Wall height (courses):</label><b id="valWallHeight" class="text-blue-400"></b></div>
                     <input id="inputWallRows" type="number" min="2" max="17" step="1" value="10" class="w-full rounded bg-slate-900 border border-slate-700 p-2">
-                    <p class="text-slate-400">Control joints: <span id="wallControlJoints"></span></p>
                 </div>
                 <!-- Wall length -->
                 <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-800 space-y-2">
@@ -274,6 +273,10 @@
                     <div class="flex justify-between text-[11px] text-slate-400">
                         <span id="lblMinWallLen">Min: 200 mm</span><span>200 mm steps</span>
                     </div>
+                    <details class="text-xs">
+                        <summary class="cursor-pointer text-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400">Control joints</summary>
+                        <p id="wallControlJoints" class="mt-2 text-slate-400"></p>
+                    </details>
                 </div>
 
                 <!-- Угол поворота стены -->
