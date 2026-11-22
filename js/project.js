@@ -91,29 +91,29 @@ function validateProject() {
             }
         }
         for (const op of wall.openings) {
-            const openingNumber = getOpeningNumber(wall.id, op.id);
+            const openingLabel = getOpeningLabel(wall.id, op.id).toLowerCase();
             const b = getOpeningBoundsCm(op);
             if (b.startCm < HALF_BLOCK_CM || b.endCm > length - HALF_BLOCK_CM)
-                errors.push(`${label}: opening #${openingNumber} needs a 200 mm pier at both wall ends.`);
+                errors.push(`${label}: ${openingLabel} needs a 200 mm pier at both wall ends.`);
             if (!Number.isInteger(op.startRow) || !Number.isInteger(op.rowCount) || op.startRow < 1 || op.rowCount < 1 || op.startRow + op.rowCount - 1 > getWallRows(wall))
-                errors.push(`${label}: opening #${openingNumber} is outside the wall height.`);
+                errors.push(`${label}: ${openingLabel} is outside the wall height.`);
             if (op.type === 'door' && op.startRow !== 1)
-                errors.push(`${label}: door opening #${openingNumber} must start at course 1 (floor level).`);
+                errors.push(`${label}: ${openingLabel} must start at course 1 (floor level).`);
             if (op.type === 'window' && op.startRow < 2)
-                errors.push(`${label}: window opening #${openingNumber} must start at course 2 or above.`);
-            if (b.lenCm > 150) notices.push(`${label}: opening #${openingNumber} is wider than 1500 mm and requires a separate lintel or beam. Lintel/beam design and quantities are not calculated.`);
+                errors.push(`${label}: ${openingLabel} must start at course 2 or above.`);
+            if (b.lenCm > 150) notices.push(`${label}: ${openingLabel} is wider than 1500 mm and requires a separate lintel or beam. Lintel/beam design and quantities are not calculated.`);
             const openingTopRow = op.startRow + op.rowCount - 1;
             const coursesAbove = getWallRows(wall) - openingTopRow;
             if (coursesAbove < 3)
-                errors.push(`${label}: leave at least three courses above opening #${openingNumber} (${Math.max(0, coursesAbove)} available).`);
+                errors.push(`${label}: leave at least three courses above ${openingLabel} (${Math.max(0, coursesAbove)} available).`);
             for (const other of wall.openings) {
                 if (other.id <= op.id) continue;
-                if (openingsOverlap(op, other)) errors.push(`${label}: openings #${openingNumber} and #${getOpeningNumber(wall.id, other.id)} overlap.`);
+                if (openingsOverlap(op, other)) errors.push(`${label}: ${openingLabel} and ${getOpeningLabel(wall.id, other.id).toLowerCase()} overlap.`);
             }
             const lintelStart = getOpeningRowRange(op).endRow;
             if (wall.openings.some(other => other.id !== op.id && openingWidthsOverlap(op, other) &&
                 getOpeningRowRange(other).startRow < lintelStart + 3 && getOpeningRowRange(other).endRow > lintelStart))
-                errors.push(`${label}: leave at least three courses above opening #${openingNumber} before another opening.`);
+                errors.push(`${label}: leave at least three courses above ${openingLabel} before another opening.`);
         }
         const controls = [0, ...getControlJoints(wall), length];
         if (controls.length > 2 && (controls[1] < MIN_CONTROL_END_DISTANCE_CM ||

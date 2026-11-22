@@ -118,7 +118,7 @@ function updateInspector() {
                     const { lenCm } = getOpeningBoundsCm(op);
                     const heightMm = Math.round((op.rowCount || 1) * COURSE_HEIGHT_CM * MM_PER_CM);
                     const isSel = op.id === state.selectedOpeningId;
-                    const typeLabel = op.type === 'window' ? 'Window' : op.type === 'door' ? 'Door' : 'Opening';
+                    const openingLabel = getOpeningLabel(wall.id, op.id);
                     const badgeColor = op.type === 'window'
                         ? 'text-sky-400 border-sky-500/40 bg-sky-950/50'
                         : op.type === 'door'
@@ -132,11 +132,11 @@ function updateInspector() {
                     item.innerHTML = `
                         <button type="button" class="opening-select min-w-0 flex-1 rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400" aria-pressed="${isSel}">
                             <span class="block">
-                                <span class="text-[10px] px-1.5 py-0.5 rounded border ${badgeColor}">${typeLabel} #${getOpeningNumber(wall.id, op.id)}</span>
+                                <span class="text-[10px] px-1.5 py-0.5 rounded border ${badgeColor}">${openingLabel}</span>
                             </span>
                             <span class="mt-1 block font-semibold text-slate-200">${lenCm * MM_PER_CM} × ${heightMm} mm</span>
                         </button>
-                        <button type="button" data-delete-opening="${op.id}" data-wall-id="${wall.id}" aria-label="Delete ${typeLabel.toLowerCase()} #${getOpeningNumber(wall.id, op.id)}" title="Delete opening (Delete / Backspace)" class="opening-delete-button">Delete</button>
+                        <button type="button" data-delete-opening="${op.id}" data-wall-id="${wall.id}" aria-label="Delete ${openingLabel.toLowerCase()}" title="Delete opening (Delete / Backspace)" class="opening-delete-button">Delete</button>
                     `;
                     const selectOpening = () => {
                         state.selectedOpeningId = op.id;
@@ -156,8 +156,7 @@ function updateInspector() {
                 editorEl.classList.add('hidden');
             } else {
                 editorEl.classList.remove('hidden');
-                const typeLabel = selectedOp.type === 'window' ? 'Window' : selectedOp.type === 'door' ? 'Door' : 'Opening';
-                document.getElementById('openingEditorTitle').textContent = `${typeLabel} #${getOpeningNumber(wall.id, selectedOp.id)}`;
+                document.getElementById('openingEditorTitle').textContent = getOpeningLabel(wall.id, selectedOp.id);
 
                 document.querySelectorAll('.opening-type-btn').forEach(btn => {
                     if (btn.dataset.optype === selectedOp.type) {
