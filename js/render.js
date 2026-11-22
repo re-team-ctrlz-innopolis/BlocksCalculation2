@@ -232,19 +232,19 @@ function drawWall(wall, isSelected, allJoints) {
                     state.ctx.lineTo(ox + ow, 3);
                     state.ctx.stroke();
                 } else if (op.type === 'door') {
-                    // Дверь: полотно и дуга открывания
+                    // Полотно и радиус дуги равны полной ширине проёма в масштабе плана.
                     state.ctx.fillStyle = 'rgba(16, 185, 129, 0.18)';
                     state.ctx.fillRect(ox, -halfThick + 2, ow, WALL_THICKNESS - 4);
                     state.ctx.strokeStyle = '#34d399';
                     state.ctx.lineWidth = 1.8;
                     state.ctx.beginPath();
                     state.ctx.moveTo(ox, -halfThick);
-                    state.ctx.lineTo(ox, -halfThick - Math.min(ow, 34));
+                    state.ctx.lineTo(ox, -halfThick - ow);
                     state.ctx.stroke();
 
                     state.ctx.setLineDash([3, 3]);
                     state.ctx.beginPath();
-                    state.ctx.arc(ox, -halfThick, Math.min(ow, 34), -Math.PI / 2, 0);
+                    state.ctx.arc(ox, -halfThick, ow, -Math.PI / 2, 0);
                     state.ctx.stroke();
                     state.ctx.setLineDash([]);
                 } else {
