@@ -68,6 +68,83 @@ async function main() {
         }
         assert.deepEqual(await evaluate('validateProject().errors'), []);
         await evaluate('if(document.getElementById("tutorialDialog").open)document.getElementById("btnTutorialClose").click();');
+        if (process.argv.includes('--pdf-only')) {
+            const qaDir = path.resolve(root, '../tmp/pdfs', 'qa-' + Date.now());
+            fs.mkdirSync(qaDir, {recursive: true});
+            await evaluate('window.pdfPrintCalls=0;window.print=()=>{window.pdfPrintCalls++;};');
+            assert.equal(await evaluate('document.getElementById("btnSavePdf").textContent'), 'Save PDF…');
+            assert.equal(await evaluate('document.getElementById("btnPrint").textContent'), 'Print…');
+            // Substitute only the native chooser, then exercise a real browser file writer.
+            await evaluate(`(async()=>{window.pdfTestDirectory=await navigator.storage.getDirectory();
+                window.pdfTestHandle=await pdfTestDirectory.getFileHandle('chosen-report.pdf',{create:true});
+                window.pdfPickerOptions=null;
+                window.showSaveFilePicker=async options=>{window.pdfPickerOptions=options;return pdfTestHandle;};
+                await exportPdf();})()`);
+            assert.equal(await evaluate('pdfPickerOptions.suggestedName'),'blocks-quantities.pdf');
+            assert.equal(await evaluate('(async()=>(await (await pdfTestHandle.getFile()).text()).slice(0,5))()'),'%PDF-');
+            assert.equal(await evaluate('pdfPrintCalls'),0);
+            await evaluate(`(async()=>{window.pdfCancelWork=0;window.pdfRealCreate=createPdfReport;
+                createPdfReport=(...args)=>{pdfCancelWork++;return pdfRealCreate(...args);};
+                window.showSaveFilePicker=async()=>{throw new DOMException('Cancelled','AbortError');};
+                await exportPdf();createPdfReport=pdfRealCreate;})()`);
+            assert.equal(await evaluate('pdfCancelWork'),0);
+            // Include a wide-opening notice and Unicode notes in the rendered sample.
+            await evaluate(`setOpeningBoundsCm(state.walls[0].openings[0],80,160);
+                state.migrationNotes=['Unicode note: '+String.fromCharCode(1058,1077,1089,1090)+' '+String.fromCharCode(8212)+' 400'+String.fromCharCode(215)+'200'+String.fromCharCode(215)+'200 mm'];
+                updateInspector();render();`);
+            assert.deepEqual(await evaluate('validateProject().errors'), []);
+            const downloadPdf = async name => {
+                const downloadDir = path.join(qaDir, name);
+                fs.mkdirSync(downloadDir);
+                await call('Browser.setDownloadBehavior', {behavior:'allow', downloadPath:downloadDir});
+                const before = await evaluate('JSON.stringify(projectSnapshot())');
+                const expected = await evaluate('({rows:getProjectReport(),warnings:validateProject().warnings})');
+                await evaluate('window.showSaveFilePicker=undefined;'); // Unsupported-browser download path.
+                await evaluate('document.getElementById("fileMenu").open=true;document.getElementById("btnSavePdf").click();');
+                const saved = path.join(downloadDir, 'blocks-quantities.pdf');
+                for (let i=0;!fs.existsSync(saved)&&i<100;i++) await new Promise(resolve=>setTimeout(resolve,100));
+                assert.ok(fs.existsSync(saved), 'Save PDF downloads a file');
+                assert.equal(fs.readFileSync(saved).subarray(0,5).toString(), '%PDF-');
+                fs.writeFileSync(path.join(downloadDir,'expected.json'),JSON.stringify(expected,null,2));
+                assert.equal(await evaluate('pdfPrintCalls'),0);
+                assert.equal(await evaluate('document.getElementById("fileMenu").open'),false);
+                assert.equal(await evaluate('JSON.stringify(projectSnapshot())'),before);
+                // Capture the browser's actual print rendering for visual comparison with the download.
+                await evaluate('printReport()');
+                assert.equal(await evaluate('pdfPrintCalls'),1);
+                assert.equal(await evaluate('document.querySelector("#printReport h1").textContent'),
+                    'BlocksCalculator — Blocks quantities');
+                assert.deepEqual(await evaluate('Array.from(document.querySelectorAll("#printReport tbody tr"),tr=>Array.from(tr.cells,td=>td.textContent))'),
+                    await evaluate('getQuantityReportContent(getProjectReport(),validateProject().warnings).body.map(row=>row.map(String))'));
+                assert.equal(await evaluate('document.fonts.check("12px BlocksReport")'),true);
+                const printed = await call('Page.printToPDF', {preferCSSPageSize:true, displayHeaderFooter:false});
+                fs.writeFileSync(path.join(downloadDir,'printed.pdf'),Buffer.from(printed.data,'base64'));
+                await evaluate('window.pdfPrintCalls=0;');
+            };
+            await downloadPdf('sample-house');
+            await evaluate(`state.walls=Array.from({length:200},(_,i)=>({id:i+1,x1:0,y1:i*40+10,x2:i===0?10000:400,y2:i*40+10,rows:17,openings:[]}));
+                state.nextId=201;state.migrationNotes=[];state.selectedWallId=1;state.selectedOpeningId=null;updateInspector();render();`);
+            assert.deepEqual(await evaluate('validateProject().errors'),[]);
+            await downloadPdf('large-project');
+            await evaluate('document.getElementById("btnPrint").click();');
+            for(let i=0;await evaluate('pdfPrintCalls')===0&&i<100;i++) await new Promise(resolve=>setTimeout(resolve,20));
+            assert.equal(await evaluate('pdfPrintCalls'),1);
+            await evaluate('state.walls.push({...state.walls[0],id:999});updateInspector();');
+            assert.equal(await evaluate('document.getElementById("btnSavePdf").disabled && document.getElementById("btnPrint").disabled && document.getElementById("btnExportCsv").disabled'),true);
+            await call('Network.enable');
+            await call('Network.setBlockedURLs',{urls:['http://*','https://*']});
+            await call('Page.navigate',{url:'file:///'+root.replaceAll('\\','/')+'/draft.html'});
+            for(let i=0;i<100;i++){
+                if(await evaluate('document.readyState==="complete" && typeof exportPdf==="function" && typeof state!=="undefined" && state.walls.length>0'))break;
+                await new Promise(resolve=>setTimeout(resolve,100));
+            }
+            await evaluate('window.pdfPrintCalls=0;window.print=()=>{window.pdfPrintCalls++;};');
+            await downloadPdf('offline-file');
+            assert.deepEqual(errors,[]);
+            console.log('PASS: chosen-file PDF saving, cancellation, fallback downloads, separate print action, pagination, blocked invalid exports and offline local-file export.');
+            console.log('PDF_QA_DIR='+qaDir);
+            return;
+        }
         const navigationProject = await evaluate('JSON.stringify(projectSnapshot())');
         if (!process.argv.includes('--navigation-only')) {
             for (const screen of [{width:1366,height:768},{width:800,height:600}]) {
@@ -295,9 +372,10 @@ async function main() {
         await call('Input.dispatchMouseEvent', {type: 'mouseReleased', x: point.x, y: point.y + point.rowH, button: 'left', clickCount: 1});
         assert.equal(await evaluate('state.walls[0].openings[0].startRow'), 4);
         await evaluate('window.csvCapture=null; downloadFile=(name,content,type)=>{window.csvCapture={name,content,type}}; document.getElementById("btnExportCsv").click();');
-        assert.equal(await evaluate('csvCapture.name'), 'blocks-materials.csv');
+        assert.equal(await evaluate('csvCapture.name'), 'blocks-quantities.csv');
         assert.ok(await evaluate('csvCapture.content.includes("TOTAL")'));
-        await evaluate('window.print=()=>{}; document.getElementById("btnPrint").click();');
+        await evaluate('window.print=()=>{}; printReport();');
+        await evaluate('loadQuantityReportFont()');
         assert.equal(await evaluate('document.querySelectorAll("#printReport tr").length'), 6);
         const pdf = await call('Page.printToPDF', {printBackground: true});
         assert.ok(Buffer.from(pdf.data, 'base64').length > 1000);

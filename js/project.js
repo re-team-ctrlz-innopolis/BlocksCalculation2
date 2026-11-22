@@ -203,6 +203,7 @@ function updateProjectStatus() {
     }
     status.hidden = result.errors.length === 0 && result.notices.length === 0;
     document.getElementById('btnPrint').disabled = result.errors.length > 0;
+    document.getElementById('btnSavePdf').disabled = result.errors.length > 0;
     document.getElementById('btnExportCsv').disabled = result.errors.length > 0;
     const resultsStatus = document.getElementById('resultsStatus');
     resultsStatus.className = `export-status ${result.errors.length ? 'export-status-unavailable' : 'export-status-ready'}`;
@@ -250,27 +251,48 @@ function exportCsv() {
         ['TOTAL', '', '', '', total[0], total[1], total[0] + total[1], '']
     ];
     // CSV contains only tabular data. Scope and model explanations remain in the print/PDF report.
-    downloadFile('blocks-materials.csv', serializeCsvRows(table), 'text/csv;charset=utf-8');
+    downloadFile('blocks-quantities.csv', serializeCsvRows(table), 'text/csv;charset=utf-8');
 }
 
-function printReport() {
+// Both export actions use the same headings, values, totals and notes.
+function getQuantityReportContent(rows, warnings) {
+    const totals = rows.reduce((sum, row) => [sum[0] + row.fullCount, sum[1] + row.halfCount], [0, 0]);
+    return {
+        title: 'BlocksCalculator — Blocks quantities',
+        headers: ['Wall', 'Length (mm)', 'Height (mm)', 'Full', 'Half', 'Total', 'Control joints (mm)'],
+        body: rows.map(row => [row.number, row.length, row.height, row.fullCount, row.halfCount, row.totalCount, row.controls.join(', ') || '—']),
+        total: `Full: ${totals[0]} · Half: ${totals[1]} · Total: ${totals[0] + totals[1]}`,
+        notes: warnings
+    };
+}
+
+async function printReport() {
     const rows = getProjectReport(); if (!rows) return;
+    const content = getQuantityReportContent(rows, validateProject().warnings);
     const report = document.getElementById('printReport');
     report.replaceChildren();
-    const title = document.createElement('h1'); title.textContent = 'BlocksCalculator — Material quantities'; report.appendChild(title);
+    const title = document.createElement('h1'); title.textContent = content.title; report.appendChild(title);
     const table = document.createElement('table');
-    const header = document.createElement('tr');
-    for (const label of ['Wall', 'Length (mm)', 'Height (mm)', 'Full', 'Half', 'Total', 'Control joints (mm)']) { const th = document.createElement('th'); th.textContent = label; header.appendChild(th); }
-    table.appendChild(header);
-    let full = 0, half = 0;
-    for (const row of rows) {
-        const tr = document.createElement('tr');
-        for (const value of [row.number, row.length, row.height, row.fullCount, row.halfCount, row.totalCount, row.controls.join(', ') || '—']) { const td = document.createElement('td'); td.textContent = value; tr.appendChild(td); }
-        table.appendChild(tr); full += row.fullCount; half += row.halfCount;
+    const columns = document.createElement('colgroup');
+    for (const width of QUANTITY_REPORT_LAYOUT.columnWidths) {
+        const col = document.createElement('col'); col.style.width = `${width}mm`; columns.appendChild(col);
     }
+    table.appendChild(columns);
+    const head = document.createElement('thead');
+    const header = document.createElement('tr');
+    for (const label of content.headers) { const th = document.createElement('th'); th.textContent = label; header.appendChild(th); }
+    head.appendChild(header); table.appendChild(head);
+    const body = document.createElement('tbody');
+    for (const row of content.body) {
+        const tr = document.createElement('tr');
+        for (const value of row) { const td = document.createElement('td'); td.textContent = value; tr.appendChild(td); }
+        body.appendChild(tr);
+    }
+    table.appendChild(body);
     report.appendChild(table);
-    const total = document.createElement('p'); total.textContent = `Full: ${full} · Half: ${half} · Total: ${full + half}`; report.appendChild(total);
-    for (const warning of validateProject().warnings) { const p = document.createElement('p'); p.textContent = warning; report.appendChild(p); }
+    const total = document.createElement('p'); total.textContent = content.total; report.appendChild(total);
+    for (const warning of content.notes) { const p = document.createElement('p'); p.textContent = warning; report.appendChild(p); }
+    await loadQuantityReportFont();
     window.print();
 }
 
@@ -414,6 +436,7 @@ function bindProjectEvents() {
         wall.rows = rows; clampWallOpenings(wall); updateInspector(); render(); saveProjectLocally();
     });
     document.getElementById('btnPrint').addEventListener('click', printReport);
+    document.getElementById('btnSavePdf').addEventListener('click', exportPdf);
     document.getElementById('btnExportCsv').addEventListener('click', exportCsv);
     document.getElementById('btnSaveProject').addEventListener('click', () => downloadFile('blocks-project.json', JSON.stringify(projectSnapshot(), null, 2), 'application/json'));
     document.getElementById('btnLoadProject').addEventListener('click', () => document.getElementById('projectFile').click());
