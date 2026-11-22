@@ -107,6 +107,64 @@ test('manual zoom uses round ten-percentage-point levels and keeps the pointer a
     assert.equal(run('editHistory.length'),0);
 });
 
+test('elevation keeps a fixed block width across wall lengths and viewport sizes', () => {
+    const run = app(true);
+    run(`const make=${wall};state.walls=[make(1,0,10,400,10),make(2,0,1010,10000,1010)];
+        state.selectedWallId=1;state.elevCanvas.parentElement={clientWidth:500,clientHeight:180,scrollLeft:0};
+        state.elevCtx=new Proxy({}, {get:(target,key)=>target[key] ?? (()=>{})});
+        const saved=JSON.stringify(projectSnapshot());resetEditHistory();drawElevationView([]);`);
+    assert.equal(run('state.elevationGeometry.scaleX*FULL_BLOCK_CM'),72);
+    assert.ok(run('state.elevCanvas.width>state.elevCanvas.parentElement.clientWidth'));
+    run('state.elevCanvas.parentElement.scrollLeft=200;drawElevationView([]);');
+    assert.equal(run('state.elevCanvas.parentElement.scrollLeft'),200);
+    run('state.elevCanvas.parentElement.clientWidth=1200;drawElevationView([]);');
+    assert.equal(run('state.elevationGeometry.scaleX*FULL_BLOCK_CM'),72);
+    assert.equal(run('state.elevCanvas.width'),1200);
+    run('state.selectedWallId=2;drawElevationView([]);');
+    assert.equal(run('state.elevationGeometry.scaleX*FULL_BLOCK_CM'),72);
+    assert.equal(run('state.elevCanvas.width'),18096);
+    assert.equal(run('state.elevCanvas.parentElement.scrollLeft'),0);
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('saved'));
+    assert.equal(run('editHistory.length'),0);
+    run('state.elevCanvas.parentElement.scrollLeft=1000;state.selectedWallId=null;drawElevationView([]);');
+    assert.equal(run('state.elevationGeometry'),null);
+    assert.equal(run('state.elevCanvas.width'),1200);
+    assert.equal(run('state.elevCanvas.parentElement.scrollLeft'),0);
+});
+
+test('vertical wheel scrolls the elevation horizontally without editing the project', () => {
+    const run = app(true);
+    run(`const viewport=document.getElementById('elevationViewport');
+        viewport.scrollWidth=3000;viewport.clientWidth=1000;viewport.scrollLeft=500;
+        const saved=JSON.stringify(projectSnapshot());resetEditHistory();
+        let prevented=false;
+        const wheel=(deltaX,deltaY,deltaMode=0,ctrlKey=false)=>{
+            prevented=false;viewport.listeners.wheel[0]({deltaX,deltaY,deltaMode,ctrlKey,preventDefault(){prevented=true;}});
+        };
+        wheel(0,120);`);
+    assert.equal(run('viewport.scrollLeft'),620);
+    assert.equal(run('prevented'),true);
+    run('wheel(0,-120);');
+    assert.equal(run('viewport.scrollLeft'),500);
+    run('wheel(0,3,1);');
+    assert.equal(run('viewport.scrollLeft'),548);
+    run('wheel(0,1,2);');
+    assert.equal(run('viewport.scrollLeft'),1548);
+    run('wheel(0,99999);');
+    assert.equal(run('viewport.scrollLeft'),2000);
+    run('wheel(0,-99999);');
+    assert.equal(run('viewport.scrollLeft'),0);
+    for (const gesture of ['wheel(100,0)','wheel(100,10)','wheel(0,100,0,true)']) {
+        run(gesture);
+        assert.equal(run('viewport.scrollLeft'),0);
+        assert.equal(run('prevented'),false);
+    }
+    run('viewport.scrollWidth=1000;wheel(0,100);');
+    assert.equal(run('prevented'),false);
+    assert.equal(run('JSON.stringify(projectSnapshot())'),run('saved'));
+    assert.equal(run('editHistory.length'),0);
+});
+
 test('400 cm wall: odd and even courses bond differently without cutting', () => {
     const run = app();
     run(`const make = ${wall}; state.walls = [make(1,0,10,400,10)];`);

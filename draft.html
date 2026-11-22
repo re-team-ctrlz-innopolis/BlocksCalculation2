@@ -169,8 +169,8 @@
                         <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 bg-slate-700 border border-emerald-400/70 inline-block rounded-sm"></i> Shared corner</span>
                     </div>
                 </div>
-                <div class="flex-1 relative overflow-hidden">
-                    <canvas id="elevationCanvas" tabindex="0" aria-label="Wall side view. Select an opening; press Delete or Backspace to remove it." class="block w-full h-full"></canvas>
+                <div id="elevationViewport" class="flex-1 min-h-0 min-w-0 relative overflow-x-auto overflow-y-hidden" tabindex="0" role="region" aria-label="Wall side view. Scroll horizontally to see the rest of the wall.">
+                    <canvas id="elevationCanvas" tabindex="0" aria-label="Wall side view. Select an opening; press Delete or Backspace to remove it." class="block"></canvas>
                 </div>
             </div>
         </div>

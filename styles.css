@@ -25,6 +25,10 @@ body {
 
 input[type="number"] { user-select: text; }
 button:disabled { cursor: not-allowed; }
+#elevationViewport { scrollbar-color: #64748b #1e293b; }
+#elevationViewport::-webkit-scrollbar { height: 10px; }
+#elevationViewport::-webkit-scrollbar-thumb { background: #64748b; }
+#elevationViewport:focus-visible { outline: 2px solid #60a5fa; outline-offset: -2px; }
 .opening-delete-button {
     flex-shrink: 0; min-height: 32px; padding: 6px 10px;
     border: 1px solid #be123c; border-radius: 6px;

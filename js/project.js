@@ -356,6 +356,15 @@ function bindFileMenuEvents() {
 
 function bindProjectEvents() {
     bindFileMenuEvents();
+    const elevationViewport = document.getElementById('elevationViewport');
+    elevationViewport.addEventListener('wheel', event => {
+        if (event.ctrlKey || !event.deltaY || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+        const maxScroll = elevationViewport.scrollWidth - elevationViewport.clientWidth;
+        if (maxScroll <= 0) return;
+        const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? elevationViewport.clientWidth : 1;
+        elevationViewport.scrollLeft = clamp(elevationViewport.scrollLeft + event.deltaY * unit, 0, maxScroll);
+        event.preventDefault();
+    }, { passive: false });
     document.getElementById('planCourse').addEventListener('change', e => {
         state.activePlanRow = Number(e.target.value);
         render();

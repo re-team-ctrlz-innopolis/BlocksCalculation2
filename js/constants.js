@@ -22,6 +22,7 @@ const MAX_WALL_CM = MAX_WALL_MM / MM_PER_CM;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.1; // 10 percentage points per manual zoom step.
+const ELEVATION_PX_PER_CM = 1.8; // A 400 mm block stays 72 px wide in the side view.
 
 // Customer-confirmed sizes (length × width × height): 400×200×200 mm and 200×200×200 mm; mortar is excluded.
 const COURSE_HEIGHT_CM = BLOCK_HEIGHT_MM / MM_PER_CM;
